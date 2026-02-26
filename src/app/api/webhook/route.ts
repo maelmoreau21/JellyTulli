@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import redis from "@/lib/redis";
+import geoip from "geoip-lite";
 
 // Webhook Jellyfin attendu
 export async function POST(req: NextRequest) {
@@ -59,8 +60,22 @@ export async function POST(req: NextRequest) {
 
         // Gestion de l'état du flux actif selon l'événement
         if (NotificationType === "PlaybackStart" || NotificationType === "PlaybackProgress") {
-            // Stockage temps réel dans Redis (expire dans 3 minutes s'il n'y a pas de maj Webhook)
-            await redis.setex(`stream:${SessionId}`, 180, JSON.stringify(payload));
+            let geoData = { country: "Unknown", city: "Unknown" };
+            if (IpAddress) {
+                const lookup = geoip.lookup(IpAddress);
+                if (lookup) {
+                    geoData = { country: lookup.country, city: lookup.city };
+                }
+            }
+
+            // Stockage temps réel dans Redis étendu avec GeoIP
+            const redisPayload = {
+                ...payload,
+                Country: geoData.country,
+                City: geoData.city,
+            };
+
+            await redis.setex(`stream:${SessionId}`, 180, JSON.stringify(redisPayload));
 
             if (UserId && ItemId) {
                 // Sauvegarde DB pour ActiveStream
@@ -74,6 +89,8 @@ export async function POST(req: NextRequest) {
                         audioCodec: AudioCodec,
                         transcodeFps: TranscodeFps ? parseFloat(TranscodeFps) : null,
                         bitrate: Bitrate ? parseInt(Bitrate, 10) : null,
+                        country: geoData.country,
+                        city: geoData.city,
                     },
                     create: {
                         sessionId: SessionId,
@@ -88,6 +105,8 @@ export async function POST(req: NextRequest) {
                         transcodeFps: TranscodeFps ? parseFloat(TranscodeFps) : null,
                         bitrate: Bitrate ? parseInt(Bitrate, 10) : null,
                         positionTicks: PlaybackPositionTicks || null,
+                        country: geoData.country,
+                        city: geoData.city,
                     },
                 });
             }
@@ -127,8 +146,16 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Gestion du PlaybackStart pour l'historique
+        // Gestion du PlaybackStart pour l'historique étendu avec GeoIP
         if (NotificationType === "PlaybackStart" && UserId && ItemId) {
+            let geoData = { country: null as string | null, city: null as string | null };
+            if (IpAddress) {
+                const lookup = geoip.lookup(IpAddress);
+                if (lookup) {
+                    geoData = { country: lookup.country, city: lookup.city };
+                }
+            }
+
             await prisma.playbackHistory.create({
                 data: {
                     user: { connect: { jellyfinUserId: UserId } },
@@ -137,6 +164,8 @@ export async function POST(req: NextRequest) {
                     clientName: ClientName,
                     deviceName: DeviceName,
                     ipAddress: IpAddress,
+                    country: geoData.country,
+                    city: geoData.city,
                 },
             });
         }

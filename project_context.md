@@ -32,29 +32,50 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 ## Structure du Projet (Actualisée)
 ```
 /
+├── .env                      # Variables d'environnement (Base de données, Redis, URLs Jellyfin)
 ├── docker-compose.yml        # Définition de l'infrastructure Docker
 ├── prisma/
 │   └── schema.prisma         # Modèle de base de données PostgreSQL
 ├── src/
 │   ├── app/                  # Routes et pages Next.js
 │   │   ├── api/
+│   │   │   ├── jellyfin/     
+│   │   │   │   └── image/    # Proxy sécurisé pour récupérer les affiches depuis Jellyfin
+│   │   │   ├── sync/
+│   │   │   │   └── route.ts  # Endpoint de Sync manuelle du catalogue Jellyfin
 │   │   │   └── webhook/      # Route API webhook (réception des événements Jellyfin)
 │   │   ├── fonts/            # Polices web (Geist)
+│   │   ├── settings/
+│   │   │   └── page.tsx      # Page des Paramètres (Client Component avec requêtes Sync)
+│   │   ├── users/
+│   │   │   └── [id]/         # Route dynamique utilisateurs
+│   │   │       └── page.tsx  # Vue détaillée (Stats & Historique complet d'un User)
 │   │   ├── globals.css       # Styles globaux (Tailwind + Variables Shadcn)
 │   │   ├── layout.tsx        # Layout racine
-│   │   └── page.tsx          # Page principale (Dashboard interactif avec Recharts)
-│   ├── components/           # Composants UI (Shadcn/UI, Tailwind)
+│   │   └── page.tsx          # Page principale (Server Component - Fetch BDD/Redis)
+│   ├── components/           # Composants UI React
+│   │   ├── DashboardChart.tsx# Graphique interactif Recharts (Client Component)
 │   │   └── ui/               # Composants Shadcn générés (Card)
 │   ├── lib/                  # Utilitaires
+│   │   ├── jellyfin.ts       # Service Jellyfin (récupération des images avec API Key)
+│   │   ├── sync.ts           # Logique cœur de synchronisation Jellyfin -> Prisma
 │   │   ├── prisma.ts         # Singleton pour le client Prisma
 │   │   ├── redis.ts          # Singleton pour le client ioredis
 │   │   └── utils.ts          # Utilitaires Tailwind/Shadcn (cn)
+│   ├── instrumentation.ts    # Enregistrement des Hooks Next.js (Script node-cron planifié)
 │   └── server/               # Définition des jobs asynchrones, services Jellyfin (à venir)
 ├── components.json           # Configuration Shadcn UI
 ├── next.config.ts            # Configuration Next.js
-├── package.json              # Dépendances du projet (inclut lucide-react, recharts)
+├── package.json              # Dépendances du projet (inclut lucide-react, recharts, geoip-lite)
 ├── project_context.md        # Ce document
 ├── tailwind.config.ts        # Configuration Tailwind
 ├── test-webhook.js           # Script de simulation des payloads Jellyfin
 └── tsconfig.json             # Configuration TypeScript
 ```
+
+## Fonctionnalités Principales :
+1. **Réception Webhook (Temps Réel)** : Écoute les événements `PlaybackStart`, `Progress` et `Stop` de Jellyfin.
+2. **Dashboard Global** : Affiche les métriques clés (Streams Actifs, Total Utilisateurs, Heures visionnées) via Redis et Prisma, et intègre un graphique des lectures journalières.
+3. **Tracking Géographique (GeoIP)** : Détermine automatiquement le pays et la ville de chaque lecteur actif pour enrichir l'interface sans requête tierce.
+4. **Proxy Affiches Médias** : Sécurise l'affichage des tuiles Jellyfin dans l'appli sans fuite de clé API.
+5. **Vue Détaillée Utilisateur** : Permet de consulter l'historique complet, les appareils favoris et le temps total d'un profil Jellyfin spécifique.

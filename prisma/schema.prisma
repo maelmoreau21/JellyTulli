@@ -72,6 +72,8 @@ model ActiveStream {
   clientName      String?
   deviceName      String?
   ipAddress       String?
+  country         String?
+  city            String?
   
   // Transcoding Metrics
   videoCodec      String?

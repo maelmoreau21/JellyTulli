@@ -1,6 +1,5 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import prisma from "@/lib/prisma";
+import redis from "@/lib/redis";
 import {
   Card,
   CardContent,
@@ -8,73 +7,117 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import { Activity, Users, Clock, PlayCircle } from "lucide-react";
+import { DashboardChart } from "@/components/DashboardChart";
+import Image from "next/image";
+import { getJellyfinImageUrl } from "@/lib/jellyfin";
 
-// Types fictifs pour le rendu initial avant branchement réel backend
+// Type des données stockées dans Redis au format Webhook
+type WebhookPayload = {
+  SessionId: string;
+  UserName?: string;
+  UserId?: string;
+  ItemId?: string;
+  ItemName?: string;
+  PlayMethod?: string;
+  DeviceName?: string;
+  Country?: string;
+  City?: string;
+};
+
 type LiveStream = {
   sessionId: string;
+  itemId: string | null;
   user: string;
   mediaTitle: string;
   playMethod: string;
   device: string;
+  country: string;
+  city: string;
 };
 
-export default function DashboardPage() {
-  const [stats, setStats] = useState({
-    activeStreams: 0,
-    totalUsers: 0,
-    hoursWatched: 0,
+export const revalidate = 0; // Disable static caching for dashboard since it's real-time
+
+export default async function DashboardPage() {
+  // 1. Prisma : Utilisateurs Totaux
+  const totalUsers = await prisma.user.count();
+
+  // 2. Prisma : Heures Visionnées
+  const hoursWatchedAgg = await prisma.playbackHistory.aggregate({
+    _sum: {
+      durationWatched: true,
+    },
+  });
+  const totalSecondsWatched = hoursWatchedAgg._sum.durationWatched || 0;
+  // Convertion en heures avec un chiffre après la virgule
+  const hoursWatched = parseFloat((totalSecondsWatched / 3600).toFixed(1));
+
+  // 3. Redis : Flux Actifs
+  const keys = await redis.keys("stream:*");
+  const activeStreamsCount = keys.length;
+  let liveStreams: LiveStream[] = [];
+
+  if (activeStreamsCount > 0) {
+    const payloads = await Promise.all(keys.map((k) => redis.get(k)));
+    liveStreams = payloads
+      .filter((p): p is string => p !== null)
+      .map((p) => {
+        const payload: WebhookPayload = JSON.parse(p);
+        return {
+          sessionId: payload.SessionId,
+          itemId: payload.ItemId || null,
+          user: payload.UserName || payload.UserId || "Unknown",
+          mediaTitle: payload.ItemName || "Unknown",
+          playMethod: payload.PlayMethod || "Unknown",
+          device: payload.DeviceName || "Unknown",
+          country: payload.Country || "Unknown",
+          city: payload.City || "Unknown",
+        };
+      });
+  }
+
+  // 4. Prisma : Données du graphique (7 derniers jours)
+  const last7Days = new Date();
+  last7Days.setDate(last7Days.getDate() - 6); // On prend les 6 jours précédents + aujourd'hui (7 j au total)
+  last7Days.setHours(0, 0, 0, 0);
+
+  const histories = await prisma.playbackHistory.findMany({
+    where: {
+      startedAt: {
+        gte: last7Days,
+      },
+    },
+    select: {
+      startedAt: true,
+      durationWatched: true,
+    },
   });
 
-  const [liveStreams, setLiveStreams] = useState<LiveStream[]>([]);
+  // Agréger par jour en JS
+  const daysMap = new Map<string, number>();
 
-  // Données fictives pour le graphique en attendant l'API (7 derniers jours)
-  const chartData = [
-    { name: "Lun", hours: 12 },
-    { name: "Mar", hours: 19 },
-    { name: "Mer", hours: 15 },
-    { name: "Jeu", hours: 22 },
-    { name: "Ven", hours: 35 },
-    { name: "Sam", hours: 48 },
-    { name: "Dim", hours: 42 },
-  ];
+  // Initialiser les 7 derniers jours avec 0
+  const dayNames = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const dayStr = dayNames[d.getDay()];
+    // Pour gérer les éventuels doublons de noms de jours (si la fenêtre > 7 j), on pourrait utiliser des dates.
+    // Mais ici 7 jours stricts, on va utiliser "Lun", "Mar", etc.
+    daysMap.set(dayStr, 0);
+  }
 
-  // Simulation d'un fetch de données de l'API (à remplacer par de vrais fetch React Server Components ou SWR)
-  useEffect(() => {
-    // Dans une version finale, on appellerait une route API GET /api/stats et /api/live
-    // Pour l'instant on mock les données
-    setStats({
-      activeStreams: 2,
-      totalUsers: 14,
-      hoursWatched: 342,
-    });
+  histories.forEach((h: { startedAt: Date; durationWatched: number }) => {
+    const dayName = dayNames[h.startedAt.getDay()];
+    if (daysMap.has(dayName)) {
+      const currentSeconds = daysMap.get(dayName)!;
+      daysMap.set(dayName, currentSeconds + h.durationWatched);
+    }
+  });
 
-    setLiveStreams([
-      {
-        sessionId: "session-1",
-        user: "Mael",
-        mediaTitle: "Big Buck Bunny",
-        playMethod: "Transcode",
-        device: "Chrome",
-      },
-      {
-        sessionId: "session-2",
-        user: "Alice",
-        mediaTitle: "Sintel",
-        playMethod: "DirectPlay",
-        device: "Nvidia Shield",
-      },
-    ]);
-  }, []);
+  const chartData = Array.from(daysMap.entries()).map(([name, seconds]) => {
+    return { name, hours: parseFloat((seconds / 3600).toFixed(1)) };
+  });
 
   return (
     <div className="flex-col md:flex">
@@ -100,7 +143,7 @@ export default function DashboardPage() {
               <Activity className="h-4 w-4 text-emerald-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.activeStreams}</div>
+              <div className="text-2xl font-bold">{activeStreamsCount}</div>
               <p className="text-xs text-muted-foreground">
                 En cours de lecture
               </p>
@@ -114,7 +157,7 @@ export default function DashboardPage() {
               <Users className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalUsers}</div>
+              <div className="text-2xl font-bold">{totalUsers}</div>
               <p className="text-xs text-muted-foreground">
                 Inscrits sur la plateforme
               </p>
@@ -128,7 +171,7 @@ export default function DashboardPage() {
               <Clock className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.hoursWatched}h</div>
+              <div className="text-2xl font-bold">{hoursWatched.toLocaleString()}h</div>
               <p className="text-xs text-muted-foreground">
                 Temps de lecture total
               </p>
@@ -144,50 +187,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="pl-2">
               <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={chartData}
-                    margin={{
-                      top: 10,
-                      right: 30,
-                      left: 0,
-                      bottom: 0,
-                    }}
-                  >
-                    <defs>
-                      <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" />
-                    <XAxis
-                      dataKey="name"
-                      stroke="#888888"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      stroke="#888888"
-                      fontSize={12}
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => `${value}h`}
-                    />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: "#1f2937", border: "none", borderRadius: "8px" }}
-                      itemStyle={{ color: "#fff" }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="hours"
-                      stroke="#8884d8"
-                      fillOpacity={1}
-                      fill="url(#colorHours)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <DashboardChart data={chartData} />
               </div>
             </CardContent>
           </Card>
@@ -210,21 +210,43 @@ export default function DashboardPage() {
                   liveStreams.map((stream) => (
                     <div
                       key={stream.sessionId}
-                      className="flex items-center p-3 border rounded-lg bg-card/50"
+                      className="flex items-center gap-4 p-3 border rounded-lg bg-card/50"
                     >
+                      {/* Section Affiche du média */}
+                      {stream.itemId ? (
+                        <div className="relative w-10 h-14 bg-muted rounded shrink-0 overflow-hidden">
+                          <Image
+                            src={getJellyfinImageUrl(stream.itemId, 'Primary')}
+                            alt={stream.mediaTitle}
+                            fill
+                            unoptimized
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-14 bg-muted rounded shrink-0 flex items-center justify-center">
+                          <PlayCircle className="w-5 h-5 opacity-50" />
+                        </div>
+                      )}
+
                       <div className="space-y-1">
                         <p className="text-sm font-medium leading-none">
                           {stream.mediaTitle}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          {stream.user} • {stream.device}
+                        <p className="text-xs text-muted-foreground flex flex-col gap-0.5">
+                          <span>{stream.user} • {stream.device}</span>
+                          {(stream.city !== "Unknown" || stream.country !== "Unknown") && (
+                            <span className="text-[10px] opacity-70">
+                              📍 {stream.city !== "Unknown" ? `${stream.city}, ` : ''}{stream.country}
+                            </span>
+                          )}
                         </p>
                       </div>
                       <div className="ml-auto font-medium text-xs">
                         <span
                           className={`px-2 py-1 rounded-full ${stream.playMethod === "Transcode"
-                              ? "bg-orange-500/10 text-orange-500"
-                              : "bg-emerald-500/10 text-emerald-500"
+                            ? "bg-orange-500/10 text-orange-500"
+                            : "bg-emerald-500/10 text-emerald-500"
                             }`}
                         >
                           {stream.playMethod}
