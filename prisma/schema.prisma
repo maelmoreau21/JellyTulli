@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String            @id @default(uuid())
+  jellyfinUserId  String            @unique
+  username        String
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  playbackHistory PlaybackHistory[]
+  activeStreams   ActiveStream[]
+}
+
+model Media {
+  id              String            @id @default(uuid())
+  jellyfinMediaId String            @unique
+  title           String
+  type            String            // e.g., "Movie", "Episode", "Track"
+  collectionType  String?           // e.g., "movies", "tvshows"
+  durationMs      BigInt?           // Durée totale du média
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  playbackHistory PlaybackHistory[]
+  activeStreams   ActiveStream[]
+}
+
+model PlaybackHistory {
+  id              String    @id @default(uuid())
+  userId          String
+  mediaId         String
+  
+  // Streaming Info
+  playMethod      String    // e.g., "DirectPlay", "Transcode", "DirectStream"
+  clientName      String?   // e.g., "Jellyfin Web", "Android TV"
+  deviceName      String?   // e.g., "Chrome", "Nvidia Shield"
+  
+  // GeoIP / Network Info
+  ipAddress       String?
+  country         String?
+  city            String?
+  
+  // Stats
+  durationWatched Int       @default(0) // en secondes
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime? // Rempli lorsque la session s'arrête
+  
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media           Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([mediaId])
+  @@index([startedAt])
+}
+
+model ActiveStream {
+  id              String   @id @default(uuid())
+  sessionId       String   @unique // Jellyfin Session ID
+  userId          String
+  mediaId         String
+  
+  // Streaming Info
+  playMethod      String   // "DirectPlay", "Transcode"
+  clientName      String?
+  deviceName      String?
+  ipAddress       String?
+  
+  // Transcoding Metrics
+  videoCodec      String?
+  audioCodec      String?
+  transcodeFps    Float?
+  bitrate         Int?
+  
+  // Tick updates
+  positionTicks   BigInt?   // Position actuelle de lecture
+  startedAt       DateTime @default(now())
+  lastPingAt      DateTime @updatedAt // Dernière mise à jour (via webhook)
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media           Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([lastPingAt])
+}

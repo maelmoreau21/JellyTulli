@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jellytulli_app
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://jellytulli:jellytulli_password@postgres:5432/jellytulli?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JELLYFIN_URL=http://your-jellyfin-instance:8096
+      - JELLYFIN_API_KEY=your_api_key_here
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - jellytulli_net
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: jellytulli_postgres
+    environment:
+      POSTGRES_USER: jellytulli
+      POSTGRES_PASSWORD: jellytulli_password
+      POSTGRES_DB: jellytulli
+    volumes:
+      - jellytulli_pgdata:/var/lib/postgresql/data
+    networks:
+      - jellytulli_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jellytulli"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: jellytulli_redis
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - jellytulli_redisdata:/data
+    networks:
+      - jellytulli_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  jellytulli_net:
+    driver: bridge
+
+volumes:
+  jellytulli_pgdata:
+  jellytulli_redisdata:
