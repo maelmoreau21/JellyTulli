@@ -16,6 +16,7 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
    - Analyse du transcodage (codec vidéo/audio, fps de transcodage, bitrate)
    - Suivi rapide via Redis pour soulager la base PostgreSQL
 2. **Statistiques Poussées** :
+   - Graphiques de temps de lecture (via Recharts)
    - Top utilisateurs et heatmaps d'heures de visionnage
    - Statistiques globales (médias les plus lus, temps de lecture total)
 3. **Géolocalisation & Identification Clients** :
@@ -41,9 +42,9 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 │   │   ├── fonts/            # Polices web (Geist)
 │   │   ├── globals.css       # Styles globaux (Tailwind + Variables Shadcn)
 │   │   ├── layout.tsx        # Layout racine
-│   │   └── page.tsx          # Page principale
+│   │   └── page.tsx          # Page principale (Dashboard interactif avec Recharts)
 │   ├── components/           # Composants UI (Shadcn/UI, Tailwind)
-│   │   └── ui/               # Composants Shadcn générés
+│   │   └── ui/               # Composants Shadcn générés (Card)
 │   ├── lib/                  # Utilitaires
 │   │   ├── prisma.ts         # Singleton pour le client Prisma
 │   │   ├── redis.ts          # Singleton pour le client ioredis
@@ -51,8 +52,9 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 │   └── server/               # Définition des jobs asynchrones, services Jellyfin (à venir)
 ├── components.json           # Configuration Shadcn UI
 ├── next.config.ts            # Configuration Next.js
-├── package.json              # Dépendances du projet
+├── package.json              # Dépendances du projet (inclut lucide-react, recharts)
 ├── project_context.md        # Ce document
 ├── tailwind.config.ts        # Configuration Tailwind
+├── test-webhook.js           # Script de simulation des payloads Jellyfin
 └── tsconfig.json             # Configuration TypeScript
 ```
