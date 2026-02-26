@@ -28,7 +28,7 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 - **Ce fichier (project_context.md) DOIT être lu avant toute action.**
 - Ce fichier doit être mis à jour à chaque modification majeure de l'architecture, de la BDD ou des fonctionnalités pour éviter les hallucinations et garder une base documentaire fiable.
 
-## Structure du Projet (Théorique)
+## Structure du Projet (Actualisée)
 ```
 /
 ├── docker-compose.yml        # Définition de l'infrastructure Docker
@@ -36,9 +36,23 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 │   └── schema.prisma         # Modèle de base de données PostgreSQL
 ├── src/
 │   ├── app/                  # Routes et pages Next.js
+│   │   ├── api/
+│   │   │   └── webhook/      # Route API webhook (réception des événements Jellyfin)
+│   │   ├── fonts/            # Polices web (Geist)
+│   │   ├── globals.css       # Styles globaux (Tailwind + Variables Shadcn)
+│   │   ├── layout.tsx        # Layout racine
+│   │   └── page.tsx          # Page principale
 │   ├── components/           # Composants UI (Shadcn/UI, Tailwind)
-│   ├── lib/                  # Utilitaires (Clients Redis, Prisma, GeoIP, Webhooks)
-│   └── server/               # Définition des jobs asynchrones, services Jellyfin
+│   │   └── ui/               # Composants Shadcn générés
+│   ├── lib/                  # Utilitaires
+│   │   ├── prisma.ts         # Singleton pour le client Prisma
+│   │   ├── redis.ts          # Singleton pour le client ioredis
+│   │   └── utils.ts          # Utilitaires Tailwind/Shadcn (cn)
+│   └── server/               # Définition des jobs asynchrones, services Jellyfin (à venir)
+├── components.json           # Configuration Shadcn UI
+├── next.config.ts            # Configuration Next.js
+├── package.json              # Dépendances du projet
 ├── project_context.md        # Ce document
-└── package.json              # Dépendances du projet
+├── tailwind.config.ts        # Configuration Tailwind
+└── tsconfig.json             # Configuration TypeScript
 ```
