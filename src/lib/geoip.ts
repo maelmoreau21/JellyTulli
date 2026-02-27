@@ -5,14 +5,14 @@
 export function getGeoLocation(ip: string | null | undefined) {
     if (!ip) return { country: "Unknown", city: "Unknown" };
 
-    // Prevent Next.js from resolving `geoip-lite` fs lookups during static build.
+    // Prevent Next.js from resolving `geoip-country` fs lookups during static build.
     if (process.env.NODE_ENV === "production" && process.env.NEXT_PHASE === "phase-production-build") {
         return { country: "Unknown", city: "Unknown" };
     }
 
     try {
         // Chargement différé pour esquiver l'analyse statique Next.js "ENOENT data" du Build
-        const geoip = require("geoip-lite");
+        const geoip = require("geoip-country");
 
         const lookup = geoip.lookup(ip);
         if (lookup) {
@@ -23,7 +23,7 @@ export function getGeoLocation(ip: string | null | undefined) {
         }
     } catch (e: any) {
         if (e.code === 'ENOENT' || e.message?.includes('ENOENT')) {
-            console.warn("[GeoIP] Base de données manquante. Avez-vous exécuté 'npm run-script updatedb' ?");
+            console.warn("[GeoIP] Base de données manquante pour geoip-country.");
         } else {
             console.error("GeoIP lookup failed:", e.message || e);
         }
