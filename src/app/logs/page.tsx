@@ -116,8 +116,20 @@ export default async function LogsPage({
                                                     </TableCell>
 
                                                     {/* Média */}
-                                                    <TableCell className="truncate max-w-[200px]" title={log.media.title}>
-                                                        {log.media.title}
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-3 w-[250px]">
+                                                            <div className="relative w-12 aspect-[2/3] bg-muted rounded-md shrink-0 overflow-hidden ring-1 ring-white/10">
+                                                                <img
+                                                                    src={`/api/jellyfin/image?id=${log.media.jellyfinMediaId}&type=Primary`}
+                                                                    alt={log.media.title}
+                                                                    className="object-cover w-full h-full"
+                                                                />
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="truncate font-medium text-zinc-100" title={log.media.title}>{log.media.title}</span>
+                                                                <span className="text-xs text-zinc-500">{log.media.type}</span>
+                                                            </div>
+                                                        </div>
                                                     </TableCell>
 
                                                     {/* Client & IP */}

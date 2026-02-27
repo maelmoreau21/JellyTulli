@@ -37,24 +37,45 @@ export async function syncJellyfinLibrary() {
 
         // 2. Synchronisation des Médias (Films, Séries, Épisodes)
         console.log("[Sync] Fetching Media Items...");
-        // On récupère tout ce qui est vidéo (Movie, Series, Episode, etc.)
-        const itemsRes = await fetch(`${baseUrl}/Items?api_key=${apiKey}&IncludeItemTypes=Movie,Series,Episode&Recursive=true&Fields=ProviderIds,PremiereDate`);
+        // On récupère tout ce qui est vidéo (Movie, Series, Episode, etc.) - Ajout de Genres et MediaSources
+        const itemsRes = await fetch(`${baseUrl}/Items?api_key=${apiKey}&IncludeItemTypes=Movie,Series,Episode&Recursive=true&Fields=ProviderIds,PremiereDate,Genres,MediaSources`);
         if (!itemsRes.ok) throw new Error("Erreur de récupération des médias");
         const itemsData = await itemsRes.json();
         const items = itemsData.Items || [];
 
         let mediaCount = 0;
         for (const item of items) {
+            // Extraction des genres (limités pour éviter les overloads)
+            const genres = item.Genres || [];
+
+            // Déduction de la résolution à partir du premier flux vidéo (MediaSources)
+            let resolution = null;
+            if (item.MediaSources && item.MediaSources.length > 0) {
+                const mediaSource = item.MediaSources[0];
+                const videoStream = mediaSource.MediaStreams?.find((s: any) => s.Type === "Video");
+                if (videoStream && videoStream.Width) {
+                    const w = videoStream.Width;
+                    if (w >= 3800) resolution = "4K";
+                    else if (w >= 1900) resolution = "1080p";
+                    else if (w >= 1200) resolution = "720p";
+                    else resolution = "SD";
+                }
+            }
+
             await prisma.media.upsert({
                 where: { jellyfinMediaId: item.Id },
                 update: {
                     title: item.Name,
-                    type: item.Type
+                    type: item.Type,
+                    genres: genres,
+                    resolution: resolution
                 },
                 create: {
                     jellyfinMediaId: item.Id,
                     title: item.Name,
-                    type: item.Type
+                    type: item.Type,
+                    genres: genres,
+                    resolution: resolution
                 },
             });
             mediaCount++;

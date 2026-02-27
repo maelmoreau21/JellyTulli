@@ -5,17 +5,11 @@ import { PlayCircle, Film, ArrowDownUp } from "lucide-react";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
 import { LogoutButton } from "@/components/LogoutButton";
 import { Navigation } from "@/components/Navigation";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { GenreDistributionChart, GenreData } from "@/components/charts/GenreDistributionChart";
 
-export const revalidate = 0; // Disable static caching so the db is always queried live.
+export const revalidate = 60; // Cached pour éviter le recalcul lourd des genres à chaque chargement
 
 interface MediaPageProps {
     searchParams: Promise<{
@@ -57,7 +51,32 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
         };
     });
 
-    // 3. Tri (Sorting)
+    // 3. Extraction des Stats Globales (Genres et Résolution)
+    const genreCounts = new Map<string, number>();
+    const resolutionCounts = new Map<string, number>();
+
+    allMedia.forEach((m: any) => {
+        if (m.genres && m.genres.length > 0) {
+            m.genres.forEach((g: string) => {
+                genreCounts.set(g, (genreCounts.get(g) || 0) + 1);
+            });
+        }
+        if (m.resolution) {
+            resolutionCounts.set(m.resolution, (resolutionCounts.get(m.resolution) || 0) + 1);
+        }
+    });
+
+    const topGenres: GenreData[] = Array.from(genreCounts.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10); // Top 10 genres
+
+    const res4K = resolutionCounts.get("4K") || 0;
+    const res1080p = resolutionCounts.get("1080p") || 0;
+    const res720p = resolutionCounts.get("720p") || 0;
+    const resSD = resolutionCounts.get("SD") || 0;
+
+    // 4. Tri (Sorting)
     if (sortBy === "duration") {
         processedMedia.sort((a: any, b: any) => b.durationHours - a.durationHours);
     } else if (sortBy === "quality") {
@@ -93,6 +112,45 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                     <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
                         <Film className="w-8 h-8 opacity-80" /> Bibliothèque
                     </h2>
+                </div>
+
+                {/* Section Stats Bibliothèque */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
+                    <Card className="col-span-2">
+                        <CardHeader>
+                            <CardTitle>Diversité de la bibliothèque (Top Genres)</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pl-0 pb-4">
+                            <div className="h-[250px] min-h-[250px] w-full">
+                                <GenreDistributionChart data={topGenres} />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="col-span-1">
+                        <CardHeader>
+                            <CardTitle>Qualité Vidéo Globale</CardTitle>
+                            <CardDescription>Répartition par résolution certifiée.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-col gap-4 mt-4">
+                            <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg border">
+                                <span className="font-semibold text-lg drop-shadow-md bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">4K UHD</span>
+                                <span className="text-xl font-bold">{res4K}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg border">
+                                <span className="font-semibold text-lg text-blue-400 drop-shadow-md">1080p FHD</span>
+                                <span className="text-xl font-bold">{res1080p}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg border">
+                                <span className="font-medium text-lg text-emerald-400">720p HD</span>
+                                <span className="text-xl font-bold">{res720p}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg border">
+                                <span className="font-medium text-zinc-500">Standard / Autre</span>
+                                <span className="text-lg font-bold text-zinc-400">{resSD}</span>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <Card>
@@ -134,60 +192,35 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                 Aucun média indexé. N'oubliez pas d'exécuter la synchronisation Jellyfin dans les Paramètres.
                             </p>
                         ) : (
-                            <div className="rounded-md border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-[300px]">Média</TableHead>
-                                            <TableHead className="text-center">Lectures Réussies</TableHead>
-                                            <TableHead className="text-center">Volume Horaire</TableHead>
-                                            <TableHead className="text-right">Qualité (Ratio DirectPlay)</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {displayMedia.map((media: any) => (
-                                            <TableRow key={media.id}>
-                                                <TableCell className="font-medium">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="relative w-10 h-14 bg-muted rounded shrink-0 overflow-hidden">
-                                                            <Image
-                                                                src={getJellyfinImageUrl(media.jellyfinMediaId, 'Primary')}
-                                                                alt={media.title}
-                                                                fill
-                                                                unoptimized
-                                                                className="object-cover"
-                                                            />
-                                                        </div>
-                                                        <div className="flex flex-col max-w-[200px]">
-                                                            <span className="truncate" title={media.title}>{media.title}</span>
-                                                            <span className="text-xs text-muted-foreground">{media.type}</span>
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-center font-bold">
-                                                    {media.plays}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {media.durationHours > 0 ? `${media.durationHours}h` : "-"}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {media.plays > 0 ? (
-                                                        <div className="flex flex-col items-end justify-center">
-                                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${media.qualityPercent >= 80 ? "bg-emerald-500/10 text-emerald-500" :
-                                                                media.qualityPercent >= 50 ? "bg-orange-500/10 text-orange-500" :
-                                                                    "bg-red-500/10 text-red-500"
-                                                                }`}>
-                                                                {media.qualityPercent}% DirectPlay
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-muted-foreground text-xs italic">Non lu</span>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                                {displayMedia.map((media: any) => (
+                                    <div key={media.id} className="group flex flex-col space-y-2 relative">
+                                        <div className="relative w-full aspect-[2/3] bg-zinc-900 rounded-md overflow-hidden ring-1 ring-white/10 transition-transform group-hover:scale-[1.03] group-hover:ring-primary/50 shadow-lg">
+                                            <Image
+                                                src={getJellyfinImageUrl(media.jellyfinMediaId, 'Primary')}
+                                                alt={media.title}
+                                                fill
+                                                unoptimized
+                                                className="object-cover"
+                                            />
+                                            {/* Top Overlay logic (Quality) */}
+                                            {media.plays > 0 && (
+                                                <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+                                                    <Badge variant={media.qualityPercent >= 80 ? "default" : media.qualityPercent >= 50 ? "secondary" : "destructive"} className="shadow-black/50 shadow-sm backdrop-blur-sm bg-opacity-90">
+                                                        {media.qualityPercent}% DP
+                                                    </Badge>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col px-1">
+                                            <span className="font-semibold text-sm truncate text-zinc-100" title={media.title}>{media.title}</span>
+                                            <div className="flex items-center justify-between text-xs text-zinc-400 mt-1">
+                                                <span>{media.plays} {media.plays > 1 ? 'vues' : 'vue'}</span>
+                                                {media.durationHours > 0 && <span className="font-medium">{media.durationHours}h</span>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
                         {processedMedia.length > 100 && (

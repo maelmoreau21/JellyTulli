@@ -25,6 +25,8 @@ model Media {
   title           String
   type            String            // e.g., "Movie", "Episode", "Track"
   collectionType  String?           // e.g., "movies", "tvshows"
+  genres          String[]          // Tableau des genres (via sync)
+  resolution      String?           // Ex: "4K", "1080p", "SD" (via sync)
   durationMs      BigInt?           // Durée totale du média
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt

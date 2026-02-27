@@ -213,7 +213,7 @@ export default async function UserDetailPage({ params }: UserPageProps) {
                                                 <TableRow key={session.id}>
                                                     <TableCell className="font-medium">
                                                         <div className="flex items-center gap-3">
-                                                            <div className="relative w-10 h-14 bg-muted rounded shrink-0 overflow-hidden">
+                                                            <div className="relative w-12 aspect-[2/3] bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10">
                                                                 <Image
                                                                     src={getJellyfinImageUrl(session.media.jellyfinMediaId, 'Primary')}
                                                                     alt={session.media.title}

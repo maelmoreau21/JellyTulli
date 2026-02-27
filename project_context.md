@@ -15,10 +15,12 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
    - Plus besoin du plugin Webhook. JellyTulli sonde les sessions API toutes les 5s.
    - Analyse du transcodage (codec vidéo/audio, fps de transcodage, bitrate)
    - Suivi rapide via Redis pour soulager la base PostgreSQL
-2. **Statistiques Poussées** :
-   - Graphiques de temps de lecture (via Recharts)
-   - Top utilisateurs et heatmaps d'heures de visionnage
-   - Statistiques globales (médias les plus lus, temps de lecture total)
+2. **Statistiques Poussées & Dataviz Recharts** :
+   - Graphiques d'activité (Temps de lecture 7J, Répartition des pics horaires d'utilisation).
+   - Écosystème des clients (PieChart des plateformes).
+   - Classement (Leaderboard) des Top 5 Utilisateurs par temps de visionnage.
+   - Dataviz Bibliothèque : Top Genres et Résolution Globale (4K, 1080p).
+   - Métriques Temps Réel : Efficacité DirectPlay 24h & Bande Passante sortante estimée.
 3. **Géolocalisation & Identification Clients** :
    - Tracking des IP via GeoIP (pays, ville)
    - Identification précise de l'appareil et du navigateur
@@ -28,6 +30,10 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 ## Règles Absolues
 - **Ce fichier (project_context.md) DOIT être lu avant toute action.**
 - Ce fichier doit être mis à jour à chaque modification majeure de l'architecture, de la BDD ou des fonctionnalités pour éviter les hallucinations et garder une base documentaire fiable.
+
+## UI/UX Design System
+- **Global Theme:** Enforced a polished "Dark Mode" aesthetic across the entire layout using `bg-zinc-950`, `text-zinc-50`, and specialized responsive structural variables.
+- **Grids & Images:** Replaced legacy list views with rich visual Grids (`grid-cols-2` to `grid-cols-6`) for media displays. Jellyfin posters enforce strict `aspect-[2/3]` and `object-cover` ratios for clean alignment without overflow, enhancing the premium feel.
 
 ## Structure du Projet (Actualisée)
 ```
@@ -104,12 +110,12 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 - **GlobalSettings** : Configuration de l'application (URL Discord Webhook, état)
 
 ## Features Exclusives (vs Jellystat)
-1. **Caching Redis** : Plus de sollicitations de BDD pour les requêtes Live.
-2. **Synchronisation Automatique** : Tâche `node-cron` incluse directement dans l'instrumentation.
+1. **Caching Redis & Next.js Partiel** : Plus de sollicitations de BDD pour les requêtes Live (`revalidate = 0`). Les pages à haute intensité de calcul (Dashboard SQL `groupBy`) utilisent un cache de 60s pour protéger le CPU d'applications légères telles qu'un Raspberry Pi.
+2. **Synchronisation Automatique Multi-Data** : Tâche `node-cron` récupérant à la fois les médias de base, leurs **Genres**, et la plus forte **Résolution vidéo (4K/1080p)** via `MediaSources`.
 3. **Tracking Géographique (GeoIP)** : Détermine automatiquement le pays et la ville de chaque lecteur actif pour enrichir l'interface sans requête tierce.
 4. **Proxy Affiches Médias** : Sécurise l'affichage des tuiles Jellyfin dans l'appli sans fuite de clé API.
-5. **Vue Détaillée Utilisateur** : Permet de consulter l'historique complet, les appareils favoris et le temps total d'un profil Jellyfin spécifique.
-6. **Bibliothèque Multimédia** : Répertorie et liste tous les médias synchronisés avec tris dynamiques de leurs performances globales (Popularité, Temps Vu, DirectPlay Ratio).
+5. **Dataviz Recharts Complexe** : Répartition des plateformes, Activité par Heure, Top Genres sans sacrifier la lisibilité (Composants abstraits).
+6. **Bibliothèque Multimédia Premium** : Affiche responsive en Grille, avec Overlay de qualité (DirectPlay %) inspiré d'interfaces de luxe.
 7. **Notifications Discord** : Webhook généré dynamiquement lors d'un `PlaybackStart` avec Embeds enrichis et modulable via les Paramètres.
-8. **Sécurité Globale (NextAuth)** : Les pages locales sont strictement verrouillées par un Middleware filtrant et un mot de passe Admin depuis le backend.
+8. **Sécurité Globale (NextAuth)** : Les pages locales sont verrouillées par un Middleware filtrant et un mot de passe Admin depuis le backend.
 9. **Build Standalone** : Le projet inclut un build Docker multi-stage minimaliste (`.next/standalone`) déployable d'un clic, tolérant aux erreurs TS/EsLint (idéal pour un Raspberry Pi) et avec migration automatisée (`docker-entrypoint.sh` via `db push` + Prisma CLI v5 global).
