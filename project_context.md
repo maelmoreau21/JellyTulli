@@ -4,8 +4,8 @@
 Développer "JellyTulli", une solution de monitoring et d'analytique avancée pour Jellyfin, conçue pour supporter une forte charge. Elle se veut supérieure à Jellystat (historique profond, analyse avancée du transcodage, géolocalisation IP, alertes).
 
 ## Architecture & Stack Technique
-- **Infrastructure** : Docker Compose (App, PostgreSQL, Redis)
-- **Base de données** : PostgreSQL (stockage persistant des métriques et historique) via Prisma ORM
+- **Infrastructure** : Docker Compose (App, PostgreSQL 18, Redis)
+- **Base de données** : PostgreSQL 18 (stockage persistant des métriques et historique) via Prisma
 - **Cache & Temps Réel** : Redis (pour le stockage des flux en cours, des requêtes très fréquentes et la communication temps réel)
 - **Backend / API** : Node.js (via Next.js Server Actions / API Routes), Prisma
 - **Frontend** : Next.js (React), Tailwind CSS, Shadcn/UI pour les graphiques avancés et l'interface
@@ -52,6 +52,8 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 │   │   ├── fonts/            # Polices web (Geist)
 │   │   ├── login/
 │   │   │   └── page.tsx      # Interface de connexion sécurisée
+│   │   ├── logs/
+│   │   │   └── page.tsx      # Tableau des journaux bruts (Recherche, IP, Statuts)
 │   │   ├── media/
 │   │   │   └── page.tsx      # Bibliothèque avec tous les médias (Table interactive & Tris)
 │   │   ├── settings/

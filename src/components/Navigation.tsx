@@ -26,6 +26,12 @@ export function Navigation() {
                 Médias
             </Link>
             <Link
+                href="/logs"
+                className={`text-sm font-medium transition-colors ${isActive('/logs') ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
+            >
+                Logs
+            </Link>
+            <Link
                 href="/settings"
                 className={`text-sm font-medium transition-colors ${isActive('/settings') ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
             >
