@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LogFilters } from "./LogFilters";
+import { FallbackImage } from "@/components/FallbackImage";
 import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic"; // Bypass statis rendering for real-time logs
@@ -105,10 +106,9 @@ export default async function LogsPage({
                                                     <TableCell>
                                                         <div className="flex items-center gap-3 w-[250px]">
                                                             <div className="relative w-12 aspect-[2/3] bg-muted rounded-md shrink-0 overflow-hidden ring-1 ring-white/10">
-                                                                <img
+                                                                <FallbackImage
                                                                     src={`/api/jellyfin/image?id=${log.media.jellyfinMediaId}&type=Primary`}
                                                                     alt={log.media.title}
-                                                                    className="object-cover w-full h-full"
                                                                 />
                                                             </div>
                                                             <div className="flex flex-col">

@@ -19,6 +19,7 @@ import { Clock, Monitor, Smartphone, PlayCircle, Hash, Film } from "lucide-react
 import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
 import { Badge } from "@/components/ui/badge";
+import { UserActivityChart, ActivityData } from "@/components/charts/UserActivityChart";
 
 export const dynamic = "force-dynamic";
 
@@ -110,11 +111,46 @@ export default async function UserDetailPage({ params }: UserPageProps) {
         return topEntry[0];
     };
 
+    const getTop3Items = (map: Map<string, number>) => {
+        return Array.from(map.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(entry => entry[0])
+            .join(", ") || "N/A";
+    };
+
     const topClient = getTopItem(clientCounts);
     const topDevice = getTopItem(deviceCounts);
-    const topGenre = getTopItem(genreCounts);
+    const topGenres = getTop3Items(genreCounts);
     const topFormat = getTopItem(formatCounts);
     const formatDisplay = topFormat === 'Movie' ? 'Films' : (topFormat === 'Series' || topFormat === 'Episode') ? 'Séries' : topFormat;
+
+    // 3. Activity Heatmap Data (Last 30 days)
+    const last30Days = new Date();
+    last30Days.setDate(last30Days.getDate() - 29);
+    last30Days.setHours(0, 0, 0, 0);
+
+    const activityMap = new Map<string, number>();
+    for (let i = 0; i < 30; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - (29 - i));
+        activityMap.set(`${d.getDate()}/${d.getMonth() + 1}`, 0);
+    }
+
+    user.playbackHistory.forEach((session: any) => {
+        if (new Date(session.startedAt) >= last30Days) {
+            const d = new Date(session.startedAt);
+            const key = `${d.getDate()}/${d.getMonth() + 1}`;
+            if (activityMap.has(key)) {
+                activityMap.set(key, activityMap.get(key)! + (session.durationWatched / 3600));
+            }
+        }
+    });
+
+    const activityData: ActivityData[] = Array.from(activityMap.entries()).map(([date, hours]) => ({
+        date,
+        hours: parseFloat(hours.toFixed(1))
+    }));
 
     const uniqueHistory = Array.from(groupedHistory.values()).sort((a, b) => new Date(b.lastSessionAt).getTime() - new Date(a.lastSessionAt).getTime());
 
@@ -156,12 +192,12 @@ export default async function UserDetailPage({ params }: UserPageProps) {
 
                     <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Genre Favori</CardTitle>
+                            <CardTitle className="text-sm font-medium">Top Genres</CardTitle>
                             <PlayCircle className="h-4 w-4 text-pink-500" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-xl font-bold truncate">{topGenre}</div>
-                            <p className="text-xs text-muted-foreground">Prédilection</p>
+                            <div className="text-xl font-bold truncate">{topGenres}</div>
+                            <p className="text-xs text-muted-foreground">Prédilections principales</p>
                         </CardContent>
                     </Card>
 
@@ -199,12 +235,25 @@ export default async function UserDetailPage({ params }: UserPageProps) {
                     </Card>
                 </div>
 
+                {/* User Activity Heatmap Chart */}
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
+                    <CardHeader className="pb-2">
+                        <CardTitle>Activité sur 30 jours</CardTitle>
+                        <CardDescription>Visualisez le volume de lecture quotidien de cet utilisateur.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="h-[250px] w-full">
+                            <UserActivityChart data={activityData} />
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {/* Historique Table */}
                 <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
                     <CardHeader>
                         <CardTitle>Historique de lecture</CardTitle>
                         <CardDescription>
-                            Historique complet des sessions démarrées par l'utilisateur.
+                            Historique complet et agrégé des sessions démarrées.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -234,6 +283,16 @@ export default async function UserDetailPage({ params }: UserPageProps) {
 
                                             const isTranscode = session.playMethod?.toLowerCase().includes("transcode");
 
+                                            // Calcul du pourçentage si on possède la durée du média d'origine dans Jellyfin 
+                                            // durationMs (Jellyfin RunTimeTicks) : 10,000,000 ticks = 1 sec
+                                            let progress = 0;
+                                            if (session.media?.durationMs) {
+                                                const mediaSec = Number(session.media.durationMs) / 10000000;
+                                                if (mediaSec > 0) {
+                                                    progress = Math.min(100, Math.round((session.totalDurationWatched / mediaSec) * 100));
+                                                }
+                                            }
+
                                             return (
                                                 <TableRow key={session.id} className="even:bg-zinc-900/30 hover:bg-zinc-800/50 border-zinc-800/50 transition-colors">
                                                     <TableCell className="font-medium">
@@ -252,13 +311,21 @@ export default async function UserDetailPage({ params }: UserPageProps) {
                                                                 <div className="text-xs text-muted-foreground hidden sm:block">
                                                                     {session.media.type}
                                                                 </div>
+                                                                {progress > 0 && (
+                                                                    <div className="w-full h-1.5 bg-zinc-800 rounded-full mt-1.5 overflow-hidden">
+                                                                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${progress}%` }} />
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="text-sm whitespace-nowrap">
-                                                        {dateFormat}
+                                                    <TableCell className="text-sm border-l border-zinc-900/50">
+                                                        <div className="flex flex-col">
+                                                            <span>{dateFormat}</span>
+                                                            <span className="text-xs text-muted-foreground">{session.playCount} session(s)</span>
+                                                        </div>
                                                     </TableCell>
-                                                    <TableCell>{minutes} min</TableCell>
+                                                    <TableCell className="border-l border-zinc-900/50">{minutes} min</TableCell>
                                                     <TableCell className="text-sm">
                                                         <span className="truncate max-w-[150px] inline-block">
                                                             {session.deviceName || session.clientName || "N/A"}

@@ -33,6 +33,9 @@ model Media {
 
   playbackHistory PlaybackHistory[]
   activeStreams   ActiveStream[]
+
+  @@index([type])
+  @@index([collectionType])
 }
 
 model PlaybackHistory {

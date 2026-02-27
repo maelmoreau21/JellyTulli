@@ -16,6 +16,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Generate GeoIP database files during build so they can be copied to runner
+RUN cd node_modules/geoip-lite && npm run-script updatedb
+
 # Environment variables for build time
 ENV NEXT_TELEMETRY_DISABLED=1
 

@@ -21,8 +21,12 @@ export function getGeoLocation(ip: string | null | undefined) {
                 city: lookup.city || "Unknown"
             };
         }
-    } catch (e) {
-        console.error("GeoIP lookup failed:", e);
+    } catch (e: any) {
+        if (e.code === 'ENOENT' || e.message?.includes('ENOENT')) {
+            console.warn("[GeoIP] Base de données manquante. Avez-vous exécuté 'npm run-script updatedb' ?");
+        } else {
+            console.error("GeoIP lookup failed:", e.message || e);
+        }
     }
 
     return { country: "Unknown", city: "Unknown" };

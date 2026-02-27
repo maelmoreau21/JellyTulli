@@ -9,8 +9,10 @@ import {
 } from "@/components/ui/card";
 import { Activity, Users, Clock, PlayCircle, Trophy, ActivitySquare, MonitorPlay } from "lucide-react";
 import { DashboardChart } from "@/components/DashboardChart";
+import { VolumeAreaChart, VolumeHourData } from "@/components/charts/VolumeAreaChart";
 import { ActivityByHourChart, ActivityHourData } from "@/components/charts/ActivityByHourChart";
 import { PlatformDistributionChart, PlatformData } from "@/components/charts/PlatformDistributionChart";
+import { TimeRangeSelector } from "@/components/TimeRangeSelector";
 import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -42,8 +44,27 @@ type LiveStream = {
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage(props: { searchParams: Promise<{ type?: string }> }) {
-  const { type } = await props.searchParams;
+export default async function DashboardPage(props: { searchParams: Promise<{ type?: string; timeRange?: string }> }) {
+  const { type, timeRange = "7d" } = await props.searchParams;
+
+  // Calculate start date based on timeRange
+  let startDate: Date | undefined;
+  if (timeRange === "24h") {
+    startDate = new Date();
+    startDate.setHours(startDate.getHours() - 24);
+  } else if (timeRange === "30d") {
+    startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    startDate.setHours(0, 0, 0, 0);
+  } else if (timeRange === "7d") {
+    startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7); // Taking last 7 full days
+    startDate.setHours(0, 0, 0, 0);
+  } else if (timeRange === "all") {
+    startDate = undefined; // No date filter
+  }
+
+  let dateFilter = startDate ? { gte: startDate } : undefined;
 
   // 0. Récupérer les Settings globaux (Bibliothèques exclues)
   const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
@@ -79,7 +100,10 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
     _sum: {
       durationWatched: true,
     },
-    where: { media: mediaWhere }
+    where: {
+      media: mediaWhere,
+      startedAt: dateFilter
+    }
   });
   const totalSecondsWatched = hoursWatchedAgg._sum.durationWatched || 0;
   // Convertion en heures avec un chiffre après la virgule
@@ -114,46 +138,60 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
       });
   }
 
-  // 4. Prisma : Données du graphique (7 derniers jours)
-  const last7Days = new Date();
-  last7Days.setDate(last7Days.getDate() - 6); // On prend les 6 jours précédents + aujourd'hui (7 j au total)
-  last7Days.setHours(0, 0, 0, 0);
-
+  // 4. Prisma : Données du graphique dynamique (Volume Area Chart)
   const histories = await prisma.playbackHistory.findMany({
     where: {
-      startedAt: {
-        gte: last7Days,
-      },
+      startedAt: dateFilter,
       media: mediaWhere
     },
     select: {
       startedAt: true,
       durationWatched: true,
       clientName: true,
+      media: {
+        select: {
+          type: true
+        }
+      }
     },
+    orderBy: { startedAt: 'asc' }
   });
 
-  // Agréger par jour en JS
-  const daysMap = new Map<string, number>();
+  // Agréger pour le VolumeAreaChart (Empilé par type de média)
+  const volumeMap = new Map<string, VolumeHourData>();
 
-  // Initialiser les 7 derniers jours avec 0
-  const dayNames = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    const dayStr = dayNames[d.getDay()];
-    // Pour gérer les éventuels doublons de noms de jours (si la fenêtre > 7 j), on pourrait utiliser des dates.
-    // Mais ici 7 jours stricts, on va utiliser "Lun", "Mar", etc.
-    daysMap.set(dayStr, 0);
-  }
-
-  histories.forEach((h: { startedAt: Date; durationWatched: number; }) => {
-    const dayName = dayNames[h.startedAt.getDay()];
-    if (daysMap.has(dayName)) {
-      const currentSeconds = daysMap.get(dayName)!;
-      daysMap.set(dayName, currentSeconds + h.durationWatched);
+  const getFormatKey = (d: Date) => {
+    if (timeRange === "24h") {
+      return `${d.getHours().toString().padStart(2, '0')}:00`;
+    } else if (timeRange === "all") {
+      return `${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+    } else {
+      return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
     }
+  };
+
+  histories.forEach((h: any) => {
+    const key = getFormatKey(new Date(h.startedAt));
+    if (!volumeMap.has(key)) {
+      volumeMap.set(key, { name: key, Movies: 0, Series: 0, Music: 0, Other: 0 });
+    }
+    const entry = volumeMap.get(key)!;
+    const mType = h.media?.type?.toLowerCase() || "";
+    const hours = h.durationWatched / 3600;
+
+    if (mType.includes('movie')) entry.Movies += hours;
+    else if (mType.includes('series') || mType.includes('episode')) entry.Series += hours;
+    else if (mType.includes('audio') || mType.includes('track')) entry.Music += hours;
+    else entry.Other += hours;
   });
+
+  const volumeData = Array.from(volumeMap.values()).map(v => ({
+    name: v.name,
+    Movies: parseFloat(v.Movies.toFixed(2)),
+    Series: parseFloat(v.Series.toFixed(2)),
+    Music: parseFloat(v.Music.toFixed(2)),
+    Other: parseFloat(v.Other.toFixed(2)),
+  }));
 
   // 5. Statistiques avancées (24h) : DirectPlay %
   const last24h = new Date();
@@ -212,26 +250,25 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
     .sort((a, b) => b.value - a.value)
     .slice(0, 8); // Garder les 8 premières plateformes pour la lisibilité
 
-  const chartData = Array.from(daysMap.entries()).map(([name, seconds]) => {
-    return { name, hours: parseFloat((seconds / 3600).toFixed(1)) };
-  });
-
   return (
     <div className="flex-col md:flex">
       <div className="flex-1 space-y-6 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2 mb-4">
           <div className="flex items-center gap-6">
             <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-            <Tabs defaultValue={type || "all"} className="w-[400px]">
+            <Tabs defaultValue={type || "all"} className="w-[380px]">
               <TabsList className="bg-zinc-900 border border-zinc-800">
-                <TabsTrigger value="all" asChild><Link href="/">Tous</Link></TabsTrigger>
-                <TabsTrigger value="movie" asChild><Link href="/?type=movie">Films</Link></TabsTrigger>
-                <TabsTrigger value="series" asChild><Link href="/?type=series">Séries</Link></TabsTrigger>
-                <TabsTrigger value="music" asChild><Link href="/?type=music">Musique</Link></TabsTrigger>
+                <TabsTrigger value="all" asChild><Link href={`/?timeRange=${timeRange}`}>Tous</Link></TabsTrigger>
+                <TabsTrigger value="movie" asChild><Link href={`/?type=movie&timeRange=${timeRange}`}>Films</Link></TabsTrigger>
+                <TabsTrigger value="series" asChild><Link href={`/?type=series&timeRange=${timeRange}`}>Séries</Link></TabsTrigger>
+                <TabsTrigger value="music" asChild><Link href={`/?type=music&timeRange=${timeRange}`}>Musique</Link></TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
-          <span className="text-xs text-zinc-400 bg-zinc-900/80 px-2 py-1.5 rounded-md border border-zinc-800 hidden sm:block">Données mises en cache (60s)</span>
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-zinc-400 bg-zinc-900/80 px-2 py-1.5 rounded-md border border-zinc-800 hidden sm:block">Données mises en cache (60s)</span>
+            <TimeRangeSelector />
+          </div>
         </div>
 
         {/* Global Metrics Row 1 */}
@@ -284,12 +321,12 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
         {/* Graphs Row 1 : Temps 7J + Heures d'activité */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           <Card className="col-span-4 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle>Volume de lecture (7 derniers jours)</CardTitle>
+            <CardHeader className="pb-1">
+              <CardTitle>Volume de lecture</CardTitle>
             </CardHeader>
-            <CardContent className="pl-2 pb-4">
+            <CardContent className="pl-0 pb-4 pr-4">
               <div className="h-[300px] min-h-[300px] w-full">
-                <DashboardChart data={chartData} />
+                <VolumeAreaChart data={volumeData} />
               </div>
             </CardContent>
           </Card>
