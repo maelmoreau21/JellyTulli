@@ -22,13 +22,12 @@ export const config = {
     matcher: [
         /*
          * Match all request paths except for the ones starting with:
-         * - api/webhook (API publique webhook depuis Jellyfin)
          * - api/jellyfin/image (Proxy images publiques)
          * - login (Page de connexion publique)
          * - _next/static (Fichiers Next.js internes statiques)
          * - _next/image (Next.js image optimization API)
          * - favicon.ico, sitemap.xml, robots.txt (Metadata basique)
          */
-        "/((?!api/webhook|api/jellyfin/image|login|_next/static|_next/image|favicon.ico).*)",
+        "/((?!api/jellyfin/image|login|_next/static|_next/image|favicon.ico).*)",
     ],
 };

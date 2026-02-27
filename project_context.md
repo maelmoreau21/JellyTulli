@@ -11,8 +11,8 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 - **Frontend** : Next.js (React), Tailwind CSS, Shadcn/UI pour les graphiques avancés et l'interface
 
 ## Fonctionnalités Principales Attendues
-1. **Monitoring en Temps Réel** :
-   - Écoute des Webhooks Jellyfin
+1. **Monitoring 100% Autonome (Zero-Config)** :
+   - Plus besoin du plugin Webhook. JellyTulli sonde les sessions API toutes les 5s.
    - Analyse du transcodage (codec vidéo/audio, fps de transcodage, bitrate)
    - Suivi rapide via Redis pour soulager la base PostgreSQL
 2. **Statistiques Poussées** :
@@ -47,9 +47,8 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 │   │   │   │   └── image/         # Proxy sécurisé pour les affiches (API Key masquée)
 │   │   │   ├── settings/
 │   │   │   │   └── route.ts      # Endpoint (GET/POST) gérant les paramètres globaux (ex: Discord)
-│   │   │   ├── sync/
-│   │   │   │   └── route.ts      # Déclencheur manuel pour syncJellyfinLibrary()
-│   │   │   └── webhook/          # Réception des événements (PlaybackStart, etc.) & Notifications Discord
+│   │   │   └── sync/
+│   │   │       └── route.ts      # Déclencheur manuel pour syncJellyfinLibrary()
 │   │   ├── fonts/            # Polices web (Geist)
 │   │   ├── login/
 │   │   │   └── page.tsx      # Interface de connexion sécurisée
@@ -74,9 +73,10 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 │   │   ├── prisma.ts         # Singleton pour le client Prisma
 │   │   ├── redis.ts          # Singleton pour le client ioredis
 │   │   └── utils.ts          # Utilitaires Tailwind/Shadcn (cn)
-│   ├── instrumentation.ts    # Enregistrement des Hooks Next.js (Script node-cron planifié)
-│   ├── middleware.ts         # Middleware d'authentification NextAuth protégeant le site
-│   └── server/               # Définition des jobs asynchrones, services Jellyfin (à venir)
+│   ├── server/               # Définition des jobs asynchrones, services Jellyfin
+│   │   └── monitor.ts        # Polling autonome 5s (Discord Webhooks, BDD, Redis)
+│   ├── instrumentation.ts    # Enregistrement des Hooks Next.js (Script node-cron & monitor)
+│   └── middleware.ts         # Middleware d'authentification NextAuth protégeant le site
 ├── components.json           # Configuration Shadcn UI
 ├── next.config.ts            # Configuration Next.js
 ├── package.json              # Dépendances du projet (inclut next-auth, lucide-react, lites)
@@ -87,7 +87,7 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 ```
 
 ## Fonctionnalités Principales :
-1. **Réception Webhook (Temps Réel)** : Écoute les événements `PlaybackStart`, `Progress` et `Stop` de Jellyfin.
+1. **Zéro-Configuration Jellyfin (Monitoring Autonome)** : Scrutateur asynchrone node.js de l'API Jellyfin sans nécessiter de plugin Webhook tiers.
 2. **Dashboard Global** : Affiche les métriques clés (Streams Actifs, Total Utilisateurs, Heures visionnées) via Redis et Prisma, et intègre un graphique des lectures journalières.
 3. **Tracking Géographique (GeoIP)** : Détermine automatiquement le pays et la ville de chaque lecteur actif pour enrichir l'interface sans requête tierce.
 4. **Proxy Affiches Médias** : Sécurise l'affichage des tuiles Jellyfin dans l'appli sans fuite de clé API.
