@@ -9,12 +9,13 @@ import { Switch } from "@/components/ui/switch";
 
 export default function SettingsPage() {
     const [isLoading, setIsLoading] = useState(false);
-    const [isSavingDiscord, setIsSavingDiscord] = useState(false);
+    const [isSavingSettings, setIsSavingSettings] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const [discordMsg, setDiscordMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [settingsMsg, setSettingsMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     const [discordEnabled, setDiscordEnabled] = useState(false);
     const [discordUrl, setDiscordUrl] = useState("");
+    const [excludedLibraries, setExcludedLibraries] = useState("");
 
     // Load initial settings
     useEffect(() => {
@@ -25,6 +26,7 @@ export default function SettingsPage() {
                     const data = await res.json();
                     setDiscordEnabled(data.discordAlertsEnabled || false);
                     setDiscordUrl(data.discordWebhookUrl || "");
+                    setExcludedLibraries((data.excludedLibraries || []).join(", "));
                 }
             } catch (err) {
                 console.error("Failed to load settings");
@@ -53,9 +55,9 @@ export default function SettingsPage() {
         }
     };
 
-    const handleSaveDiscord = async () => {
-        setIsSavingDiscord(true);
-        setDiscordMsg(null);
+    const handleSaveSettings = async () => {
+        setIsSavingSettings(true);
+        setSettingsMsg(null);
 
         try {
             const res = await fetch("/api/settings", {
@@ -63,19 +65,20 @@ export default function SettingsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     discordWebhookUrl: discordUrl,
-                    discordAlertsEnabled: discordEnabled
+                    discordAlertsEnabled: discordEnabled,
+                    excludedLibraries: excludedLibraries.split(',').map(s => s.trim()).filter(s => s)
                 })
             });
 
             if (res.ok) {
-                setDiscordMsg({ type: "success", text: "Paramètres enregistrés avec succès." });
+                setSettingsMsg({ type: "success", text: "Paramètres enregistrés avec succès." });
             } else {
-                setDiscordMsg({ type: "error", text: "Erreur lors de la sauvegarde." });
+                setSettingsMsg({ type: "error", text: "Erreur lors de la sauvegarde." });
             }
         } catch (error) {
-            setDiscordMsg({ type: "error", text: "Erreur réseau." });
+            setSettingsMsg({ type: "error", text: "Erreur réseau." });
         } finally {
-            setIsSavingDiscord(false);
+            setIsSavingSettings(false);
         }
     };
 
@@ -131,11 +134,11 @@ export default function SettingsPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        {discordMsg && (
-                            <div className={`p-4 rounded-md flex items-center gap-3 text-sm ${discordMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                        {settingsMsg && (
+                            <div className={`p-4 rounded-md flex items-center gap-3 text-sm ${settingsMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'
                                 }`}>
-                                {discordMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                                {discordMsg.text}
+                                {settingsMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                                {settingsMsg.text}
                             </div>
                         )}
 
@@ -171,19 +174,33 @@ export default function SettingsPage() {
                                 </p>
                             </div>
                         )}
+
+                        <div className="border-t border-zinc-800/50 pt-6 mt-6">
+                            <Label htmlFor="excluded-libraries" className="text-base">Filtrage des collections</Label>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                Exclus certains types de médias (ex: Photo, HomeVideos) des statistiques globales du Dashboard. Séparé par des virgules.
+                            </p>
+                            <Input
+                                id="excluded-libraries"
+                                placeholder="Photo, HomeVideos"
+                                value={excludedLibraries}
+                                onChange={(e) => setExcludedLibraries(e.target.value)}
+                                className="font-mono text-sm"
+                            />
+                        </div>
                     </CardContent>
                     <CardFooter>
                         <button
-                            onClick={handleSaveDiscord}
-                            disabled={isSavingDiscord}
+                            onClick={handleSaveSettings}
+                            disabled={isSavingSettings}
                             className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors
-                                ${isSavingDiscord
+                                ${isSavingSettings
                                     ? 'bg-muted text-muted-foreground cursor-not-allowed'
                                     : 'bg-primary text-primary-foreground hover:bg-primary/90'
                                 }`}
                         >
-                            <Save className={`w-4 h-4 ${isSavingDiscord ? 'animate-pulse' : ''}`} />
-                            {isSavingDiscord ? 'Enregistrement...' : 'Enregistrer les paramètres'}
+                            <Save className={`w-4 h-4 ${isSavingSettings ? 'animate-pulse' : ''}`} />
+                            {isSavingSettings ? 'Enregistrement...' : 'Enregistrer les paramètres'}
                         </button>
                     </CardFooter>
                 </Card>

@@ -15,7 +15,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Clock, Monitor, Smartphone, PlayCircle, Hash } from "lucide-react";
+import { Clock, Monitor, Smartphone, PlayCircle, Hash, Film } from "lucide-react";
 import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
 import { Badge } from "@/components/ui/badge";
@@ -51,30 +51,53 @@ export default async function UserDetailPage({ params }: UserPageProps) {
     }
 
     // 2. Calcul des statistiques
-    const totalSeconds = user.playbackHistory.reduce(
-        (acc: number, session: any) => acc + session.durationWatched,
-        0
-    );
-    const totalHours = parseFloat((totalSeconds / 3600).toFixed(1));
-
-    // Trouver les clients/appareils favoris
     const clientCounts = new Map<string, number>();
     const deviceCounts = new Map<string, number>();
+    const genreCounts = new Map<string, number>();
+    const formatCounts = new Map<string, number>();
+
+    // Grouper l'historique par Media ID
+    const groupedHistory = new Map<string, any>();
+
+    let totalSeconds = 0;
 
     user.playbackHistory.forEach((session: any) => {
-        if (session.clientName) {
-            clientCounts.set(
-                session.clientName,
-                (clientCounts.get(session.clientName) || 0) + 1
-            );
+        totalSeconds += session.durationWatched;
+
+        if (session.clientName) clientCounts.set(session.clientName, (clientCounts.get(session.clientName) || 0) + 1);
+        if (session.deviceName) deviceCounts.set(session.deviceName, (deviceCounts.get(session.deviceName) || 0) + 1);
+
+        if (session.media?.genres) {
+            session.media.genres.forEach((g: string) => {
+                genreCounts.set(g, (genreCounts.get(g) || 0) + 1);
+            });
         }
-        if (session.deviceName) {
-            deviceCounts.set(
-                session.deviceName,
-                (deviceCounts.get(session.deviceName) || 0) + 1
-            );
+        if (session.media?.type) {
+            formatCounts.set(session.media.type, (formatCounts.get(session.media.type) || 0) + 1);
+        }
+
+        const mId = session.mediaId;
+        if (!groupedHistory.has(mId)) {
+            groupedHistory.set(mId, {
+                ...session,
+                totalDurationWatched: session.durationWatched,
+                lastSessionAt: session.startedAt,
+                playCount: 1,
+            });
+        } else {
+            const existing = groupedHistory.get(mId);
+            existing.totalDurationWatched += session.durationWatched;
+            existing.playCount += 1;
+            if (new Date(session.startedAt) > new Date(existing.lastSessionAt)) {
+                existing.lastSessionAt = session.startedAt;
+                existing.playMethod = session.playMethod;
+                existing.deviceName = session.deviceName;
+                existing.clientName = session.clientName;
+            }
         }
     });
+
+    const totalHours = parseFloat((totalSeconds / 3600).toFixed(1));
 
     const getTopItem = (map: Map<string, number>) => {
         if (map.size === 0) return "N/A";
@@ -89,6 +112,11 @@ export default async function UserDetailPage({ params }: UserPageProps) {
 
     const topClient = getTopItem(clientCounts);
     const topDevice = getTopItem(deviceCounts);
+    const topGenre = getTopItem(genreCounts);
+    const topFormat = getTopItem(formatCounts);
+    const formatDisplay = topFormat === 'Movie' ? 'Films' : (topFormat === 'Series' || topFormat === 'Episode') ? 'Séries' : topFormat;
+
+    const uniqueHistory = Array.from(groupedHistory.values()).sort((a, b) => new Date(b.lastSessionAt).getTime() - new Date(a.lastSessionAt).getTime());
 
     return (
         <div className="flex-col md:flex">
@@ -103,60 +131,70 @@ export default async function UserDetailPage({ params }: UserPageProps) {
                 </div>
 
                 {/* Global Metrics */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                Temps de lecture
-                            </CardTitle>
+                            <CardTitle className="text-sm font-medium">Temps de lecture</CardTitle>
                             <Clock className="h-4 w-4 text-orange-500" />
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{totalHours}h</div>
-                            <p className="text-xs text-muted-foreground">
-                                Total cumulé
-                            </p>
+                            <p className="text-xs text-muted-foreground">Total cumulé</p>
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Session(s)</CardTitle>
                             <Hash className="h-4 w-4 text-emerald-500" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">
-                                {user.playbackHistory.length}
-                            </div>
-                            <p className="text-xs text-muted-foreground">Historisés</p>
+                            <div className="text-2xl font-bold">{user.playbackHistory.length}</div>
+                            <p className="text-xs text-muted-foreground">Historisées globales</p>
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Genre Favori</CardTitle>
+                            <PlayCircle className="h-4 w-4 text-pink-500" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-xl font-bold truncate">{topGenre}</div>
+                            <p className="text-xs text-muted-foreground">Prédilection</p>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Format Favori</CardTitle>
+                            <Film className="h-4 w-4 text-indigo-500" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-xl font-bold truncate">{formatDisplay}</div>
+                            <p className="text-xs text-muted-foreground">Type de média principal</p>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Client Favori</CardTitle>
                             <Monitor className="h-4 w-4 text-blue-500" />
                         </CardHeader>
                         <CardContent>
                             <div className="text-xl font-bold truncate">{topClient}</div>
-                            <p className="text-xs text-muted-foreground">
-                                L'application la plus utilisée
-                            </p>
+                            <p className="text-xs text-muted-foreground">L'application la plus utilisée</p>
                         </CardContent>
                     </Card>
 
                     <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                Appareil Favori
-                            </CardTitle>
+                            <CardTitle className="text-sm font-medium">Appareil Favori</CardTitle>
                             <Smartphone className="h-4 w-4 text-purple-500" />
                         </CardHeader>
                         <CardContent>
                             <div className="text-xl font-bold truncate">{topDevice}</div>
-                            <p className="text-xs text-muted-foreground">
-                                La plateforme la plus utilisée
-                            </p>
+                            <p className="text-xs text-muted-foreground">La plateforme la plus utilisée</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -187,12 +225,12 @@ export default async function UserDetailPage({ params }: UserPageProps) {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {user.playbackHistory.map((session: any) => {
-                                            const minutes = Math.floor(session.durationWatched / 60);
+                                        {uniqueHistory.map((session: any) => {
+                                            const minutes = Math.floor(session.totalDurationWatched / 60);
                                             const dateFormat = new Intl.DateTimeFormat("fr-FR", {
                                                 dateStyle: "medium",
                                                 timeStyle: "short",
-                                            }).format(session.startedAt);
+                                            }).format(new Date(session.lastSessionAt));
 
                                             const isTranscode = session.playMethod?.toLowerCase().includes("transcode");
 

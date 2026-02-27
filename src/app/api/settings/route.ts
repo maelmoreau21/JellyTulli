@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
                     id: "global",
                     discordWebhookUrl: process.env.DISCORD_WEBHOOK_URL || null,
                     discordAlertsEnabled: false,
+                    excludedLibraries: [],
                 }
             });
         }
@@ -32,18 +33,20 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { discordWebhookUrl, discordAlertsEnabled } = body;
+        const { discordWebhookUrl, discordAlertsEnabled, excludedLibraries } = body;
 
         const updated = await prisma.globalSettings.upsert({
             where: { id: "global" },
             update: {
                 discordWebhookUrl: discordWebhookUrl !== undefined ? discordWebhookUrl : undefined,
                 discordAlertsEnabled: discordAlertsEnabled !== undefined ? discordAlertsEnabled : undefined,
+                excludedLibraries: excludedLibraries !== undefined ? excludedLibraries : undefined,
             },
             create: {
                 id: "global",
                 discordWebhookUrl: discordWebhookUrl || process.env.DISCORD_WEBHOOK_URL || null,
                 discordAlertsEnabled: discordAlertsEnabled || false,
+                excludedLibraries: excludedLibraries || [],
             }
         });
 

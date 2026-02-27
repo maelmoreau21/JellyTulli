@@ -6,21 +6,50 @@ import { getJellyfinImageUrl } from "@/lib/jellyfin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { GenreDistributionChart, GenreData } from "@/components/charts/GenreDistributionChart";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const dynamic = "force-dynamic";
 
 interface MediaPageProps {
     searchParams: Promise<{
         sortBy?: string;
+        type?: string;
     }>;
 }
 
 export default async function MediaPage({ searchParams }: MediaPageProps) {
     const sParams = await searchParams;
     const sortBy = sParams.sortBy || "plays"; // 'plays', 'duration', ou 'quality'
+    const type = sParams.type;
+
+    // 0. Récupérer les Settings globaux
+    const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
+    const excludedLibraries = settings?.excludedLibraries || [];
+
+    const buildMediaFilter = () => {
+        let AND: any[] = [];
+        if (type === 'movie') AND.push({ type: "Movie" });
+        else if (type === 'series') AND.push({ type: { in: ["Series", "Episode"] } });
+        else if (type === 'music') AND.push({ type: { in: ["Audio", "Track"] } });
+
+        if (excludedLibraries.length > 0) {
+            AND.push({
+                NOT: {
+                    OR: [
+                        { type: { in: excludedLibraries } },
+                        ...excludedLibraries.map((lib: string) => ({ collectionType: lib }))
+                    ]
+                }
+            });
+        }
+        return AND.length > 0 ? { AND } : {};
+    };
+
+    const mediaWhere = buildMediaFilter();
 
     // 1. Fetch tous les médias avec l'historique de lecture
     const allMedia = await prisma.media.findMany({
+        where: mediaWhere,
         include: {
             playbackHistory: {
                 select: {
@@ -92,9 +121,19 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
         <div className="flex-col md:flex">
             <div className="flex-1 space-y-6 p-8 pt-6">
                 <div className="flex items-center justify-between space-y-2 mb-6">
-                    <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                        <Film className="w-8 h-8 opacity-80" /> Bibliothèque
-                    </h2>
+                    <div className="flex items-center gap-6">
+                        <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+                            <Film className="w-8 h-8 opacity-80" /> Bibliothèque
+                        </h2>
+                        <Tabs defaultValue={type || "all"} className="w-[400px]">
+                            <TabsList className="bg-zinc-900 border border-zinc-800">
+                                <TabsTrigger value="all" asChild><Link href={`/media${sortBy !== 'plays' ? `?sortBy=${sortBy}` : ''}`}>Tous</Link></TabsTrigger>
+                                <TabsTrigger value="movie" asChild><Link href={`/media?type=movie${sortBy !== 'plays' ? `&sortBy=${sortBy}` : ''}`}>Films</Link></TabsTrigger>
+                                <TabsTrigger value="series" asChild><Link href={`/media?type=series${sortBy !== 'plays' ? `&sortBy=${sortBy}` : ''}`}>Séries</Link></TabsTrigger>
+                                <TabsTrigger value="music" asChild><Link href={`/media?type=music${sortBy !== 'plays' ? `&sortBy=${sortBy}` : ''}`}>Musique</Link></TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
                 </div>
 
                 {/* Section Stats Bibliothèque */}

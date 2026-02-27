@@ -13,6 +13,8 @@ import { ActivityByHourChart, ActivityHourData } from "@/components/charts/Activ
 import { PlatformDistributionChart, PlatformData } from "@/components/charts/PlatformDistributionChart";
 import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from "next/link";
 
 // Type des données stockées dans Redis au format Webhook
 type WebhookPayload = {
@@ -40,7 +42,35 @@ type LiveStream = {
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+export default async function DashboardPage(props: { searchParams: Promise<{ type?: string }> }) {
+  const { type } = await props.searchParams;
+
+  // 0. Récupérer les Settings globaux (Bibliothèques exclues)
+  const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
+  const excludedLibraries = settings?.excludedLibraries || [];
+
+  // Construire le filtre Media
+  const buildMediaFilter = () => {
+    let AND: any[] = [];
+    if (type === 'movie') AND.push({ type: "Movie" });
+    else if (type === 'series') AND.push({ type: { in: ["Series", "Episode"] } });
+    else if (type === 'music') AND.push({ type: { in: ["Audio", "Track"] } });
+
+    if (excludedLibraries.length > 0) {
+      AND.push({
+        NOT: {
+          OR: [
+            { type: { in: excludedLibraries } },
+            ...excludedLibraries.map((lib: string) => ({ collectionType: lib }))
+          ]
+        }
+      });
+    }
+    return AND.length > 0 ? { AND } : {};
+  };
+
+  const mediaWhere = buildMediaFilter();
+
   // 1. Prisma : Utilisateurs Totaux
   const totalUsers = await prisma.user.count();
 
@@ -49,6 +79,7 @@ export default async function DashboardPage() {
     _sum: {
       durationWatched: true,
     },
+    where: { media: mediaWhere }
   });
   const totalSecondsWatched = hoursWatchedAgg._sum.durationWatched || 0;
   // Convertion en heures avec un chiffre après la virgule
@@ -93,10 +124,12 @@ export default async function DashboardPage() {
       startedAt: {
         gte: last7Days,
       },
+      media: mediaWhere
     },
     select: {
       startedAt: true,
       durationWatched: true,
+      clientName: true,
     },
   });
 
@@ -127,7 +160,7 @@ export default async function DashboardPage() {
   last24h.setHours(last24h.getHours() - 24);
 
   const last24hHistories = await prisma.playbackHistory.findMany({
-    where: { startedAt: { gte: last24h } },
+    where: { startedAt: { gte: last24h }, media: mediaWhere },
     select: { playMethod: true }
   });
 
@@ -139,6 +172,7 @@ export default async function DashboardPage() {
   const topUsersAgg = await prisma.playbackHistory.groupBy({
     by: ['userId'],
     _sum: { durationWatched: true },
+    where: { media: mediaWhere },
     orderBy: { _sum: { durationWatched: 'desc' } },
     take: 5
   });
@@ -186,8 +220,18 @@ export default async function DashboardPage() {
     <div className="flex-col md:flex">
       <div className="flex-1 space-y-6 p-8 pt-6">
         <div className="flex items-center justify-between space-y-2 mb-4">
-          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-          <span className="text-xs text-zinc-400 bg-zinc-900/80 px-2 py-1.5 rounded-md border border-zinc-800">Données mises en cache (60s)</span>
+          <div className="flex items-center gap-6">
+            <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+            <Tabs defaultValue={type || "all"} className="w-[400px]">
+              <TabsList className="bg-zinc-900 border border-zinc-800">
+                <TabsTrigger value="all" asChild><Link href="/">Tous</Link></TabsTrigger>
+                <TabsTrigger value="movie" asChild><Link href="/?type=movie">Films</Link></TabsTrigger>
+                <TabsTrigger value="series" asChild><Link href="/?type=series">Séries</Link></TabsTrigger>
+                <TabsTrigger value="music" asChild><Link href="/?type=music">Musique</Link></TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          <span className="text-xs text-zinc-400 bg-zinc-900/80 px-2 py-1.5 rounded-md border border-zinc-800 hidden sm:block">Données mises en cache (60s)</span>
         </div>
 
         {/* Global Metrics Row 1 */}
