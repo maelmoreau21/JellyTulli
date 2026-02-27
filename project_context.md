@@ -112,4 +112,4 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 6. **Bibliothèque Multimédia** : Répertorie et liste tous les médias synchronisés avec tris dynamiques de leurs performances globales (Popularité, Temps Vu, DirectPlay Ratio).
 7. **Notifications Discord** : Webhook généré dynamiquement lors d'un `PlaybackStart` avec Embeds enrichis et modulable via les Paramètres.
 8. **Sécurité Globale (NextAuth)** : Les pages locales sont strictement verrouillées par un Middleware filtrant et un mot de passe Admin depuis le backend.
-9. **Build Standalone** : Le projet inclut un build Docker multi-stage minimaliste (`.next/standalone`) déployable d'un clic, tolérant aux erreurs TS/EsLint (idéal pour un Raspberry Pi) et avec migration automatisée (`docker-entrypoint.sh` + Prisma CLI v5 global).
+9. **Build Standalone** : Le projet inclut un build Docker multi-stage minimaliste (`.next/standalone`) déployable d'un clic, tolérant aux erreurs TS/EsLint (idéal pour un Raspberry Pi) et avec migration automatisée (`docker-entrypoint.sh` via `db push` + Prisma CLI v5 global).
