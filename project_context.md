@@ -112,10 +112,10 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 ## Features Exclusives (vs Jellystat)
 1. **Caching Redis & Next.js Partiel** : Plus de sollicitations de BDD pour les requêtes Live (`revalidate = 0`). Les pages à haute intensité de calcul (Dashboard SQL `groupBy`) utilisent un cache de 60s pour protéger le CPU d'applications légères telles qu'un Raspberry Pi.
 2. **Synchronisation Automatique Multi-Data** : Tâche `node-cron` récupérant à la fois les médias de base, leurs **Genres**, et la plus forte **Résolution vidéo (4K/1080p)** via `MediaSources`.
-3. **Tracking Géographique (GeoIP)** : Détermine automatiquement le pays et la ville de chaque lecteur actif pour enrichir l'interface sans requête tierce.
+3. **Tracking Géographique (GeoIP Dockerisé)** : Détermine le pays et la ville de chaque lecteur. (Le fichier `.dat` est explicitement copié dans le runner Docker pour parer aux erreurs `ENOENT`).
 4. **Proxy Affiches Médias** : Sécurise l'affichage des tuiles Jellyfin dans l'appli sans fuite de clé API.
 5. **Dataviz Recharts Complexe** : Répartition des plateformes, Activité par Heure, Top Genres sans sacrifier la lisibilité (Composants abstraits).
-6. **Bibliothèque Multimédia Premium** : Affiche responsive en Grille, avec Overlay de qualité (DirectPlay %) inspiré d'interfaces de luxe.
+6. **Bibliothèque Multimédia Premium** : Affiche responsive en Grille (`grid-cols-6`), avec Overlay de qualité (DirectPlay %) et Dark Mode natif forcé (`bg-zinc-950 dark`) inspiré d'interfaces élégantes.
 7. **Notifications Discord** : Webhook généré dynamiquement lors d'un `PlaybackStart` avec Embeds enrichis et modulable via les Paramètres.
 8. **Sécurité Globale (NextAuth)** : Les pages locales sont verrouillées par un Middleware filtrant et un mot de passe Admin depuis le backend.
 9. **Build Standalone** : Fortement optimisé avec variables environnementales fictives (`DATABASE_URL`, `NEXTAUTH_SECRET`) lors de l'étape de compilation Docker pour contourner le prerendering Next.js. De plus, `export const dynamic = "force-dynamic"` garantit que le build est instantané et ne tente aucune connexion BDD Prisma inopportune en phase CI/CD.

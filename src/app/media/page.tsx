@@ -192,16 +192,17 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                 Aucun média indexé. N'oubliez pas d'exécuter la synchronisation Jellyfin dans les Paramètres.
                             </p>
                         ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
                                 {displayMedia.map((media: any) => (
                                     <div key={media.id} className="group flex flex-col space-y-2 relative">
                                         <div className="relative w-full aspect-[2/3] bg-zinc-900 rounded-md overflow-hidden ring-1 ring-white/10 transition-transform group-hover:scale-[1.03] group-hover:ring-primary/50 shadow-lg">
                                             <Image
                                                 src={getJellyfinImageUrl(media.jellyfinMediaId, 'Primary')}
                                                 alt={media.title}
-                                                fill
+                                                width={400}
+                                                height={600}
                                                 unoptimized
-                                                className="object-cover"
+                                                className="max-w-full h-auto object-cover"
                                             />
                                             {/* Top Overlay logic (Quality) */}
                                             {media.plays > 0 && (

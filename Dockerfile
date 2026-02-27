@@ -56,6 +56,9 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/package.json ./package.json
 
+# Copy GeoIP data to prevent ENOENT crash
+COPY --from=builder /app/node_modules/geoip-lite/data /app/node_modules/geoip-lite/data
+
 # Expose port and configure entrypoint
 EXPOSE 3000
 ENV PORT=3000
