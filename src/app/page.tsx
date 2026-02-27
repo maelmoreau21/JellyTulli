@@ -191,8 +191,8 @@ export default async function DashboardPage() {
             <CardHeader>
               <CardTitle>Temps de lecture (7 derniers jours)</CardTitle>
             </CardHeader>
-            <CardContent className="pl-2">
-              <div className="h-[300px] w-full">
+            <CardContent className="pl-2 pb-4">
+              <div className="h-[300px] min-h-[300px] w-full">
                 <DashboardChart data={chartData} />
               </div>
             </CardContent>

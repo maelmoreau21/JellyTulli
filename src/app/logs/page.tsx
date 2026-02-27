@@ -4,7 +4,7 @@ import Link from "next/link";
 import { PlayCircle, Search, ArrowUpDown, ChevronDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { LogFilters } from "./LogFilters";
 import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic"; // Bypass statis rendering for real-time logs
@@ -74,34 +74,7 @@ export default async function LogsPage({
                         <CardDescription>Trouvez une session spécifique par Titre, IP ou Nom du client utilisé.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <form className="flex md:flex-row flex-col gap-4">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                                <Input
-                                    name="query"
-                                    type="text"
-                                    defaultValue={query}
-                                    placeholder="Rechercher par Titre, IP, Client ou Utilisateur..."
-                                    className="pl-9"
-                                />
-                            </div>
-                            <div className="flex gap-2">
-                                <div className="border rounded-md px-3 py-2 text-sm bg-background flex flex-row items-center cursor-pointer hover:bg-muted relative group">
-                                    <span className="font-semibold mr-2 flex items-center gap-2"><ArrowUpDown className="w-4 h-4" /> Trier par</span>
-                                    <ChevronDown className="w-4 h-4" />
-                                    {/* Unstyled pseudo-select for simple navigation logic */}
-                                    <select name="sort" defaultValue={sort} onChange={(e) => e.target.form?.submit()} className="absolute w-full h-full opacity-0 cursor-pointer left-0 top-0">
-                                        <option value="date_desc">Date (Récent)</option>
-                                        <option value="date_asc">Date (Ancien)</option>
-                                        <option value="duration_desc">Durée (Plus long)</option>
-                                        <option value="duration_asc">Durée (Plus court)</option>
-                                    </select>
-                                </div>
-                                <button type="submit" className="bg-primary text-primary-foreground font-medium px-4 py-2 rounded-md hover:bg-primary/90 transition-colors">
-                                    Rechercher
-                                </button>
-                            </div>
-                        </form>
+                        <LogFilters initialQuery={query} initialSort={sort} />
 
                         <div className="border rounded-md overflow-x-auto w-full mt-6">
                             <Table className="min-w-[1000px]">

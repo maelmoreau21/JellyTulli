@@ -21,7 +21,7 @@ interface DashboardChartProps {
 
 export function DashboardChart({ data }: DashboardChartProps) {
     return (
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height={300} minHeight={300}>
             <AreaChart
                 data={data}
                 margin={{
