@@ -27,7 +27,7 @@ RUN npm run build
 
 # 3. Production image, copy all the files and run next
 FROM base AS runner
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl dos2unix
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -57,7 +57,7 @@ ENV HOSTNAME="0.0.0.0"
 
 # Copy the entrypoint script
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh
+RUN dos2unix ./docker-entrypoint.sh && chmod +x ./docker-entrypoint.sh
 
 USER nextjs
 
