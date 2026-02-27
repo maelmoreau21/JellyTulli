@@ -1,25 +1,10 @@
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Clock, Monitor, Smartphone, PlayCircle, Hash, Film } from "lucide-react";
-import Image from "next/image";
-import { getJellyfinImageUrl } from "@/lib/jellyfin";
-import { Badge } from "@/components/ui/badge";
-import { UserActivityChart, ActivityData } from "@/components/charts/UserActivityChart";
+import { Suspense } from "react";
+import UserInfo from "./UserInfo";
+import UserActivity from "./UserActivity";
+import UserRecentMedia from "./UserRecentMedia";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const dynamic = "force-dynamic";
 
@@ -32,127 +17,12 @@ interface UserPageProps {
 export default async function UserDetailPage({ params }: UserPageProps) {
     const { id: jellyfinUserId } = await params;
 
-    // 1. Fetch de l'utilisateur
     const user = await prisma.user.findUnique({
         where: { jellyfinUserId },
-        include: {
-            playbackHistory: {
-                include: {
-                    media: true,
-                },
-                orderBy: {
-                    startedAt: "desc",
-                },
-            },
-        },
+        select: { username: true, jellyfinUserId: true },
     });
 
-    if (!user) {
-        notFound();
-    }
-
-    // 2. Calcul des statistiques
-    const clientCounts = new Map<string, number>();
-    const deviceCounts = new Map<string, number>();
-    const genreCounts = new Map<string, number>();
-    const formatCounts = new Map<string, number>();
-
-    // Grouper l'historique par Media ID
-    const groupedHistory = new Map<string, any>();
-
-    let totalSeconds = 0;
-
-    user.playbackHistory.forEach((session: any) => {
-        totalSeconds += session.durationWatched;
-
-        if (session.clientName) clientCounts.set(session.clientName, (clientCounts.get(session.clientName) || 0) + 1);
-        if (session.deviceName) deviceCounts.set(session.deviceName, (deviceCounts.get(session.deviceName) || 0) + 1);
-
-        if (session.media?.genres) {
-            session.media.genres.forEach((g: string) => {
-                genreCounts.set(g, (genreCounts.get(g) || 0) + 1);
-            });
-        }
-        if (session.media?.type) {
-            formatCounts.set(session.media.type, (formatCounts.get(session.media.type) || 0) + 1);
-        }
-
-        const mId = session.mediaId;
-        if (!groupedHistory.has(mId)) {
-            groupedHistory.set(mId, {
-                ...session,
-                totalDurationWatched: session.durationWatched,
-                lastSessionAt: session.startedAt,
-                playCount: 1,
-            });
-        } else {
-            const existing = groupedHistory.get(mId);
-            existing.totalDurationWatched += session.durationWatched;
-            existing.playCount += 1;
-            if (new Date(session.startedAt) > new Date(existing.lastSessionAt)) {
-                existing.lastSessionAt = session.startedAt;
-                existing.playMethod = session.playMethod;
-                existing.deviceName = session.deviceName;
-                existing.clientName = session.clientName;
-            }
-        }
-    });
-
-    const totalHours = parseFloat((totalSeconds / 3600).toFixed(1));
-
-    const getTopItem = (map: Map<string, number>) => {
-        if (map.size === 0) return "N/A";
-        let topEntry = ["", 0];
-        map.forEach((count, name) => {
-            if (count > (topEntry[1] as number)) {
-                topEntry = [name, count];
-            }
-        });
-        return topEntry[0];
-    };
-
-    const getTop3Items = (map: Map<string, number>) => {
-        return Array.from(map.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 3)
-            .map(entry => entry[0])
-            .join(", ") || "N/A";
-    };
-
-    const topClient = getTopItem(clientCounts);
-    const topDevice = getTopItem(deviceCounts);
-    const topGenres = getTop3Items(genreCounts);
-    const topFormat = getTopItem(formatCounts);
-    const formatDisplay = topFormat === 'Movie' ? 'Films' : (topFormat === 'Series' || topFormat === 'Episode') ? 'Séries' : topFormat;
-
-    // 3. Activity Heatmap Data (Last 30 days)
-    const last30Days = new Date();
-    last30Days.setDate(last30Days.getDate() - 29);
-    last30Days.setHours(0, 0, 0, 0);
-
-    const activityMap = new Map<string, number>();
-    for (let i = 0; i < 30; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - (29 - i));
-        activityMap.set(`${d.getDate()}/${d.getMonth() + 1}`, 0);
-    }
-
-    user.playbackHistory.forEach((session: any) => {
-        if (new Date(session.startedAt) >= last30Days) {
-            const d = new Date(session.startedAt);
-            const key = `${d.getDate()}/${d.getMonth() + 1}`;
-            if (activityMap.has(key)) {
-                activityMap.set(key, activityMap.get(key)! + (session.durationWatched / 3600));
-            }
-        }
-    });
-
-    const activityData: ActivityData[] = Array.from(activityMap.entries()).map(([date, hours]) => ({
-        date,
-        hours: parseFloat(hours.toFixed(1))
-    }));
-
-    const uniqueHistory = Array.from(groupedHistory.values()).sort((a, b) => new Date(b.lastSessionAt).getTime() - new Date(a.lastSessionAt).getTime());
+    if (!user) notFound();
 
     return (
         <div className="flex-col md:flex">
@@ -166,185 +36,17 @@ export default async function UserDetailPage({ params }: UserPageProps) {
                     </p>
                 </div>
 
-                {/* Global Metrics */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Temps de lecture</CardTitle>
-                            <Clock className="h-4 w-4 text-orange-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{totalHours}h</div>
-                            <p className="text-xs text-muted-foreground">Total cumulé</p>
-                        </CardContent>
-                    </Card>
+                <Suspense fallback={<Skeleton className="w-full h-[250px] rounded-xl bg-zinc-900/50" />}>
+                    <UserInfo userId={jellyfinUserId} />
+                </Suspense>
 
-                    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Session(s)</CardTitle>
-                            <Hash className="h-4 w-4 text-emerald-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{user.playbackHistory.length}</div>
-                            <p className="text-xs text-muted-foreground">Historisées globales</p>
-                        </CardContent>
-                    </Card>
+                <Suspense fallback={<Skeleton className="w-full h-[300px] rounded-xl bg-zinc-900/50 mt-6" />}>
+                    <UserActivity userId={jellyfinUserId} />
+                </Suspense>
 
-                    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Top Genres</CardTitle>
-                            <PlayCircle className="h-4 w-4 text-pink-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-xl font-bold truncate">{topGenres}</div>
-                            <p className="text-xs text-muted-foreground">Prédilections principales</p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Format Favori</CardTitle>
-                            <Film className="h-4 w-4 text-indigo-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-xl font-bold truncate">{formatDisplay}</div>
-                            <p className="text-xs text-muted-foreground">Type de média principal</p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Client Favori</CardTitle>
-                            <Monitor className="h-4 w-4 text-blue-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-xl font-bold truncate">{topClient}</div>
-                            <p className="text-xs text-muted-foreground">L'application la plus utilisée</p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Appareil Favori</CardTitle>
-                            <Smartphone className="h-4 w-4 text-purple-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-xl font-bold truncate">{topDevice}</div>
-                            <p className="text-xs text-muted-foreground">La plateforme la plus utilisée</p>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* User Activity Heatmap Chart */}
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
-                    <CardHeader className="pb-2">
-                        <CardTitle>Activité sur 30 jours</CardTitle>
-                        <CardDescription>Visualisez le volume de lecture quotidien de cet utilisateur.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="h-[250px] w-full">
-                            <UserActivityChart data={activityData} />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Historique Table */}
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
-                    <CardHeader>
-                        <CardTitle>Historique de lecture</CardTitle>
-                        <CardDescription>
-                            Historique complet et agrégé des sessions démarrées.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {user.playbackHistory.length === 0 ? (
-                            <p className="text-sm text-center text-muted-foreground py-8">
-                                Aucun historique de lecture.
-                            </p>
-                        ) : (
-                            <div className="rounded-md border">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Média</TableHead>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead>Durée</TableHead>
-                                            <TableHead>Appareil</TableHead>
-                                            <TableHead>Méthode</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {uniqueHistory.map((session: any) => {
-                                            const minutes = Math.floor(session.totalDurationWatched / 60);
-                                            const dateFormat = new Intl.DateTimeFormat("fr-FR", {
-                                                dateStyle: "medium",
-                                                timeStyle: "short",
-                                            }).format(new Date(session.lastSessionAt));
-
-                                            const isTranscode = session.playMethod?.toLowerCase().includes("transcode");
-
-                                            // Calcul du pourçentage si on possède la durée du média d'origine dans Jellyfin 
-                                            // durationMs (Jellyfin RunTimeTicks) : 10,000,000 ticks = 1 sec
-                                            let progress = 0;
-                                            if (session.media?.durationMs) {
-                                                const mediaSec = Number(session.media.durationMs) / 10000000;
-                                                if (mediaSec > 0) {
-                                                    progress = Math.min(100, Math.round((session.totalDurationWatched / mediaSec) * 100));
-                                                }
-                                            }
-
-                                            return (
-                                                <TableRow key={session.id} className="even:bg-zinc-900/30 hover:bg-zinc-800/50 border-zinc-800/50 transition-colors">
-                                                    <TableCell className="font-medium">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="relative w-12 aspect-[2/3] bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10">
-                                                                <Image
-                                                                    src={getJellyfinImageUrl(session.media.jellyfinMediaId, 'Primary')}
-                                                                    alt={session.media.title}
-                                                                    fill
-                                                                    unoptimized
-                                                                    className="object-cover"
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                {session.media.title}
-                                                                <div className="text-xs text-muted-foreground hidden sm:block">
-                                                                    {session.media.type}
-                                                                </div>
-                                                                {progress > 0 && (
-                                                                    <div className="w-full h-1.5 bg-zinc-800 rounded-full mt-1.5 overflow-hidden">
-                                                                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${progress}%` }} />
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-sm border-l border-zinc-900/50">
-                                                        <div className="flex flex-col">
-                                                            <span>{dateFormat}</span>
-                                                            <span className="text-xs text-muted-foreground">{session.playCount} session(s)</span>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="border-l border-zinc-900/50">{minutes} min</TableCell>
-                                                    <TableCell className="text-sm">
-                                                        <span className="truncate max-w-[150px] inline-block">
-                                                            {session.deviceName || session.clientName || "N/A"}
-                                                        </span>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant={isTranscode ? "destructive" : "default"} className={`shadow-sm ${isTranscode ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'}`}>
-                                                            {session.playMethod || "DirectPlay"}
-                                                        </Badge>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                <Suspense fallback={<Skeleton className="w-full h-[500px] rounded-xl bg-zinc-900/50 mt-6" />}>
+                    <UserRecentMedia userId={jellyfinUserId} />
+                </Suspense>
             </div>
         </div>
     );

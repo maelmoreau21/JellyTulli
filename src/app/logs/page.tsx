@@ -107,7 +107,7 @@ export default async function LogsPage({
                                                         <div className="flex items-center gap-3 w-[250px]">
                                                             <div className="relative w-12 aspect-[2/3] bg-muted rounded-md shrink-0 overflow-hidden ring-1 ring-white/10">
                                                                 <FallbackImage
-                                                                    src={`/api/jellyfin/image?id=${log.media.jellyfinMediaId}&type=Primary`}
+                                                                    src={`${process.env.JELLYFIN_URL}/Items/${log.media.jellyfinMediaId}/Images/Primary?api_key=${process.env.JELLYFIN_API_KEY}&fillWidth=100&quality=90`}
                                                                     alt={log.media.title}
                                                                 />
                                                             </div>

@@ -64,6 +64,8 @@ model PlaybackHistory {
   @@index([userId])
   @@index([mediaId])
   @@index([startedAt])
+  @@index([userId, startedAt])
+  @@index([mediaId, startedAt])
 }
 
 model ActiveStream {
