@@ -11,6 +11,8 @@ import { Activity, Users, Clock, PlayCircle } from "lucide-react";
 import { DashboardChart } from "@/components/DashboardChart";
 import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
+import { LogoutButton } from "@/components/LogoutButton";
+import { Navigation } from "@/components/Navigation";
 
 // Type des données stockées dans Redis au format Webhook
 type WebhookPayload = {
@@ -126,6 +128,10 @@ export default async function DashboardPage() {
           <h1 className="text-xl font-bold tracking-tight text-primary flex items-center gap-2">
             <PlayCircle className="w-6 h-6" /> JellyTulli
           </h1>
+          <Navigation />
+          <div className="ml-auto flex items-center space-x-4">
+            <LogoutButton />
+          </div>
         </div>
       </div>
       <div className="flex-1 space-y-4 p-8 pt-6">

@@ -91,3 +91,11 @@ model ActiveStream {
 
   @@index([lastPingAt])
 }
+
+model GlobalSettings {
+  id                  String   @id @default("global") // Singleton pattern pour les settings
+  discordWebhookUrl   String?
+  discordAlertsEnabled Boolean @default(false)
+  updatedAt           DateTime @updatedAt
+}
+

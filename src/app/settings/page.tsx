@@ -1,12 +1,41 @@
 "use client";
 
-import { useState } from "react";
-import { Settings as SettingsIcon, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Settings as SettingsIcon, RefreshCw, CheckCircle2, AlertCircle, Save } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { LogoutButton } from "@/components/LogoutButton";
+import { Navigation } from "@/components/Navigation";
+import Link from "next/link";
+import { PlayCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export default function SettingsPage() {
     const [isLoading, setIsLoading] = useState(false);
+    const [isSavingDiscord, setIsSavingDiscord] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [discordMsg, setDiscordMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    const [discordEnabled, setDiscordEnabled] = useState(false);
+    const [discordUrl, setDiscordUrl] = useState("");
+
+    // Load initial settings
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const res = await fetch("/api/settings");
+                if (res.ok) {
+                    const data = await res.json();
+                    setDiscordEnabled(data.discordAlertsEnabled || false);
+                    setDiscordUrl(data.discordWebhookUrl || "");
+                }
+            } catch (err) {
+                console.error("Failed to load settings");
+            }
+        };
+        fetchSettings();
+    }, []);
 
     const handleSync = async () => {
         setIsLoading(true);
@@ -28,13 +57,43 @@ export default function SettingsPage() {
         }
     };
 
+    const handleSaveDiscord = async () => {
+        setIsSavingDiscord(true);
+        setDiscordMsg(null);
+
+        try {
+            const res = await fetch("/api/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    discordWebhookUrl: discordUrl,
+                    discordAlertsEnabled: discordEnabled
+                })
+            });
+
+            if (res.ok) {
+                setDiscordMsg({ type: "success", text: "Paramètres enregistrés avec succès." });
+            } else {
+                setDiscordMsg({ type: "error", text: "Erreur lors de la sauvegarde." });
+            }
+        } catch (error) {
+            setDiscordMsg({ type: "error", text: "Erreur réseau." });
+        } finally {
+            setIsSavingDiscord(false);
+        }
+    };
+
     return (
         <div className="flex-col md:flex">
             <div className="border-b">
                 <div className="flex h-16 items-center px-4">
-                    <h1 className="text-xl font-bold tracking-tight text-primary flex items-center gap-2">
-                        <SettingsIcon className="w-6 h-6" /> Paramètres
-                    </h1>
+                    <Link href="/" className="text-xl font-bold tracking-tight text-primary flex items-center gap-2 hover:opacity-80 transition-opacity">
+                        <PlayCircle className="w-6 h-6" /> JellyTulli
+                    </Link>
+                    <Navigation />
+                    <div className="ml-auto flex items-center space-x-4">
+                        <LogoutButton />
+                    </div>
                 </div>
             </div>
 
@@ -75,6 +134,72 @@ export default function SettingsPage() {
                         >
                             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                             {isLoading ? 'Synchronisation en cours...' : 'Forcer la synchronisation manuelle'}
+                        </button>
+                    </CardFooter>
+                </Card>
+
+                {/* DISCORD SETTINGS CARD */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Notifications & Alertes Extérieures</CardTitle>
+                        <CardDescription>
+                            Gérez les alertes externes (Discord, Slack via webhook) lors du lancement d'une nouvelle session de lecture sur votre serveur.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {discordMsg && (
+                            <div className={`p-4 rounded-md flex items-center gap-3 text-sm ${discordMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                                }`}>
+                                {discordMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                                {discordMsg.text}
+                            </div>
+                        )}
+
+                        <div className="flex items-center justify-between space-x-2 border p-4 rounded-lg">
+                            <div className="space-y-0.5 mt-0.5">
+                                <Label htmlFor="discord-alerts" className="text-base">
+                                    Activer les notifications Discord
+                                </Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Envoie un beau message visuel sur ton serveur Discord à chaque fois qu'un utilisateur lance un média.
+                                </p>
+                            </div>
+                            <Switch
+                                id="discord-alerts"
+                                checked={discordEnabled}
+                                onCheckedChange={setDiscordEnabled}
+                            />
+                        </div>
+
+                        {discordEnabled && (
+                            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <Label htmlFor="discord-url">URL du Webhook Discord</Label>
+                                <Input
+                                    id="discord-url"
+                                    type="url"
+                                    placeholder="https://discord.com/api/webhooks/..."
+                                    value={discordUrl}
+                                    onChange={(e) => setDiscordUrl(e.target.value)}
+                                    className="font-mono text-sm"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Assurez-vous que l'URL soit valide et fonctionnelle. Vous pouvez écraser la variable d'environnement avec ce champ.
+                                </p>
+                            </div>
+                        )}
+                    </CardContent>
+                    <CardFooter>
+                        <button
+                            onClick={handleSaveDiscord}
+                            disabled={isSavingDiscord}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors
+                                ${isSavingDiscord
+                                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                }`}
+                        >
+                            <Save className={`w-4 h-4 ${isSavingDiscord ? 'animate-pulse' : ''}`} />
+                            {isSavingDiscord ? 'Enregistrement...' : 'Enregistrer les paramètres'}
                         </button>
                     </CardFooter>
                 </Card>

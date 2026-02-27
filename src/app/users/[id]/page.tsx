@@ -18,6 +18,9 @@ import {
 import { Clock, Monitor, Smartphone, PlayCircle, Hash } from "lucide-react";
 import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
+import { LogoutButton } from "@/components/LogoutButton";
+import { Navigation } from "@/components/Navigation";
+import Link from "next/link";
 
 export const revalidate = 0; // Disable static caching for real-time data
 
@@ -94,9 +97,13 @@ export default async function UserDetailPage({ params }: UserPageProps) {
             {/* Header */}
             <div className="border-b">
                 <div className="flex h-16 items-center px-4">
-                    <h1 className="text-xl font-bold tracking-tight text-primary flex items-center gap-2">
+                    <Link href="/" className="text-xl font-bold tracking-tight text-primary flex items-center gap-2 hover:opacity-80 transition-opacity">
                         <PlayCircle className="w-6 h-6" /> JellyTulli
-                    </h1>
+                    </Link>
+                    <Navigation />
+                    <div className="ml-auto flex items-center space-x-4">
+                        <LogoutButton />
+                    </div>
                 </div>
             </div>
 

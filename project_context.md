@@ -33,18 +33,28 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 ```
 /
 ├── .env                      # Variables d'environnement (Base de données, Redis, URLs Jellyfin)
-├── docker-compose.yml        # Définition de l'infrastructure Docker
+├── docker-compose.yml        # Définition de l'infrastructure Docker (App Standalone + DB + Redis)
+├── Dockerfile                # Serveur Next.js multi-stage "standalone" optimisé
+├── docker-entrypoint.sh      # Script bash de lancement avec push Prisma automatisé
 ├── prisma/
 │   └── schema.prisma         # Modèle de base de données PostgreSQL
 ├── src/
 │   ├── app/                  # Routes et pages Next.js
 │   │   ├── api/
-│   │   │   ├── jellyfin/     
-│   │   │   │   └── image/    # Proxy sécurisé pour récupérer les affiches depuis Jellyfin
+│   │   │   ├── auth/
+│   │   │   │   └── [...nextauth]/route.ts # Route NextAuth (Authentification)
+│   │   │   ├── jellyfin/
+│   │   │   │   └── image/         # Proxy sécurisé pour les affiches (API Key masquée)
+│   │   │   ├── settings/
+│   │   │   │   └── route.ts      # Endpoint (GET/POST) gérant les paramètres globaux (ex: Discord)
 │   │   │   ├── sync/
-│   │   │   │   └── route.ts  # Endpoint de Sync manuelle du catalogue Jellyfin
-│   │   │   └── webhook/      # Route API webhook (réception des événements Jellyfin)
+│   │   │   │   └── route.ts      # Déclencheur manuel pour syncJellyfinLibrary()
+│   │   │   └── webhook/          # Réception des événements (PlaybackStart, etc.) & Notifications Discord
 │   │   ├── fonts/            # Polices web (Geist)
+│   │   ├── login/
+│   │   │   └── page.tsx      # Interface de connexion sécurisée
+│   │   ├── media/
+│   │   │   └── page.tsx      # Bibliothèque avec tous les médias (Table interactive & Tris)
 │   │   ├── settings/
 │   │   │   └── page.tsx      # Page des Paramètres (Client Component avec requêtes Sync)
 │   │   ├── users/
@@ -55,7 +65,9 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 │   │   └── page.tsx          # Page principale (Server Component - Fetch BDD/Redis)
 │   ├── components/           # Composants UI React
 │   │   ├── DashboardChart.tsx# Graphique interactif Recharts (Client Component)
-│   │   └── ui/               # Composants Shadcn générés (Card)
+│   │   ├── LogoutButton.tsx  # Bouton de déconnexion NextAuth
+│   │   ├── Navigation.tsx    # En-tête de navigation unifiée (Client Component)
+│   │   └── ui/               # Composants Shadcn générés (Card, Table)
 │   ├── lib/                  # Utilitaires
 │   │   ├── jellyfin.ts       # Service Jellyfin (récupération des images avec API Key)
 │   │   ├── sync.ts           # Logique cœur de synchronisation Jellyfin -> Prisma
@@ -63,10 +75,11 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 │   │   ├── redis.ts          # Singleton pour le client ioredis
 │   │   └── utils.ts          # Utilitaires Tailwind/Shadcn (cn)
 │   ├── instrumentation.ts    # Enregistrement des Hooks Next.js (Script node-cron planifié)
+│   ├── middleware.ts         # Middleware d'authentification NextAuth protégeant le site
 │   └── server/               # Définition des jobs asynchrones, services Jellyfin (à venir)
 ├── components.json           # Configuration Shadcn UI
 ├── next.config.ts            # Configuration Next.js
-├── package.json              # Dépendances du projet (inclut lucide-react, recharts, geoip-lite)
+├── package.json              # Dépendances du projet (inclut next-auth, lucide-react, lites)
 ├── project_context.md        # Ce document
 ├── tailwind.config.ts        # Configuration Tailwind
 ├── test-webhook.js           # Script de simulation des payloads Jellyfin
@@ -79,3 +92,23 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 3. **Tracking Géographique (GeoIP)** : Détermine automatiquement le pays et la ville de chaque lecteur actif pour enrichir l'interface sans requête tierce.
 4. **Proxy Affiches Médias** : Sécurise l'affichage des tuiles Jellyfin dans l'appli sans fuite de clé API.
 5. **Vue Détaillée Utilisateur** : Permet de consulter l'historique complet, les appareils favoris et le temps total d'un profil Jellyfin spécifique.
+6. **Bibliothèque Multimédia** : Répertorie et liste tous les médias synchronisés avec tris dynamiques de leurs performances globales (Popularité, Temps Vu, DirectPlay Ratio).
+7. **Sécurité Globale (NextAuth)** : Les pages locales sont strictement verrouillées par un Middleware filtrant et un mot de passe Admin depuis le backend.
+
+### Modèles Prisma
+- **User** : Un compte identifié par Jellyfin
+- **Media** : Un contenu indexé par le système
+- **ActiveStream** : Mappe sur le JSON complet d'une lecture Redis
+- **PlaybackHistory** : Archivage profond des sessions terminées
+- **GlobalSettings** : Configuration de l'application (URL Discord Webhook, état)
+
+## Features Exclusives (vs Jellystat)
+1. **Caching Redis** : Plus de sollicitations de BDD pour les requêtes Live.
+2. **Synchronisation Automatique** : Tâche `node-cron` incluse directement dans l'instrumentation.
+3. **Tracking Géographique (GeoIP)** : Détermine automatiquement le pays et la ville de chaque lecteur actif pour enrichir l'interface sans requête tierce.
+4. **Proxy Affiches Médias** : Sécurise l'affichage des tuiles Jellyfin dans l'appli sans fuite de clé API.
+5. **Vue Détaillée Utilisateur** : Permet de consulter l'historique complet, les appareils favoris et le temps total d'un profil Jellyfin spécifique.
+6. **Bibliothèque Multimédia** : Répertorie et liste tous les médias synchronisés avec tris dynamiques de leurs performances globales (Popularité, Temps Vu, DirectPlay Ratio).
+7. **Notifications Discord** : Webhook généré dynamiquement lors d'un `PlaybackStart` avec Embeds enrichis et modulable via les Paramètres.
+8. **Sécurité Globale (NextAuth)** : Les pages locales sont strictement verrouillées par un Middleware filtrant et un mot de passe Admin depuis le backend.
+9. **Build Standalone** : Le projet inclut un build Docker multi-stage minimaliste (`.next/standalone`) déployable d'un clic avec une migration Prismatique automatisée (`docker-entrypoint.sh`).
