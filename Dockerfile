@@ -58,6 +58,8 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/package.json ./package.json
 
+# Force copy geoip-country to standalone
+COPY --from=builder /app/node_modules/geoip-country ./node_modules/geoip-country
 
 
 # Expose port and configure entrypoint

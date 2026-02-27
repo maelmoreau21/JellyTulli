@@ -1,4 +1,9 @@
 export function getJellyfinImageUrl(itemId: string, type: 'Primary' | 'Thumb' = 'Primary'): string {
+    const baseUrl = process.env.JELLYFIN_URL || "";
+    const apiKey = process.env.JELLYFIN_API_KEY || "";
+    if (baseUrl && apiKey) {
+        return `${baseUrl}/Items/${itemId}/Images/${type}?api_key=${apiKey}&fillWidth=300&quality=80`;
+    }
     return `/api/jellyfin/image?itemId=${itemId}&type=${type}`;
 }
 

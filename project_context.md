@@ -65,10 +65,13 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 │   │   │   └── page.tsx      # Page des Paramètres (Client Component avec requêtes Sync)
 │   │   ├── users/
 │   │   │   └── [id]/         # Route dynamique utilisateurs
-│   │   │       └── page.tsx  # Vue détaillée (Stats & Historique complet d'un User)
+│   │   │       ├── page.tsx  # Vue détaillée (Suspense Server Components)
+│   │   │       ├── UserInfo.tsx       # Composant Profil Asynchrone
+│   │   │       ├── UserActivity.tsx   # Heatmap Asynchrone
+│   │   │       └── UserRecentMedia.tsx# Historique Asynchrone
 │   │   ├── globals.css       # Styles globaux (Tailwind + Variables Shadcn)
 │   │   ├── layout.tsx        # Layout racine
-│   │   └── page.tsx          # Page principale (Server Component - Fetch BDD/Redis)
+│   │   └── page.tsx          # Dashboard (Server Component - Instable Cache)
 │   ├── components/           # Composants UI React
 │   │   ├── DashboardChart.tsx# Graphique interactif Recharts (Client Component)
 │   │   ├── LogoutButton.tsx  # Bouton de déconnexion NextAuth
@@ -85,8 +88,8 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 │   ├── instrumentation.ts    # Enregistrement des Hooks Next.js (Script node-cron & monitor)
 │   └── middleware.ts         # Middleware d'authentification NextAuth protégeant le site
 ├── components.json           # Configuration Shadcn UI
-├── next.config.ts            # Configuration Next.js
-├── package.json              # Dépendances du projet (inclut next-auth, lucide-react, lites)
+├── next.config.ts            # Configuration Next.js (Standalone)
+├── package.json              # Dépendances du projet (next-auth, recharts, geoip-country)
 ├── project_context.md        # Ce document
 ├── tailwind.config.ts        # Configuration Tailwind
 ├── test-webhook.js           # Script de simulation des payloads Jellyfin

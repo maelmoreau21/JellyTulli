@@ -22,14 +22,14 @@ interface TrendData {
     totalViews: number; // Bar chart
 }
 
-const formatTooltipValue = (value: number, name: string) => {
+const formatTooltipValue = (value: any, name: string) => {
     if (name === "Vues (Total)") return [`${value} lectures`, name];
-    return [`${value.toFixed(1)}h`, name];
+    return [`${Number(value).toFixed(1)}h`, name];
 };
 
 export function ComposedTrendChart({ data }: { data: TrendData[] }) {
     return (
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height={300} minHeight={300}>
             <ComposedChart
                 data={data}
                 margin={{ top: 20, right: 30, left: -10, bottom: 5 }}
