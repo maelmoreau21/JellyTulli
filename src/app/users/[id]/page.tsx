@@ -22,7 +22,7 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { Navigation } from "@/components/Navigation";
 import Link from "next/link";
 
-export const revalidate = 0; // Disable static caching for real-time data
+export const dynamic = "force-dynamic";
 
 interface UserPageProps {
     params: Promise<{

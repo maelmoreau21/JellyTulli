@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { GenreDistributionChart, GenreData } from "@/components/charts/GenreDistributionChart";
 
-export const revalidate = 60; // Cached pour éviter le recalcul lourd des genres à chaque chargement
+export const dynamic = "force-dynamic";
 
 interface MediaPageProps {
     searchParams: Promise<{

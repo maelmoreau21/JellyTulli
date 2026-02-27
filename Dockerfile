@@ -22,6 +22,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Generate Prisma client
 RUN npx prisma generate
 
+# Provide dummy variables so Next.js build doesn't crash trying to connect to a real DB
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+ENV NEXTAUTH_SECRET="placeholder"
+
 # Build Next.js project
 RUN npm run build
 

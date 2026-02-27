@@ -40,7 +40,7 @@ type LiveStream = {
   city: string;
 };
 
-export const revalidate = 60; // Cache partiel de 60 secondes pour ménager le Raspberry Pi sur les grosses agrégations.
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   // 1. Prisma : Utilisateurs Totaux
@@ -116,7 +116,7 @@ export default async function DashboardPage() {
     daysMap.set(dayStr, 0);
   }
 
-  histories.forEach((h: { startedAt: Date; durationWatched: number }) => {
+  histories.forEach((h: { startedAt: Date; durationWatched: number; }) => {
     const dayName = dayNames[h.startedAt.getDay()];
     if (daysMap.has(dayName)) {
       const currentSeconds = daysMap.get(dayName)!;
