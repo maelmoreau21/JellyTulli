@@ -7,7 +7,7 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 - **Infrastructure** : Docker Compose (App, PostgreSQL 18, Redis)
 - **Base de données** : PostgreSQL 18 (stockage persistant des métriques et historique) via Prisma
 - **Cache & Temps Réel** : Redis (pour le stockage des flux en cours, des requêtes très fréquentes et la communication temps réel)
-- **Backend / API** : Node.js (via Next.js Server Actions / API Routes), Prisma
+- **Backend / API** : Node.js 20-alpine (via Next.js Server Actions / API Routes), Prisma
 - **Frontend** : Next.js (React), Tailwind CSS, Shadcn/UI pour les graphiques avancés et l'interface
 
 ## Fonctionnalités Principales Attendues
@@ -32,9 +32,8 @@ Développer "JellyTulli", une solution de monitoring et d'analytique avancée po
 ## Structure du Projet (Actualisée)
 ```
 /
-├── .env                      # Variables d'environnement (Base de données, Redis, URLs Jellyfin)
-├── docker-compose.yml        # Définition de l'infrastructure Docker (App Standalone + DB + Redis)
-├── Dockerfile                # Serveur Next.js multi-stage "standalone" optimisé
+├── docker-compose.yml        # Définition de l'infrastructure Docker (App Standalone + DB + Redis) et Variables (DATABASE_URL, JELLYFIN...)
+├── Dockerfile                # Serveur Next.js multi-stage "standalone" optimisé (Node 20)
 ├── docker-entrypoint.sh      # Script bash de lancement avec push Prisma automatisé
 ├── prisma/
 │   └── schema.prisma         # Modèle de base de données PostgreSQL
