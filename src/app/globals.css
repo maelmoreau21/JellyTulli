@@ -126,6 +126,6 @@
   }
 
   body {
-    @apply bg-zinc-950 text-foreground dark;
+    @apply bg-zinc-950 text-foreground;
   }
 }

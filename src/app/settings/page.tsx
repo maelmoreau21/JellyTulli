@@ -3,13 +3,9 @@
 import { useState, useEffect } from "react";
 import { Settings as SettingsIcon, RefreshCw, CheckCircle2, AlertCircle, Save } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { LogoutButton } from "@/components/LogoutButton";
-import { Navigation } from "@/components/Navigation";
-import Link from "next/link";
-import { PlayCircle } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 
 export default function SettingsPage() {
     const [isLoading, setIsLoading] = useState(false);
@@ -85,24 +81,12 @@ export default function SettingsPage() {
 
     return (
         <div className="flex-col md:flex">
-            <div className="border-b">
-                <div className="flex h-16 items-center px-4">
-                    <Link href="/" className="text-xl font-bold tracking-tight text-primary flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <PlayCircle className="w-6 h-6" /> JellyTulli
-                    </Link>
-                    <Navigation />
-                    <div className="ml-auto flex items-center space-x-4">
-                        <LogoutButton />
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex-1 space-y-4 p-8 pt-6 max-w-4xl mx-auto w-full">
+            <div className="flex-1 space-y-6 p-8 pt-6 max-w-4xl mx-auto w-full">
                 <div className="flex items-center justify-between space-y-2 mb-6">
                     <h2 className="text-3xl font-bold tracking-tight">Configuration</h2>
                 </div>
 
-                <Card>
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle>Synchronisation Jellyfin</CardTitle>
                         <CardDescription>
@@ -139,7 +123,7 @@ export default function SettingsPage() {
                 </Card>
 
                 {/* DISCORD SETTINGS CARD */}
-                <Card>
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
                     <CardHeader>
                         <CardTitle>Notifications & Alertes Extérieures</CardTitle>
                         <CardDescription>

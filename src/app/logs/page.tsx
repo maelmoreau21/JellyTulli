@@ -1,9 +1,7 @@
-import { Navigation } from "@/components/Navigation";
-import { LogoutButton } from "@/components/LogoutButton";
-import Link from "next/link";
 import { PlayCircle, Search, ArrowUpDown, ChevronDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { LogFilters } from "./LogFilters";
 import prisma from "@/lib/prisma";
 
@@ -46,19 +44,7 @@ export default async function LogsPage({
 
     return (
         <div className="flex-col md:flex">
-            <div className="border-b">
-                <div className="flex h-16 items-center px-4">
-                    <Link href="/" className="text-xl font-bold tracking-tight text-primary flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <PlayCircle className="w-6 h-6" /> JellyTulli
-                    </Link>
-                    <Navigation />
-                    <div className="ml-auto flex items-center space-x-4">
-                        <LogoutButton />
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex-1 space-y-4 p-8 pt-6 max-w-[1400px] mx-auto w-full">
+            <div className="flex-1 space-y-6 p-8 pt-6 max-w-[1400px] mx-auto w-full">
                 <div className="flex items-center justify-between space-y-2">
                     <div>
                         <h2 className="text-3xl font-bold tracking-tight">Historique Brut (Logs)</h2>
@@ -68,7 +54,7 @@ export default async function LogsPage({
                     </div>
                 </div>
 
-                <Card>
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle>Recherche & Filtres</CardTitle>
                         <CardDescription>Trouvez une session spécifique par Titre, IP ou Nom du client utilisé.</CardDescription>
@@ -101,7 +87,7 @@ export default async function LogsPage({
                                             const isTranscode = log.playMethod?.toLowerCase().includes("transcode");
 
                                             return (
-                                                <TableRow key={log.id}>
+                                                <TableRow key={log.id} className="even:bg-zinc-900/30 hover:bg-zinc-800/50 border-zinc-800/50 transition-colors">
                                                     {/* Date */}
                                                     <TableCell className="font-medium whitespace-nowrap">
                                                         {log.startedAt.toLocaleString('fr-FR', {
@@ -149,14 +135,9 @@ export default async function LogsPage({
 
                                                     {/* Statut (Méthode) */}
                                                     <TableCell>
-                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border
-                                                                ${isTranscode
-                                                                ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                                                                : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                                                            }`}
-                                                        >
+                                                        <Badge variant={isTranscode ? "destructive" : "default"} className={`shadow-sm ${isTranscode ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'}`}>
                                                             {log.playMethod || "DirectPlay"}
-                                                        </span>
+                                                        </Badge>
                                                     </TableCell>
 
                                                     {/* Codecs */}

@@ -13,8 +13,6 @@ import { ActivityByHourChart, ActivityHourData } from "@/components/charts/Activ
 import { PlatformDistributionChart, PlatformData } from "@/components/charts/PlatformDistributionChart";
 import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
-import { LogoutButton } from "@/components/LogoutButton";
-import { Navigation } from "@/components/Navigation";
 
 // Type des données stockées dans Redis au format Webhook
 type WebhookPayload = {
@@ -134,7 +132,7 @@ export default async function DashboardPage() {
   });
 
   const total24h = last24hHistories.length;
-  const directPlay24h = last24hHistories.filter(h => h.playMethod === "DirectPlay").length;
+  const directPlay24h = last24hHistories.filter((h: any) => h.playMethod === "DirectPlay").length;
   const directPlayPercent = total24h > 0 ? Math.round((directPlay24h / total24h) * 100) : 100;
 
   // 6. Top 5 Utilisateurs
@@ -186,26 +184,15 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex-col md:flex">
-      <div className="border-b">
-        <div className="flex h-16 items-center px-4">
-          <h1 className="text-xl font-bold tracking-tight text-primary flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <PlayCircle className="w-6 h-6" /> JellyTulli
-          </h1>
-          <Navigation />
-          <div className="ml-auto flex items-center space-x-4">
-            <LogoutButton />
-          </div>
-        </div>
-      </div>
-      <div className="flex-1 space-y-4 p-8 pt-6">
-        <div className="flex items-center justify-between space-y-2">
+      <div className="flex-1 space-y-6 p-8 pt-6">
+        <div className="flex items-center justify-between space-y-2 mb-4">
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-          <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md border">Données mises en cache (60s)</span>
+          <span className="text-xs text-zinc-400 bg-zinc-900/80 px-2 py-1.5 rounded-md border border-zinc-800">Données mises en cache (60s)</span>
         </div>
 
         {/* Global Metrics Row 1 */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+          <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Streams Actifs</CardTitle>
               <Activity className="h-4 w-4 text-emerald-500" />
@@ -216,7 +203,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Bande Passante</CardTitle>
               <ActivitySquare className="h-4 w-4 text-blue-500" />
@@ -227,7 +214,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Efficacité DirectPlay</CardTitle>
               <MonitorPlay className="h-4 w-4 text-purple-500" />
@@ -238,7 +225,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Temps Global</CardTitle>
               <Clock className="h-4 w-4 text-orange-500" />
@@ -252,7 +239,7 @@ export default async function DashboardPage() {
 
         {/* Graphs Row 1 : Temps 7J + Heures d'activité */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="col-span-4">
+          <Card className="col-span-4 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
             <CardHeader>
               <CardTitle>Volume de lecture (7 derniers jours)</CardTitle>
             </CardHeader>
@@ -263,7 +250,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="col-span-3">
+          <Card className="col-span-3 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
             <CardHeader>
               <CardTitle>Pics d'activité (Heures)</CardTitle>
               <CardDescription>Moyenne de l'heure de démarrage des sessions.</CardDescription>
@@ -279,7 +266,7 @@ export default async function DashboardPage() {
         {/* Dataviz Row 2 : Plateformes + Top Users + Live */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-8">
 
-          <Card className="col-span-2">
+          <Card className="col-span-2 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
             <CardHeader>
               <CardTitle>Leaderboard</CardTitle>
               <CardDescription>Top 5 des vidéophiles.</CardDescription>
@@ -316,7 +303,7 @@ export default async function DashboardPage() {
           </Card>
 
           {/* Live Streams Section (Shrunk down as part of Row 2) */}
-          <Card className="col-span-3">
+          <Card className="col-span-3 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
             <CardHeader>
               <CardTitle>Activité en direct</CardTitle>
               <CardDescription>

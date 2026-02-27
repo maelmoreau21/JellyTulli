@@ -18,9 +18,7 @@ import {
 import { Clock, Monitor, Smartphone, PlayCircle, Hash } from "lucide-react";
 import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
-import { LogoutButton } from "@/components/LogoutButton";
-import { Navigation } from "@/components/Navigation";
-import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
 
@@ -94,20 +92,7 @@ export default async function UserDetailPage({ params }: UserPageProps) {
 
     return (
         <div className="flex-col md:flex">
-            {/* Header */}
-            <div className="border-b">
-                <div className="flex h-16 items-center px-4">
-                    <Link href="/" className="text-xl font-bold tracking-tight text-primary flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <PlayCircle className="w-6 h-6" /> JellyTulli
-                    </Link>
-                    <Navigation />
-                    <div className="ml-auto flex items-center space-x-4">
-                        <LogoutButton />
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex-1 space-y-4 p-8 pt-6">
+            <div className="flex-1 space-y-6 p-8 pt-6">
                 <div className="flex flex-col space-y-2 mb-6">
                     <h2 className="text-3xl font-bold tracking-tight">
                         Profil: {user.username}
@@ -119,7 +104,7 @@ export default async function UserDetailPage({ params }: UserPageProps) {
 
                 {/* Global Metrics */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <Card>
+                    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
                                 Temps de lecture
@@ -160,7 +145,7 @@ export default async function UserDetailPage({ params }: UserPageProps) {
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
                                 Appareil Favori
@@ -177,7 +162,7 @@ export default async function UserDetailPage({ params }: UserPageProps) {
                 </div>
 
                 {/* Historique Table */}
-                <Card className="mt-6">
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
                     <CardHeader>
                         <CardTitle>Historique de lecture</CardTitle>
                         <CardDescription>
@@ -209,8 +194,10 @@ export default async function UserDetailPage({ params }: UserPageProps) {
                                                 timeStyle: "short",
                                             }).format(session.startedAt);
 
+                                            const isTranscode = session.playMethod?.toLowerCase().includes("transcode");
+
                                             return (
-                                                <TableRow key={session.id}>
+                                                <TableRow key={session.id} className="even:bg-zinc-900/30 hover:bg-zinc-800/50 border-zinc-800/50 transition-colors">
                                                     <TableCell className="font-medium">
                                                         <div className="flex items-center gap-3">
                                                             <div className="relative w-12 aspect-[2/3] bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10">
@@ -240,14 +227,9 @@ export default async function UserDetailPage({ params }: UserPageProps) {
                                                         </span>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <span
-                                                            className={`px-2 py-1 rounded-full text-xs font-semibold ${session.playMethod === "Transcode"
-                                                                ? "bg-orange-500/10 text-orange-500"
-                                                                : "bg-emerald-500/10 text-emerald-500"
-                                                                }`}
-                                                        >
-                                                            {session.playMethod}
-                                                        </span>
+                                                        <Badge variant={isTranscode ? "destructive" : "default"} className={`shadow-sm ${isTranscode ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'}`}>
+                                                            {session.playMethod || "DirectPlay"}
+                                                        </Badge>
                                                     </TableCell>
                                                 </TableRow>
                                             );

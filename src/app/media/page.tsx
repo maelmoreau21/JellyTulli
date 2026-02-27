@@ -3,8 +3,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { PlayCircle, Film, ArrowDownUp } from "lucide-react";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
-import { LogoutButton } from "@/components/LogoutButton";
-import { Navigation } from "@/components/Navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { GenreDistributionChart, GenreData } from "@/components/charts/GenreDistributionChart";
@@ -92,22 +90,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
 
     return (
         <div className="flex-col md:flex">
-            {/* Header unifié avec navigation */}
-            <div className="border-b">
-                <div className="flex h-16 items-center px-4">
-                    <Link href="/" className="text-xl font-bold tracking-tight text-primary flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <PlayCircle className="w-6 h-6" /> JellyTulli
-                    </Link>
-
-                    <Navigation />
-
-                    <div className="ml-auto flex items-center space-x-4">
-                        <LogoutButton />
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex-1 space-y-4 p-8 pt-6">
+            <div className="flex-1 space-y-6 p-8 pt-6">
                 <div className="flex items-center justify-between space-y-2 mb-6">
                     <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
                         <Film className="w-8 h-8 opacity-80" /> Bibliothèque
@@ -116,7 +99,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
 
                 {/* Section Stats Bibliothèque */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
-                    <Card className="col-span-2">
+                    <Card className="col-span-2 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                         <CardHeader>
                             <CardTitle>Diversité de la bibliothèque (Top Genres)</CardTitle>
                         </CardHeader>
@@ -127,7 +110,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                         </CardContent>
                     </Card>
 
-                    <Card className="col-span-1">
+                    <Card className="col-span-1 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                         <CardHeader>
                             <CardTitle>Qualité Vidéo Globale</CardTitle>
                             <CardDescription>Répartition par résolution certifiée.</CardDescription>
@@ -153,7 +136,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                     </Card>
                 </div>
 
-                <Card>
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle>Tous les Médias</CardTitle>
                         <CardDescription>
@@ -195,23 +178,35 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
                                 {displayMedia.map((media: any) => (
                                     <div key={media.id} className="group flex flex-col space-y-2 relative">
-                                        <div className="relative w-full aspect-[2/3] bg-zinc-900 rounded-md overflow-hidden ring-1 ring-white/10 transition-transform group-hover:scale-[1.03] group-hover:ring-primary/50 shadow-lg">
+                                        <div className="relative w-full aspect-[2/3] bg-zinc-900 rounded-md overflow-hidden ring-1 ring-white/10 shadow-lg">
                                             <Image
                                                 src={getJellyfinImageUrl(media.jellyfinMediaId, 'Primary')}
                                                 alt={media.title}
                                                 width={400}
                                                 height={600}
                                                 unoptimized
-                                                className="max-w-full h-auto object-cover"
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50"
                                             />
                                             {/* Top Overlay logic (Quality) */}
                                             {media.plays > 0 && (
-                                                <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+                                                <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10 transition-opacity duration-300 group-hover:opacity-0">
                                                     <Badge variant={media.qualityPercent >= 80 ? "default" : media.qualityPercent >= 50 ? "secondary" : "destructive"} className="shadow-black/50 shadow-sm backdrop-blur-sm bg-opacity-90">
                                                         {media.qualityPercent}% DP
                                                     </Badge>
                                                 </div>
                                             )}
+                                            {/* Hover Overlay Title */}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4 pointer-events-none">
+                                                <h3 className="text-white font-bold text-lg leading-tight drop-shadow-md">{media.title}</h3>
+                                                {media.productionYear && (
+                                                    <span className="text-zinc-300 text-sm font-medium">{media.productionYear}</span>
+                                                )}
+                                                {media.resolution && (
+                                                    <Badge variant="outline" className="w-fit mt-2 text-xs bg-black/50 text-white border-white/20">
+                                                        {media.resolution}
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="flex flex-col px-1">
                                             <span className="font-semibold text-sm truncate text-zinc-100" title={media.title}>{media.title}</span>
