@@ -25,8 +25,8 @@ const navigation = [
 export function Sidebar() {
     const pathname = usePathname();
 
-    // Hide sidebar on the login page
-    if (pathname === '/login') {
+    // Hide sidebar on login and Wrapped pages (Wrapped uses fullscreen overlay)
+    if (pathname === '/login' || pathname?.startsWith('/wrapped')) {
         return null;
     }
 

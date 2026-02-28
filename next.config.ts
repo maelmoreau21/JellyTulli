@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
     },
   },
   // Override the default 10MB body parser limit for API routes handling large uploads
-  serverExternalPackages: ['stream-json', 'stream-chain'],
+  serverExternalPackages: ['stream-json', 'stream-chain', 'JSONStream'],
 };
 
 export default nextConfig;

@@ -175,7 +175,16 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        return NextResponse.json({ message: `Importation terminée. ${importedSess} sessions ajoutées ou mises à jour (${errors} erreurs).` });
+        // Cleanup: fix ghost users from previous imports that used "Unknown User"
+        const cleaned = await prisma.user.updateMany({
+            where: { username: { in: ["Unknown User", "Unknown", "unknown"] } },
+            data: { username: "Utilisateur Supprimé" }
+        });
+        if (cleaned.count > 0) {
+            console.log(`[Playback Reporting Import] Nettoyage: ${cleaned.count} utilisateurs fantômes corrigés.`);
+        }
+
+        return NextResponse.json({ message: `Importation terminée. ${importedSess} sessions ajoutées ou mises à jour (${errors} erreurs).${cleaned.count > 0 ? ` ${cleaned.count} utilisateurs fantômes corrigés.` : ""}` });
 
     } catch (error) {
         console.error("[Playback Reporting API] Error:", error);

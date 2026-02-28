@@ -3,9 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
 import { Readable } from "stream";
-import { chain } from "stream-chain";
-import { parser } from "stream-json";
-import { streamValues } from "stream-json/streamers/StreamValues";
+const JSONStream = require("JSONStream");
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -42,7 +40,7 @@ export async function POST(req: NextRequest) {
         const fileName = req.headers.get("x-file-name") || "unknown.json";
         const fileSize = req.headers.get("x-file-size");
         const sizeMb = fileSize ? (parseInt(fileSize) / 1024 / 1024).toFixed(2) : "?";
-        console.log(`[Jellystat Import] Démarrage de l'import duck-typing pour ${fileName} (${sizeMb} Mo)`);
+        console.log(`[Jellystat Import] Démarrage de l'import JSONStream deep-scan pour ${fileName} (${sizeMb} Mo)`);
 
         let importedSess = 0;
         let skipped = 0;
@@ -51,13 +49,9 @@ export async function POST(req: NextRequest) {
         const CHUNK_SIZE = 200;
         let currentChunk: any[] = [];
 
-        // Stream request body → parser → streamValues (emits EVERY value at any depth)
+        // JSONStream.parse('..') recursively emits every object/value at any depth
         const nodeStream = Readable.fromWeb(body as any);
-        const pipeline = chain([
-            nodeStream,
-            parser(),
-            streamValues()
-        ]);
+        const jsonStream = nodeStream.pipe(JSONStream.parse('..'));
 
         const processChunk = async (chunk: any[]) => {
             for (const row of chunk) {
@@ -121,29 +115,46 @@ export async function POST(req: NextRequest) {
             }
         };
 
-        for await (const data of pipeline) {
-            const val = data.value;
-            processedCount++;
+        // Use event-based 'data' with backpressure via pause/resume
+        await new Promise<void>((resolve, reject) => {
+            jsonStream.on("data", async (obj: any) => {
+                processedCount++;
 
-            // Duck-Typing filter: only process objects that look like sessions
-            if (isSessionObject(val)) {
-                currentChunk.push(val);
-            } else {
-                skipped++;
-            }
-
-            if (currentChunk.length >= CHUNK_SIZE) {
-                await processChunk(currentChunk);
-                currentChunk = [];
-                if (processedCount % 1000 === 0) {
-                    console.log(`[Jellystat Import] Progress: ${processedCount} valeurs lues, ${importedSess} sessions importées...`);
+                if (isSessionObject(obj)) {
+                    currentChunk.push(obj);
+                } else {
+                    skipped++;
                 }
-            }
-        }
 
-        if (currentChunk.length > 0) {
-            await processChunk(currentChunk);
-        }
+                if (currentChunk.length >= CHUNK_SIZE) {
+                    jsonStream.pause();
+                    try {
+                        await processChunk(currentChunk);
+                        currentChunk = [];
+                        if (processedCount % 1000 === 0) {
+                            console.log(`[Jellystat Import] Progress: ${processedCount} valeurs lues, ${importedSess} sessions importées...`);
+                        }
+                    } catch (err) {
+                        reject(err);
+                        return;
+                    }
+                    jsonStream.resume();
+                }
+            });
+
+            jsonStream.on("end", async () => {
+                try {
+                    if (currentChunk.length > 0) {
+                        await processChunk(currentChunk);
+                    }
+                    resolve();
+                } catch (err) {
+                    reject(err);
+                }
+            });
+
+            jsonStream.on("error", reject);
+        });
 
         console.log(`[Jellystat Import] Terminé: ${importedSess} sessions importées, ${skipped} valeurs ignorées, ${errors} erreurs.`);
 

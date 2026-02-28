@@ -4,9 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
 import { createReadStream, existsSync, readdirSync, unlinkSync, rmdirSync } from "fs";
 import path from "path";
-import { chain } from "stream-chain";
-import { parser } from "stream-json";
-import { streamValues } from "stream-json/streamers/StreamValues";
+const JSONStream = require("JSONStream");
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -75,7 +73,7 @@ export async function POST(req: NextRequest) {
             writeStream.on("error", reject);
         });
 
-        console.log(`[Jellystat Finalize] Merged file created, starting stream-json duck-typing import...`);
+        console.log(`[Jellystat Finalize] Merged file created, starting JSONStream deep-scan import...`);
 
         let importedSess = 0;
         let skipped = 0;
@@ -85,7 +83,7 @@ export async function POST(req: NextRequest) {
         let currentChunk: any[] = [];
 
         const fileStream = createReadStream(mergedPath);
-        const pipeline = chain([fileStream, parser(), streamValues()]);
+        const jsonStream = fileStream.pipe(JSONStream.parse('..'));
 
         const processChunk = async (chunk: any[]) => {
             for (const row of chunk) {
@@ -146,28 +144,45 @@ export async function POST(req: NextRequest) {
             }
         };
 
-        for await (const data of pipeline) {
-            const val = data.value;
-            processedCount++;
+        await new Promise<void>((resolve, reject) => {
+            jsonStream.on("data", async (obj: any) => {
+                processedCount++;
 
-            if (isSessionObject(val)) {
-                currentChunk.push(val);
-            } else {
-                skipped++;
-            }
-
-            if (currentChunk.length >= CHUNK_SIZE) {
-                await processChunk(currentChunk);
-                currentChunk = [];
-                if (processedCount % 1000 === 0) {
-                    console.log(`[Jellystat Finalize] Progress: ${processedCount} valeurs lues, ${importedSess} sessions importées...`);
+                if (isSessionObject(obj)) {
+                    currentChunk.push(obj);
+                } else {
+                    skipped++;
                 }
-            }
-        }
 
-        if (currentChunk.length > 0) {
-            await processChunk(currentChunk);
-        }
+                if (currentChunk.length >= CHUNK_SIZE) {
+                    jsonStream.pause();
+                    try {
+                        await processChunk(currentChunk);
+                        currentChunk = [];
+                        if (processedCount % 1000 === 0) {
+                            console.log(`[Jellystat Finalize] Progress: ${processedCount} valeurs lues, ${importedSess} sessions importées...`);
+                        }
+                    } catch (err) {
+                        reject(err);
+                        return;
+                    }
+                    jsonStream.resume();
+                }
+            });
+
+            jsonStream.on("end", async () => {
+                try {
+                    if (currentChunk.length > 0) {
+                        await processChunk(currentChunk);
+                    }
+                    resolve();
+                } catch (err) {
+                    reject(err);
+                }
+            });
+
+            jsonStream.on("error", reject);
+        });
 
         console.log(`[Jellystat Finalize] Terminé: ${importedSess} sessions importées, ${skipped} valeurs ignorées, ${errors} erreurs.`);
 

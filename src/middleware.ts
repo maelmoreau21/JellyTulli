@@ -62,6 +62,6 @@ export const config = {
          * - _next/image (Next.js image optimization API)
          * - favicon.ico, sitemap.xml, robots.txt (Metadata basique)
          */
-        "/((?!api/jellyfin/image|api/setup|api/webhook|setup|login|_next/static|_next/image|favicon.ico).*)",
+        "/((?!api/jellyfin/image|api/setup|api/webhook|setup|login|_next|favicon.ico).*)",
     ],
 };
