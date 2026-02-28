@@ -23,7 +23,7 @@ export function getGeoLocation(ip: string | null | undefined) {
         }
     } catch (e: any) {
         if (e.code === 'ENOENT' || e.message?.includes('ENOENT')) {
-            console.warn("[GeoIP] Base de données manquante pour geoip-country.");
+            // Silencing the warning to prevent console spam. Unresolved geoip will naturally fallback to Unknown.
         } else {
             console.error("GeoIP lookup failed:", e.message || e);
         }

@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import redis from "@/lib/redis";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Activity, ActivitySquare, MonitorPlay, Clock, PlayCircle, TrendingUp, TrendingDown, Award } from "lucide-react";
+import { Activity, ActivitySquare, MonitorPlay, Clock, PlayCircle, TrendingUp, TrendingDown, Award, Film, Tv, Music, BookOpen } from "lucide-react";
 import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
 import Link from "next/link";
@@ -13,6 +13,7 @@ import { ActivityByHourChart, ActivityHourData } from "@/components/charts/Activ
 import { PlatformDistributionChart, PlatformData } from "@/components/charts/PlatformDistributionChart";
 import { TimeRangeSelector } from "@/components/TimeRangeSelector";
 import { ComposedTrendChart } from "@/components/charts/ComposedTrendChart";
+import { CategoryPieChart } from "@/components/charts/CategoryPieChart";
 
 // Webhook / Redis types
 type WebhookPayload = {
@@ -49,10 +50,9 @@ type LiveStream = {
 export const dynamic = "force-dynamic";
 
 // --- Aggregation Cache Helper ---
-// We wrap our heavy prisma DB queries inside `unstable_cache` with a 60s revalidation.
 const getDashboardMetrics = unstable_cache(
   async (type: string | undefined, timeRange: string, excludedLibraries: string[]) => {
-    // 1. Calculate time windows (Current vs Previous)
+    // 1. Calculate time windows
     let currentStartDate: Date | undefined;
     let previousStartDate: Date | undefined;
     let previousEndDate: Date | undefined;
@@ -90,6 +90,7 @@ const getDashboardMetrics = unstable_cache(
     if (type === 'movie') AND.push({ type: "Movie" });
     else if (type === 'series') AND.push({ type: { in: ["Series", "Episode"] } });
     else if (type === 'music') AND.push({ type: { in: ["Audio", "Track"] } });
+    else if (type === 'book') AND.push({ type: "Book" });
 
     if (excludedLibraries.length > 0) {
       AND.push({
@@ -111,7 +112,7 @@ const getDashboardMetrics = unstable_cache(
     });
     const hoursWatched = parseFloat(((hoursWatchedAgg._sum.durationWatched || 0) / 3600).toFixed(1));
 
-    // Previous Hours (For Growth indicator)
+    // Previous Hours
     let previousHoursWatched = 0;
     if (prevDateFilter) {
       const prevHoursAgg = await prisma.playbackHistory.aggregate({
@@ -122,14 +123,20 @@ const getDashboardMetrics = unstable_cache(
     }
     const hoursGrowth = previousHoursWatched > 0 ? ((hoursWatched - previousHoursWatched) / previousHoursWatched) * 100 : 0;
 
-    // 4. Fetch Histories for Charts & Advanced Stats
+    // 4. Load all history matching period
     const histories = await prisma.playbackHistory.findMany({
       where: { startedAt: dateFilter, media: mediaWhere },
-      select: { startedAt: true, durationWatched: true, clientName: true, playMethod: true, media: { select: { type: true } } },
+      select: { startedAt: true, durationWatched: true, clientName: true, playMethod: true, media: { select: { type: true, title: true } } },
       orderBy: { startedAt: 'asc' }
     });
 
-    // Trend ComposedChart (Volume vs Views Count)
+    // Sub-Categories Breakdown
+    let movieViews = 0, movieHours = 0;
+    let seriesViews = 0, seriesHours = 0;
+    let musicViews = 0, musicHours = 0;
+    let booksViews = 0, booksHours = 0;
+    let directPlayCount = 0;
+
     const trendMap = new Map<string, any>();
     const getFormatKey = (d: Date) => {
       if (timeRange === "24h") return `${d.getHours().toString().padStart(2, '0')}:00`;
@@ -137,10 +144,7 @@ const getDashboardMetrics = unstable_cache(
       else return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
     };
 
-    let directPlayCount = 0;
-
     histories.forEach((h: any) => {
-      // Efficiency Counter
       if (h.playMethod === "DirectPlay") directPlayCount++;
 
       const key = getFormatKey(new Date(h.startedAt));
@@ -151,13 +155,32 @@ const getDashboardMetrics = unstable_cache(
       const mType = h.media?.type?.toLowerCase() || "";
       const hours = h.durationWatched / 3600;
 
-      if (mType.includes('movie')) entry.movieVolume += hours;
-      else if (mType.includes('series') || mType.includes('episode')) entry.seriesVolume += hours;
-      else if (mType.includes('audio') || mType.includes('track')) entry.musicVolume += hours;
-      else entry.otherVolume += hours;
+      // Classifying
+      if (mType.includes('movie')) {
+        entry.movieVolume += hours;
+        movieViews++; movieHours += hours;
+      } else if (mType.includes('series') || mType.includes('episode')) {
+        entry.seriesVolume += hours;
+        seriesViews++; seriesHours += hours;
+      } else if (mType.includes('audio') || mType.includes('track')) {
+        entry.musicVolume += hours;
+        musicViews++; musicHours += hours;
+      } else if (mType.includes('book')) {
+        entry.otherVolume += hours;
+        booksViews++; booksHours += hours;
+      } else {
+        entry.otherVolume += hours;
+      }
 
-      entry.totalViews += 1; // Increment bar chart playcount
+      entry.totalViews += 1;
     });
+
+    const categoryPieData = [
+      { name: 'Films', value: parseFloat(movieHours.toFixed(2)) },
+      { name: 'Séries', value: parseFloat(seriesHours.toFixed(2)) },
+      { name: 'Musique', value: parseFloat(musicHours.toFixed(2)) },
+      { name: 'Livres', value: parseFloat(booksHours.toFixed(2)) },
+    ].filter(item => item.value > 0);
 
     const trendData = Array.from(trendMap.values()).map(v => ({
       time: v.time,
@@ -187,7 +210,7 @@ const getDashboardMetrics = unstable_cache(
       };
     }));
 
-    // Daily Activity by Hour (Flattened average)
+    // Hourly
     const hourlyCounts = new Array(24).fill(0);
     histories.forEach((h: any) => {
       const hour = h.startedAt.getHours();
@@ -215,9 +238,16 @@ const getDashboardMetrics = unstable_cache(
       previousHoursWatched,
       directPlayPercent,
       trendData,
+      categoryPieData,
       hourlyChartData,
       platformChartData,
-      topUsers
+      topUsers,
+      breakdown: {
+        movieViews, movieHours: parseFloat(movieHours.toFixed(1)),
+        seriesViews, seriesHours: parseFloat(seriesHours.toFixed(1)),
+        musicViews, musicHours: parseFloat(musicHours.toFixed(1)),
+        booksViews, booksHours: parseFloat(booksHours.toFixed(1)),
+      }
     };
   },
   ['jellytulli-dashboard'],
@@ -232,7 +262,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
 
   const metrics = await getDashboardMetrics(type, timeRange, excludedLibraries);
 
-  // Redis Live Streams (Non-Cached, Live)
+  // Redis Live Streams
   const keys = await redis.keys("stream:*");
   const activeStreamsCount = keys.length;
   let liveStreams: LiveStream[] = [];
@@ -244,7 +274,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
       .filter((p): p is string => p !== null)
       .map((p) => {
         const payload: WebhookPayload = JSON.parse(p);
-        totalBandwidthMbps += payload.IsTranscoding ? 12 : 6; // Rough Mbps estimation based on transcode
+        totalBandwidthMbps += payload.IsTranscoding ? 12 : 6;
         return {
           sessionId: payload.SessionId,
           itemId: payload.ItemId || null,
@@ -270,6 +300,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                 <TabsTrigger value="movie" asChild><Link href={`/?type=movie&timeRange=${timeRange}`}>Films</Link></TabsTrigger>
                 <TabsTrigger value="series" asChild><Link href={`/?type=series&timeRange=${timeRange}`}>Séries</Link></TabsTrigger>
                 <TabsTrigger value="music" asChild><Link href={`/?type=music&timeRange=${timeRange}`}>Musique</Link></TabsTrigger>
+                <TabsTrigger value="book" asChild><Link href={`/?type=book&timeRange=${timeRange}`}>Livres</Link></TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -340,12 +371,59 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
           </Card>
         </div>
 
-        {/* Dataviz Row : Multi-Axis Volume & Views */}
+        {/* Analytics Breadcrumb - Ultimate Expansion */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card className="bg-zinc-900/30 border-zinc-800/40">
+            <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-sm font-medium text-zinc-400">Films</CardTitle>
+              <Film className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-2xl font-bold text-white">{metrics.breakdown.movieViews} <span className="text-sm font-normal text-zinc-500">vues</span></div>
+              <p className="text-xs text-blue-500 font-medium">{metrics.breakdown.movieHours}h visionnées</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-zinc-900/30 border-zinc-800/40">
+            <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-sm font-medium text-zinc-400">Séries & Episodes</CardTitle>
+              <Tv className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-2xl font-bold text-white">{metrics.breakdown.seriesViews} <span className="text-sm font-normal text-zinc-500">lectures</span></div>
+              <p className="text-xs text-green-500 font-medium">{metrics.breakdown.seriesHours}h englouties</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-zinc-900/30 border-zinc-800/40">
+            <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-sm font-medium text-zinc-400">Musique</CardTitle>
+              <Music className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-2xl font-bold text-white">{metrics.breakdown.musicViews} <span className="text-sm font-normal text-zinc-500">titres</span></div>
+              <p className="text-xs text-yellow-500 font-medium">{metrics.breakdown.musicHours}h écoutées</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-zinc-900/30 border-zinc-800/40">
+            <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-sm font-medium text-zinc-400">Livres & Audios</CardTitle>
+              <BookOpen className="h-4 w-4 text-purple-500" />
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-2xl font-bold text-white">{metrics.breakdown.booksViews} <span className="text-sm font-normal text-zinc-500">ouvertures</span></div>
+              <p className="text-xs text-purple-500 font-medium">{metrics.breakdown.booksHours}h passées</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Dataviz Row : Multi-Axis Volume & PieChart */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="col-span-4 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+          <Card className="col-span-1 lg:col-span-5 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
             <CardHeader className="pb-1">
               <CardTitle>Volumes et Vues Historiques</CardTitle>
-              <CardDescription>Barres = Total de vues. Zones de Couleur = Heures de visionnages par Bibliothèque.</CardDescription>
+              <CardDescription>Croisement temporel des Vues & Heures de visionnages par Bibliothèque.</CardDescription>
             </CardHeader>
             <CardContent className="pl-0 pb-4 pr-1">
               <div className="h-[300px] min-h-[300px] w-full">
@@ -354,20 +432,26 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
             </CardContent>
           </Card>
 
-          <Card className="col-span-3 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+          <Card className="col-span-1 lg:col-span-2 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle>Horloges d'Activité</CardTitle>
-              <CardDescription>Moyenne de l'heure de démarrage des sessions.</CardDescription>
+              <CardTitle>Répartition Catégorique</CardTitle>
+              <CardDescription>Part du volume global de lecture (Heures).</CardDescription>
             </CardHeader>
             <CardContent className="pl-0 pb-4">
               <div className="h-[300px] min-h-[300px] w-full">
-                <ActivityByHourChart data={metrics.hourlyChartData} />
+                {metrics.categoryPieData.length > 0 ? (
+                  <CategoryPieChart data={metrics.categoryPieData} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">
+                    Aucune donnée pour générer le graphique
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Dataviz Row 2 : Plateformes + Top Users + Live */}
+        {/* Dataviz Row : Plateformes + Top Users + Live */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-8">
 
           <Card className="col-span-2 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
@@ -384,7 +468,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                       #{i + 1}
                     </div>
                     <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium leading-none">{u.username}</p>
+                      <p className="text-sm font-medium leading-none truncate max-w-[100px]">{u.username}</p>
                     </div>
                     <div className="font-semibold text-sm">
                       {u.hours}h
@@ -443,14 +527,14 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                         </div>
                       )}
 
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium leading-none">
+                      <div className="space-y-1 max-w-[150px]">
+                        <p className="text-sm font-medium leading-none truncate">
                           {stream.mediaTitle}
                         </p>
                         <p className="text-xs text-muted-foreground flex flex-col gap-0.5">
-                          <span>{stream.user} • {stream.device}</span>
+                          <span className="truncate">{stream.user} • {stream.device}</span>
                           {(stream.city !== "Unknown" || stream.country !== "Unknown") && (
-                            <span className="text-[10px] opacity-70">
+                            <span className="text-[10px] opacity-70 truncate">
                               📍 {stream.city !== "Unknown" ? `${stream.city}, ` : ''}{stream.country}
                             </span>
                           )}
@@ -473,6 +557,22 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
             </CardContent>
           </Card>
         </div>
+
+        {/* Third Row Analytics - Hourly Activity Heatmap Backup */}
+        <div className="grid gap-4 md:grid-cols-1">
+          <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle>Moyenne d'Activité Horaire</CardTitle>
+              <CardDescription>Heure de démarrage des sessions sur la période donnée.</CardDescription>
+            </CardHeader>
+            <CardContent className="pl-0 pb-4">
+              <div className="h-[250px] min-h-[250px] w-full">
+                <ActivityByHourChart data={metrics.hourlyChartData} />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
       </div>
     </div>
   );
