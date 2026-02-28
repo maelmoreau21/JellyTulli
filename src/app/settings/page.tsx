@@ -23,6 +23,7 @@ export default function SettingsPage() {
     const [jellystatApiKey, setJellystatApiKey] = useState("");
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const prFileInputRef = useRef<HTMLInputElement>(null);
 
     const [discordEnabled, setDiscordEnabled] = useState(false);
     const [discordUrl, setDiscordUrl] = useState("");
@@ -175,25 +176,35 @@ export default function SettingsPage() {
         }
     };
 
-    const handleImportPR = async () => {
+    const handleImportPR = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
         setIsImportingPR(true);
-        setMigrationMsg({ type: "info", text: "Connexion au plugin Playback Reporting sur Jellyfin en cours..." });
+        setMigrationMsg({ type: "info", text: "Envoi et traitement du CSV Playback Reporting..." });
+
+        const formData = new FormData();
+        formData.append("file", file);
 
         try {
             const res = await fetch("/api/backup/import/playback-reporting", {
                 method: "POST",
+                body: formData
             });
 
             const data = await res.json();
             if (res.ok) {
                 setMigrationMsg({ type: "success", text: data.message || "Importation Playback Reporting réussie." });
             } else {
-                setMigrationMsg({ type: "error", text: data.error || "Erreur lors de l'import du plugin." });
+                setMigrationMsg({ type: "error", text: data.error || "Erreur lors de l'import du fichier." });
             }
         } catch {
-            setMigrationMsg({ type: "error", text: "Erreur réseau lors de la communication avec le plugin." });
+            setMigrationMsg({ type: "error", text: "Erreur réseau lors de l'envoi du fichier." });
         } finally {
             setIsImportingPR(false);
+            if (prFileInputRef.current) {
+                prFileInputRef.current.value = "";
+            }
         }
     };
 
@@ -442,15 +453,23 @@ export default function SettingsPage() {
 
                         <div className="space-y-4 border p-4 rounded-lg bg-black/20">
                             <h4 className="text-sm font-semibold opacity-90">2. Depuis Playback Reporting</h4>
-                            <p className="text-xs text-muted-foreground">Utilise automatiquement les accès JELLYFIN_URL locaux. L'import va scanner le plugin embarqué dans le serveur.</p>
+                            <p className="text-xs text-muted-foreground">Importez le fichier CSV d'export généré par le plugin officiel Playback Reporting de Jellyfin.</p>
+
+                            <input
+                                type="file"
+                                accept=".csv"
+                                ref={prFileInputRef}
+                                className="hidden"
+                                onChange={handleImportPR}
+                            />
                             <button
-                                onClick={handleImportPR}
+                                onClick={() => prFileInputRef.current?.click()}
                                 disabled={isImportingPR || isImportingJellystat}
                                 className={`w-full flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${isImportingPR ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90'
                                     }`}
                             >
-                                <RefreshCw className={`w-4 h-4 ${isImportingPR ? 'animate-spin' : ''}`} />
-                                {isImportingPR ? 'Analyse du plugin Playback Reporting...' : 'Synchroniser depuis le plugin interne Jellyfin'}
+                                <UploadCloud className={`w-4 h-4 ${isImportingPR ? 'animate-bounce' : ''}`} />
+                                {isImportingPR ? 'Analyse du fichier CSV en cours...' : 'Uploader le CSV Playback Reporting'}
                             </button>
                         </div>
                     </CardContent>

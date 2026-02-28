@@ -19,8 +19,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "L'URL et la clé API Jellystat sont obligatoires." }, { status: 400 });
         }
 
-        // Clean trailing slashes
-        const baseUrl = jellystatUrl.replace(/\/+$/, "");
+        // Clean trailing slashes and /api if present so we can append predictably
+        const baseUrl = jellystatUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "");
 
         // Setup headers
         const headers = {

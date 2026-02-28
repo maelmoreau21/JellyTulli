@@ -6,65 +6,70 @@ import prisma from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
+function parseCSVLine(text: string): string[] {
+    const re = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+    return text.split(re).map(val => val.replace(/^"|"$/g, '').trim());
+}
+
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
-    const JELLYFIN_URL = settings?.jellyfinUrl?.replace(/\/+$/, '');
-    const API_KEY = settings?.jellyfinApiKey;
-
-    if (!JELLYFIN_URL || !API_KEY) {
-        return NextResponse.json({ error: "Le serveur Jellyfin n'est pas configuré. Rendez-vous dans les Paramètres." }, { status: 500 });
-    }
-
     try {
-        // The Plugin Playback Reporting exposes data via its own API on Jellyfin.
-        // Known structure: /PlaybackReporting/ReportData?api_key=XXX -> but it's often a heavy JSON payload directly
-        // Some users access it as an sqlite DB, but if it has JSON endpoints:
+        const formData = await req.formData();
+        const file = formData.get("file") as File | null;
 
-        const prUrl = `${JELLYFIN_URL}/PlaybackReporting/ReportData`;
+        if (!file) {
+            return NextResponse.json({ error: "Aucun fichier fourni." }, { status: 400 });
+        }
+
+        const text = await file.text();
+        const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+
+        if (lines.length <= 1) {
+            return NextResponse.json({ error: "Le fichier CSV est vide ou invalide." }, { status: 400 });
+        }
+
+        // Playback reporting CSV generally has headers.
+        const headers = parseCSVLine(lines[0]);
+
+        // Find essential indices
+        const userIdIdx = headers.findIndex(h => h.toLowerCase().includes("userid"));
+        const userNameIdx = headers.findIndex(h => h.toLowerCase().includes("username") || h.toLowerCase() === "user");
+        const itemIdIdx = headers.findIndex(h => h.toLowerCase().includes("itemid"));
+        const itemNameIdx = headers.findIndex(h => h.toLowerCase().includes("itemname") || h.toLowerCase() === "item");
+        const itemTypeIdx = headers.findIndex(h => h.toLowerCase().includes("itemtype"));
+
+        const playMethodIdx = headers.findIndex(h => h.toLowerCase().includes("playmethod"));
+        const clientNameIdx = headers.findIndex(h => h.toLowerCase().includes("clientname"));
+        const deviceNameIdx = headers.findIndex(h => h.toLowerCase().includes("devicename"));
+        const playDurationIdx = headers.findIndex(h => h.toLowerCase().includes("playduration"));
+        const dateCreatedIdx = headers.findIndex(h => h.toLowerCase().includes("datecreated") || h.toLowerCase().includes("date"));
+
+        if (userIdIdx === -1 || itemIdIdx === -1) {
+            return NextResponse.json({ error: "Colonnes 'UserId' ou 'ItemId' introuvables. Vérifiez le format du CSV." }, { status: 400 });
+        }
 
         let importedSess = 0;
         let errors = 0;
 
-        // Fetching Playback Reporting might return everything in one massive array since the plugin doesn't natively expose good pagination
-        // However, we stream it securely here locally into our Next.js backend and process in memory chunks instead of blowing up the client browser.
-        const res = await fetch(prUrl, {
-            headers: {
-                "X-Emby-Token": API_KEY,
-                "Content-Type": "application/json"
-            }
-        });
-
-        if (!res.ok) {
-            return NextResponse.json({ error: "Impossible de joindre le plugin Playback Reporting sur le serveur Jellyfin. Vérifiez qu'il est bien installé." }, { status: 400 });
-        }
-
-        const data = await res.json();
-        const entries = Array.isArray(data) ? data : (data.Items || []);
-
-        if (entries.length === 0) {
-            return NextResponse.json({ error: "Aucune donnée trouvée dans Playback Reporting." }, { status: 400 });
-        }
-
-        // Processing via memory chunks to avoid Prisma transaction blocking issues
         const CHUNK_SIZE = 500;
+        const dataLines = lines.slice(1);
 
-        for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
-            const chunk = entries.slice(i, i + CHUNK_SIZE);
+        for (let i = 0; i < dataLines.length; i += CHUNK_SIZE) {
+            const chunk = dataLines.slice(i, i + CHUNK_SIZE);
 
-            for (const row of chunk) {
+            for (const line of chunk) {
                 try {
-                    // Playback Reporting internal keys
-                    const jellyfinUserId = row.UserId;
-                    const username = row.UserName || "Unknown User";
+                    const row = parseCSVLine(line);
 
-                    const jellyfinMediaId = row.ItemId;
-                    const mediaTitle = row.ItemName || "Unknown Media";
-                    const mediaType = row.ItemType || "Movie";
+                    const jellyfinUserId = row[userIdIdx];
+                    const username = userNameIdx !== -1 ? row[userNameIdx] : "Unknown User";
+                    const jellyfinMediaId = row[itemIdIdx];
+                    const mediaTitle = itemNameIdx !== -1 ? row[itemNameIdx] : "Unknown Media";
+                    const mediaType = itemTypeIdx !== -1 ? (row[itemTypeIdx] || "Movie") : "Movie";
 
                     if (!jellyfinUserId || !jellyfinMediaId) {
                         continue;
@@ -91,44 +96,61 @@ export async function POST(req: NextRequest) {
                         }
                     });
 
-                    const playMethod = row.PlayMethod || "DirectPlay";
-                    const clientName = row.ClientName || "Playback Reporting";
-                    const deviceName = row.DeviceName || "Unknown Device";
+                    const playMethod = playMethodIdx !== -1 ? (row[playMethodIdx] || "DirectPlay") : "DirectPlay";
+                    const clientName = clientNameIdx !== -1 ? (row[clientNameIdx] || "Playback Reporting") : "Playback Reporting";
+                    const deviceName = deviceNameIdx !== -1 ? (row[deviceNameIdx] || "Unknown Device") : "Unknown Device";
 
-                    let durationWatched = parseInt(row.PlayDuration || "0");
+                    let durationWatched = playDurationIdx !== -1 ? parseInt(row[playDurationIdx] || "0", 10) : 0;
                     if (durationWatched > 10000000) {
                         durationWatched = Math.floor(durationWatched / 10000000); // Ticks to seconds if necessary
                     }
-                    if (isNaN(durationWatched)) durationWatched = 0;
 
-                    const startedAt = row.DateCreated || new Date().toISOString();
+                    let startedAt = new Date();
+                    if (dateCreatedIdx !== -1 && row[dateCreatedIdx]) {
+                        const parsedDate = new Date(row[dateCreatedIdx]);
+                        if (!isNaN(parsedDate.getTime())) {
+                            startedAt = parsedDate;
+                        }
+                    }
 
-                    await prisma.playbackHistory.create({
-                        data: {
+                    await prisma.playbackHistory.upsert({
+                        where: {
+                            userId_mediaId_startedAt: {
+                                userId: user.id,
+                                mediaId: media.id,
+                                startedAt: startedAt,
+                            }
+                        },
+                        update: {
+                            durationWatched: durationWatched,
+                            playMethod: playMethod,
+                            clientName: clientName,
+                            deviceName: deviceName,
+                        },
+                        create: {
                             userId: user.id,
                             mediaId: media.id,
-                            playMethod: String(playMethod),
-                            clientName: String(clientName),
-                            deviceName: String(deviceName),
+                            startedAt: startedAt,
                             durationWatched: durationWatched,
-                            startedAt: new Date(startedAt),
+                            playMethod: playMethod,
+                            clientName: clientName,
+                            deviceName: deviceName,
                         }
                     });
 
                     importedSess++;
-                } catch (err) {
+
+                } catch (e) {
                     errors++;
+                    console.error("[Playback Reporting Import] Line error", e);
                 }
             }
         }
 
-        return NextResponse.json({
-            success: true,
-            message: `Synchronisation Playback Reporting terminée. ${importedSess} sessions ajoutées en local.`
-        }, { status: 200 });
+        return NextResponse.json({ message: `Importation terminée. ${importedSess} sessions ajoutées ou mises à jour (${errors} erreurs).` });
 
-    } catch (e: any) {
-        console.error("[PR APISync] Failed:", e);
-        return NextResponse.json({ error: e.message || "Echec de connexion à Playback Reporting API" }, { status: 500 });
+    } catch (error) {
+        console.error("[Playback Reporting API] Error calling backend plugin:", error);
+        return NextResponse.json({ error: "Erreur lors du traitement du fichier CSV." }, { status: 500 });
     }
 }

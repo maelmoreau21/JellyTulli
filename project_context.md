@@ -35,7 +35,7 @@ A massive analytical refactoring was introduced focusing on Data Context and Res
 5. **Universal Security & Backups & External Migrations (`src/app/api/backup`)**:
   - Zero-Constraint JSON architecture backing up all `Users`, `Media`, `Settings`, and `Logs`.
   - Import leverages Prisma `$transaction` with a timeout of 60000ms. If one line is corrupted, the DB rolls back safely.
-  - Integration of **API-Based External Migrations** from `Jellystat` and the `Playback Reporting` plugin. By communicating directly via paginated HTTPS APIs (instead of massive in-memory JSON/CSV file uploads), the application safely builds an iterative Sync Pipeline preventing OOM crashes on small edge devices like Raspberry Pi.
+  - Integration of **API-Based External Migrations** from `Jellystat` and **CSV Uploads** for the `Playback Reporting` plugin. By communicating securely and parsing data in chunks (FormData), the application safely builds an iterative Sync Pipeline preventing OOM crashes on small edge devices like Raspberry Pi.
   
 6. **Autonomy Core (`src/server/monitor.ts`) & Docker Strategy**:
   - The heartbeat pulls from `[GlobalSettings.jellyfinUrl]/Sessions` directly from the database configuration.
@@ -45,7 +45,7 @@ A massive analytical refactoring was introduced focusing on Data Context and Res
   - Global `GlobalSettings` database configuration completely replaced `.env` variables (`JELLYFIN_URL`, `JELLYFIN_API_KEY` and `DISCORD_WEBHOOK_URL` have been strictly deleted from the codebase and Docker).
   - Implements a Setup Wizard (`/setup`) upon first boot, preventing crashes by redirecting unconfigured instances directly.
   - Jellyfin-Native Authentication via NextAuth `CredentialsProvider` calling `/Users/AuthenticateByName` enforcing `Policy.IsAdministrator`.
-  - Next.js Middleware protects all analytical routes.
+  - Next.js Middleware protects all analytical routes. Local `signOut` directly routes to `/login` via JS to bypass strict callbackUrl environment constraints.
 
 8. **Elite Features (Phase 6)**:
   - **Jellyfin Native Webhooks**: `/api/webhook/jellyfin` endpoint securely traps `PlaybackStart` events for real-time Discord Alerts without polling.
