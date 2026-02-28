@@ -11,12 +11,17 @@ export default function SettingsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
     const [isRestoring, setIsRestoring] = useState(false);
+    const [isImportingJellystat, setIsImportingJellystat] = useState(false);
+    const [isImportingPR, setIsImportingPR] = useState(false);
 
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [settingsMsg, setSettingsMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [backupMsg, setBackupMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [migrationMsg, setMigrationMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const jellystatInputRef = useRef<HTMLInputElement>(null);
+    const prInputRef = useRef<HTMLInputElement>(null);
 
     const [discordEnabled, setDiscordEnabled] = useState(false);
     const [discordUrl, setDiscordUrl] = useState("");
@@ -135,6 +140,80 @@ export default function SettingsPage() {
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
+    };
+
+    const handleImportJellystat = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsImportingJellystat(true);
+        setMigrationMsg(null);
+
+        try {
+            const fileReader = new FileReader();
+            fileReader.onload = async (e) => {
+                const text = e.target?.result;
+                if (typeof text !== 'string') return;
+
+                try {
+                    const parsedJson = JSON.parse(text);
+                    const res = await fetch("/api/backup/import/jellystat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(parsedJson)
+                    });
+
+                    const data = await res.json();
+                    if (res.ok) {
+                        setMigrationMsg({ type: "success", text: data.message || "Importation depuis Jellystat réussie." });
+                    } else {
+                        setMigrationMsg({ type: "error", text: data.error || "Erreur lors de l'import Jellystat." });
+                        setIsImportingJellystat(false);
+                    }
+                } catch (err) {
+                    setMigrationMsg({ type: "error", text: "Erreur lors de l'analyse du fichier JSON." });
+                    setIsImportingJellystat(false);
+                } finally {
+                    setIsImportingJellystat(false);
+                }
+            };
+            fileReader.readAsText(file);
+        } catch (error) {
+            setMigrationMsg({ type: "error", text: "Impossible de lire le fichier." });
+            setIsImportingJellystat(false);
+        }
+        if (jellystatInputRef.current) jellystatInputRef.current.value = "";
+    };
+
+    const handleImportPR = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsImportingPR(true);
+        setMigrationMsg(null);
+
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const res = await fetch("/api/backup/import/playback-reporting", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                setMigrationMsg({ type: "success", text: data.message || "Importation Playback Reporting réussie." });
+            } else {
+                setMigrationMsg({ type: "error", text: data.error || "Erreur lors de l'import CSV." });
+            }
+        } catch {
+            setMigrationMsg({ type: "error", text: "Erreur réseau lors de l'import CSV." });
+        } finally {
+            setIsImportingPR(false);
+        }
+
+        if (prInputRef.current) prInputRef.current.value = "";
     };
 
     return (
@@ -258,53 +337,91 @@ export default function SettingsPage() {
                             {isSavingSettings ? 'Enregistrement...' : 'Enregistrer les paramètres'}
                         </button>
                     </CardFooter>
-                </button>
-            </CardFooter>
-        </Card>
+                </Card>
 
-                {/* BACKUP & RESTORE CARD */ }
-    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
-        <CardHeader>
-            <CardTitle>Données & Sauvegardes</CardTitle>
-            <CardDescription>
-                Exportez l'ensemble de votre base de données et de vos statistiques, ou restaurez une configuration précédente sans aucune perte.
-            </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-            {backupMsg && (
-                <div className={`p-4 rounded-md flex items-center gap-3 text-sm ${backupMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                    {backupMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                    {backupMsg.text}
-                </div>
-            )}
-            <input
-                type="file"
-                accept=".json"
-                ref={fileInputRef}
-                className="hidden"
-                onChange={handleImportBackup}
-            />
-        </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row gap-4">
-            <button
-                onClick={handleExportBackup}
-                className="flex-1 flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors border border-zinc-700 hover:bg-zinc-800"
-            >
-                <Download className="w-4 h-4" />
-                Exporter la sauvegarde
-            </button>
-            <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isRestoring}
-                className={`flex-1 flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${isRestoring ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    }`}
-            >
-                <UploadCloud className={`w-4 h-4 ${isRestoring ? 'animate-bounce' : ''}`} />
-                {isRestoring ? 'Restauration en cours...' : 'Importer une sauvegarde'}
-            </button>
-        </CardFooter>
-    </Card>
-            </div >
-        </div >
+                {/* BACKUP & RESTORE CARD */}
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
+                    <CardHeader>
+                        <CardTitle>Données & Sauvegardes</CardTitle>
+                        <CardDescription>
+                            Exportez l'ensemble de votre base de données et de vos statistiques, ou restaurez une configuration précédente sans aucune perte.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {backupMsg && (
+                            <div className={`p-4 rounded-md flex items-center gap-3 text-sm ${backupMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                                {backupMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                                {backupMsg.text}
+                            </div>
+                        )}
+                        <input
+                            type="file"
+                            accept=".json"
+                            ref={fileInputRef}
+                            className="hidden"
+                            onChange={handleImportBackup}
+                        />
+                    </CardContent>
+                    <CardFooter className="flex flex-col sm:flex-row gap-4">
+                        <button
+                            onClick={handleExportBackup}
+                            className="flex-1 flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors border border-zinc-700 hover:bg-zinc-800"
+                        >
+                            <Download className="w-4 h-4" />
+                            Exporter la sauvegarde
+                        </button>
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isRestoring}
+                            className={`flex-1 flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${isRestoring ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                }`}
+                        >
+                            <UploadCloud className={`w-4 h-4 ${isRestoring ? 'animate-bounce' : ''}`} />
+                            {isRestoring ? 'Restauration en cours...' : 'Importer une sauvegarde'}
+                        </button>
+                    </CardFooter>
+                </Card>
+
+                {/* EXTERNAL MIGRATIONS CARD */}
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
+                    <CardHeader>
+                        <CardTitle>Migrations Externes</CardTitle>
+                        <CardDescription>
+                            Migrez votre historique complet depuis d'autres plugins. (Si vous avez déjà beaucoup de données, ignorez cette étape).
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {migrationMsg && (
+                            <div className={`p-4 rounded-md flex items-center gap-3 text-sm ${migrationMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                                {migrationMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                                {migrationMsg.text}
+                            </div>
+                        )}
+                        <input type="file" accept=".json" ref={jellystatInputRef} className="hidden" onChange={handleImportJellystat} />
+                        <input type="file" accept=".csv" ref={prInputRef} className="hidden" onChange={handleImportPR} />
+                    </CardContent>
+                    <CardFooter className="flex flex-col sm:flex-row gap-4">
+                        <button
+                            onClick={() => jellystatInputRef.current?.click()}
+                            disabled={isImportingJellystat}
+                            className={`flex-1 flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${isImportingJellystat ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'border border-zinc-700 hover:bg-zinc-800'
+                                }`}
+                        >
+                            <UploadCloud className={`w-4 h-4 ${isImportingJellystat ? 'animate-bounce' : ''}`} />
+                            {isImportingJellystat ? 'Importation Jellystat...' : 'Importer depuis Jellystat (.json)'}
+                        </button>
+                        <button
+                            onClick={() => prInputRef.current?.click()}
+                            disabled={isImportingPR}
+                            className={`flex-1 flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${isImportingPR ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'border border-zinc-700 hover:bg-zinc-800'
+                                }`}
+                        >
+                            <UploadCloud className={`w-4 h-4 ${isImportingPR ? 'animate-bounce' : ''}`} />
+                            {isImportingPR ? 'Importation Playback...' : 'Importer depuis Playback Reporting (.csv)'}
+                        </button>
+                    </CardFooter>
+                </Card>
+            </div>
+        </div>
     );
 }

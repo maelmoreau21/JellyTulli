@@ -32,9 +32,10 @@ A massive analytical refactoring was introduced focusing on Data Context and Res
   - Time Range Selector now contains a `React-Day-Picker` Custom scope.
   - Query endpoints and URL `searchParams` accept `?from=YYYY-MM-DD&to=YYYY-MM-DD`.
 
-5. **Universal Security & Backups (`src/app/api/backup`)**:
+5. **Universal Security & Backups & External Migrations (`src/app/api/backup`)**:
   - Zero-Constraint JSON architecture backing up all `Users`, `Media`, `Settings`, and `Logs`.
   - Import leverages Prisma `$transaction` with a timeout of 60000ms. If one line is corrupted, the DB rolls back safely.
+  - Integration of `Jellystat` (JSON format mapping) and `Playback Reporting` (CSV parsing using papaparse) external importers, allowing seamless migration of massive historical datasets without crashing the central DB.
   
 6. **Autonomy Core (`src/server/monitor.ts`) & Docker Strategy**:
   - The heartbeat continues pulling from `${JELLYFIN_URL}/Sessions`.
