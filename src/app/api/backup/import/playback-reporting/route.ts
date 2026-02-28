@@ -62,6 +62,13 @@ export async function POST(req: NextRequest) {
             return clean;
         };
 
+        // Pre-load all users for soft UUID matching (dashless lowercase map)
+        const allUsers = await prisma.user.findMany();
+        const userMap = new Map(
+            allUsers.map(u => [u.jellyfinUserId.replace(/-/g, '').toLowerCase(), u])
+        );
+        console.log(`[Playback Reporting Import] ${allUsers.length} utilisateurs chargés pour matching souple.`);
+
         let importedSess = 0;
         let errors = 0;
         let firstRowLogged = false;
@@ -105,13 +112,12 @@ export async function POST(req: NextRequest) {
                         continue;
                     }
 
-                    // Try to find existing user — do NOT create ghost users for unknown UUIDs
-                    const user = jellyfinUserId
-                        ? await prisma.user.findUnique({ where: { jellyfinUserId } })
-                        : null;
+                    // Soft UUID match — compare dashless lowercase against pre-loaded map
+                    const dashlessId = rawUserId.replace(/-/g, '').toLowerCase();
+                    const user = dashlessId ? (userMap.get(dashlessId) ?? null) : null;
 
-                    if (!user && jellyfinUserId) {
-                        console.log(`[Playback Reporting Import] UUID inconnu: "${jellyfinUserId}" — session importée sans lien utilisateur.`);
+                    if (!user && dashlessId) {
+                        console.log(`[Playback Reporting Import] UUID inconnu: "${rawUserId}" (normalized: ${dashlessId}) — session importée sans lien utilisateur.`);
                     }
 
                     // Upsert Media
@@ -144,6 +150,7 @@ export async function POST(req: NextRequest) {
                     });
 
                     const effectiveClientName = user ? clientName : `${clientName} (Utilisateur Inconnu - TSV)`;
+                    const endedAt = durationWatched > 0 ? new Date(startedAt.getTime() + durationWatched * 1000) : null;
 
                     if (existingHistory) {
                         await prisma.playbackHistory.update({
@@ -153,6 +160,7 @@ export async function POST(req: NextRequest) {
                                 playMethod: playMethod,
                                 clientName: effectiveClientName,
                                 deviceName: deviceName,
+                                endedAt: endedAt,
                             }
                         });
                     } else {
@@ -165,6 +173,7 @@ export async function POST(req: NextRequest) {
                                 playMethod: playMethod,
                                 clientName: effectiveClientName,
                                 deviceName: deviceName,
+                                endedAt: endedAt,
                             }
                         });
                     }

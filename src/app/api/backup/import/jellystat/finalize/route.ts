@@ -109,11 +109,11 @@ export async function POST(req: NextRequest) {
                     if (existing) {
                         await prisma.playbackHistory.update({
                             where: { id: existing.id },
-                            data: { durationWatched: s.duration, playMethod: s.playMethod, clientName: s.client, deviceName: s.device },
+                            data: { durationWatched: s.duration, playMethod: s.playMethod, clientName: s.client, deviceName: s.device, endedAt: s.endedAt },
                         });
                     } else {
                         await prisma.playbackHistory.create({
-                            data: { userId: user.id, mediaId: media.id, playMethod: s.playMethod, clientName: s.client, deviceName: s.device, durationWatched: s.duration, startedAt: s.startedAt },
+                            data: { userId: user.id, mediaId: media.id, playMethod: s.playMethod, clientName: s.client, deviceName: s.device, durationWatched: s.duration, startedAt: s.startedAt, endedAt: s.endedAt },
                         });
                     }
                     importedSess++;
@@ -150,7 +150,9 @@ export async function POST(req: NextRequest) {
             const client = extractStr(window, "Client", "ClientName", "client_name", "clientname") || "Jellystat Import";
             const device = extractStr(window, "DeviceName", "device_name", "devicename") || "Unknown Device";
 
-            batch.push({ userId, itemId, username, title, type, duration, startedAt: new Date(dateStr), playMethod, client, device });
+            const startedAtDate = new Date(dateStr);
+            const endedAt = duration > 0 ? new Date(startedAtDate.getTime() + duration * 1000) : null;
+            batch.push({ userId, itemId, username, title, type, duration, startedAt: startedAtDate, endedAt, playMethod, client, device });
 
             if (batch.length >= BATCH) {
                 await processBatch(batch);

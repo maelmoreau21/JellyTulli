@@ -34,6 +34,8 @@ export default function SettingsPage() {
     // Auto-backup state
     const [autoBackups, setAutoBackups] = useState<{name: string, sizeMb: string, date: string}[]>([]);
     const [isRestoringAuto, setIsRestoringAuto] = useState<string | null>(null);
+    const [isDeletingAuto, setIsDeletingAuto] = useState<string | null>(null);
+    const [isTriggering, setIsTriggering] = useState(false);
     const [autoBackupMsg, setAutoBackupMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     // Upload progress state
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -540,10 +542,11 @@ export default function SettingsPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Clock className="w-5 h-5" />
-                            Sauvegardes Automatiques
+                            Gestion des Sauvegardes
                         </CardTitle>
                         <CardDescription>
                             JellyTulli effectue une sauvegarde automatique chaque nuit à 3h30. Les 5 sauvegardes les plus récentes sont conservées (rotation automatique).
+                            Vous pouvez aussi déclencher une sauvegarde manuelle ou supprimer des fichiers individuels.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -553,6 +556,40 @@ export default function SettingsPage() {
                                 {autoBackupMsg.text}
                             </div>
                         )}
+
+                        {/* Trigger manual backup */}
+                        <button
+                            onClick={async () => {
+                                setIsTriggering(true);
+                                setAutoBackupMsg(null);
+                                try {
+                                    const res = await fetch("/api/backup/auto/trigger", { method: "POST" });
+                                    const data = await res.json();
+                                    if (res.ok) {
+                                        setAutoBackupMsg({ type: "success", text: data.message || "Sauvegarde créée." });
+                                        // Refresh list
+                                        const listRes = await fetch("/api/backup/auto");
+                                        if (listRes.ok) {
+                                            const listData = await listRes.json();
+                                            setAutoBackups(listData.backups || []);
+                                        }
+                                    } else {
+                                        setAutoBackupMsg({ type: "error", text: data.error || "Erreur." });
+                                    }
+                                } catch {
+                                    setAutoBackupMsg({ type: "error", text: "Erreur réseau." });
+                                } finally {
+                                    setIsTriggering(false);
+                                }
+                            }}
+                            disabled={isTriggering}
+                            className={`w-full flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${
+                                isTriggering ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                            }`}
+                        >
+                            <Save className={`w-4 h-4 ${isTriggering ? 'animate-pulse' : ''}`} />
+                            {isTriggering ? 'Sauvegarde en cours...' : 'Sauvegarder maintenant'}
+                        </button>
 
                         {autoBackups.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground text-sm">
@@ -571,40 +608,76 @@ export default function SettingsPage() {
                                                 <span>{backup.sizeMb} Mo</span>
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={async () => {
-                                                if (!confirm(`Restaurer la sauvegarde ${backup.name} ? Cela écrasera toutes les données actuelles.`)) return;
-                                                setIsRestoringAuto(backup.name);
-                                                setAutoBackupMsg(null);
-                                                try {
-                                                    const res = await fetch("/api/backup/auto/restore", {
-                                                        method: "POST",
-                                                        headers: { "Content-Type": "application/json" },
-                                                        body: JSON.stringify({ fileName: backup.name }),
-                                                    });
-                                                    const data = await res.json();
-                                                    if (res.ok) {
-                                                        setAutoBackupMsg({ type: "success", text: data.message || "Restauration réussie ! Rechargement..." });
-                                                        setTimeout(() => window.location.reload(), 3000);
-                                                    } else {
-                                                        setAutoBackupMsg({ type: "error", text: data.error || "Erreur lors de la restauration." });
+                                        <div className="flex items-center gap-2 ml-3 shrink-0">
+                                            <button
+                                                onClick={async () => {
+                                                    if (!confirm(`Restaurer la sauvegarde ${backup.name} ? Cela écrasera toutes les données actuelles.`)) return;
+                                                    setIsRestoringAuto(backup.name);
+                                                    setAutoBackupMsg(null);
+                                                    try {
+                                                        const res = await fetch("/api/backup/auto/restore", {
+                                                            method: "POST",
+                                                            headers: { "Content-Type": "application/json" },
+                                                            body: JSON.stringify({ fileName: backup.name }),
+                                                        });
+                                                        const data = await res.json();
+                                                        if (res.ok) {
+                                                            setAutoBackupMsg({ type: "success", text: data.message || "Restauration réussie ! Rechargement..." });
+                                                            setTimeout(() => window.location.reload(), 3000);
+                                                        } else {
+                                                            setAutoBackupMsg({ type: "error", text: data.error || "Erreur lors de la restauration." });
+                                                        }
+                                                    } catch {
+                                                        setAutoBackupMsg({ type: "error", text: "Erreur réseau." });
+                                                    } finally {
+                                                        setIsRestoringAuto(null);
                                                     }
-                                                } catch {
-                                                    setAutoBackupMsg({ type: "error", text: "Erreur réseau." });
-                                                } finally {
-                                                    setIsRestoringAuto(null);
-                                                }
-                                            }}
-                                            disabled={isRestoringAuto !== null}
-                                            className={`ml-3 shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                                                isRestoringAuto === backup.name
-                                                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                                                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                                            }`}
-                                        >
-                                            <UploadCloud className={`w-3 h-3 ${isRestoringAuto === backup.name ? 'animate-bounce' : ''}`} />
-                                            {isRestoringAuto === backup.name ? 'Restauration...' : 'Restaurer'}
-                                        </button>
+                                                }}
+                                                disabled={isRestoringAuto !== null || isDeletingAuto !== null}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                                                    isRestoringAuto === backup.name
+                                                        ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                                                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                                }`}
+                                            >
+                                                <UploadCloud className={`w-3 h-3 ${isRestoringAuto === backup.name ? 'animate-bounce' : ''}`} />
+                                                {isRestoringAuto === backup.name ? 'Restauration...' : 'Restaurer'}
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    if (!confirm(`Supprimer la sauvegarde ${backup.name} ?`)) return;
+                                                    setIsDeletingAuto(backup.name);
+                                                    setAutoBackupMsg(null);
+                                                    try {
+                                                        const res = await fetch("/api/backup/auto/delete", {
+                                                            method: "POST",
+                                                            headers: { "Content-Type": "application/json" },
+                                                            body: JSON.stringify({ fileName: backup.name }),
+                                                        });
+                                                        const data = await res.json();
+                                                        if (res.ok) {
+                                                            setAutoBackupMsg({ type: "success", text: data.message || "Supprimée." });
+                                                            setAutoBackups(prev => prev.filter(b => b.name !== backup.name));
+                                                        } else {
+                                                            setAutoBackupMsg({ type: "error", text: data.error || "Erreur." });
+                                                        }
+                                                    } catch {
+                                                        setAutoBackupMsg({ type: "error", text: "Erreur réseau." });
+                                                    } finally {
+                                                        setIsDeletingAuto(null);
+                                                    }
+                                                }}
+                                                disabled={isRestoringAuto !== null || isDeletingAuto !== null}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                                                    isDeletingAuto === backup.name
+                                                        ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                                                        : 'border border-red-500/30 text-red-400 hover:bg-red-500/10'
+                                                }`}
+                                            >
+                                                <Trash2 className={`w-3 h-3 ${isDeletingAuto === backup.name ? 'animate-pulse' : ''}`} />
+                                                {isDeletingAuto === backup.name ? '...' : 'Supprimer'}
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>

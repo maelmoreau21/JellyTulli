@@ -5,7 +5,7 @@ import { getJellyfinImageUrl } from "@/lib/jellyfin";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Clock, Eye, Timer, ArrowLeft } from "lucide-react";
+import { Clock, Eye, Timer, ArrowLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import MediaDropoffChart from "./MediaDropoffChart";
 
@@ -35,6 +35,13 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
     let overview = "";
     let communityRating: number | null = null;
     let productionYear: number | null = null;
+    // Breadcrumb hierarchy data
+    let seriesId: string | null = null;
+    let seriesName: string | null = null;
+    let seasonId: string | null = null;
+    let seasonName: string | null = null;
+    let albumId: string | null = null;
+    let albumName: string | null = null;
     try {
         const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
         if (settings?.jellyfinUrl && settings?.jellyfinApiKey) {
@@ -47,6 +54,12 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                 overview = data.Overview || "";
                 communityRating = data.CommunityRating || null;
                 productionYear = data.ProductionYear || null;
+                seriesId = data.SeriesId || null;
+                seriesName = data.SeriesName || null;
+                seasonId = data.SeasonId || null;
+                seasonName = data.SeasonName || null;
+                albumId = data.AlbumId || null;
+                albumName = data.Album || null;
             }
         }
     } catch {}
@@ -79,10 +92,38 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
     return (
         <div className="flex-col md:flex">
             <div className="flex-1 space-y-6 p-8 pt-6 max-w-[1400px] mx-auto w-full">
-                {/* Retour */}
-                <Link href="/media" className="flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors w-fit">
-                    <ArrowLeft className="w-4 h-4" /> Retour à la Bibliothèque
-                </Link>
+                {/* Breadcrumb Navigation */}
+                <nav className="flex items-center gap-1.5 text-sm text-zinc-400 flex-wrap">
+                    <Link href="/media" className="flex items-center gap-1 hover:text-white transition-colors">
+                        <ArrowLeft className="w-4 h-4" /> Bibliothèque
+                    </Link>
+                    {seriesId && seriesName && (
+                        <>
+                            <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+                            <Link href={`/media/${seriesId}`} className="hover:text-white transition-colors">
+                                {seriesName}
+                            </Link>
+                        </>
+                    )}
+                    {seasonId && seasonName && (
+                        <>
+                            <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+                            <Link href={`/media/${seasonId}`} className="hover:text-white transition-colors">
+                                {seasonName}
+                            </Link>
+                        </>
+                    )}
+                    {albumId && albumName && (
+                        <>
+                            <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+                            <Link href={`/media/${albumId}`} className="hover:text-white transition-colors">
+                                {albumName}
+                            </Link>
+                        </>
+                    )}
+                    <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+                    <span className="text-white font-medium truncate max-w-xs">{media.title}</span>
+                </nav>
 
                 {/* En-tête du Média */}
                 <div className="flex flex-col md:flex-row gap-8">
