@@ -23,21 +23,31 @@ export async function POST(req: NextRequest) {
 
         const text = await file.text();
 
-        // Parse CSV/TSV with PapaParse (auto-detects delimiter by default)
+        // Detect delimiter based on file extension (.tsv → tab, else auto-detect)
+        const isTsv = file.name?.toLowerCase().endsWith(".tsv");
+        const delimiterConfig = isTsv ? "\t" : undefined;
+        console.log(`[Playback Reporting Import] Fichier: ${file.name}, TSV détecté: ${isTsv}, délimiteur forcé: ${isTsv ? "TAB" : "auto"}`);
+
+        // Parse CSV/TSV with PapaParse
         const parsed = Papa.parse(text, {
             header: true,
             skipEmptyLines: true,
-            dynamicTyping: true, // Useful for numbers
+            dynamicTyping: true,
+            delimiter: delimiterConfig,
         });
 
+        // Log detected headers for debugging column mapping
+        console.log("[Playback Reporting Import] Headers trouvés:", parsed.meta.fields);
+
         if (parsed.errors.length > 0) {
-            console.warn("[Playback Reporting Import] PapaParse errors:", parsed.errors);
+            console.warn("[Playback Reporting Import] PapaParse errors:", parsed.errors.slice(0, 5));
         }
 
         const rows = parsed.data as any[];
+        console.log(`[Playback Reporting Import] Lignes parsées: ${rows.length}`);
 
         if (!rows || rows.length === 0) {
-            return NextResponse.json({ error: "Le fichier CSV est vide ou invalide." }, { status: 400 });
+            return NextResponse.json({ error: "Le fichier CSV/TSV est vide ou invalide. Vérifiez le format du fichier." }, { status: 400 });
         }
 
         let importedSess = 0;
@@ -50,13 +60,27 @@ export async function POST(req: NextRequest) {
 
             for (const row of chunk) {
                 try {
-                    // PapaParse keeps original header casing, we can make it case-insensitive by looking up keys or just match the known fields from PB Reporting
-                    // Usually: Date,UserId,User,ItemId,ItemType,ItemName,PlaybackMethod,ClientName,DeviceName,PlayDuration
-                    const jellyfinUserId = row["UserId"];
-                    const username = row["User"] || row["UserName"] || "Unknown User";
-                    const jellyfinMediaId = row["ItemId"];
-                    const mediaTitle = row["ItemName"] || row["Item"] || "Unknown Media";
-                    const mediaType = row["ItemType"] || "Movie";
+                    // Case-insensitive column lookup helper
+                    const get = (r: any, ...keys: string[]) => {
+                        for (const key of keys) {
+                            if (r[key] !== undefined && r[key] !== null && r[key] !== "") return r[key];
+                        }
+                        // Fallback: case-insensitive search
+                        const rowKeys = Object.keys(r);
+                        for (const key of keys) {
+                            const found = rowKeys.find(k => k.toLowerCase() === key.toLowerCase());
+                            if (found && r[found] !== undefined && r[found] !== null && r[found] !== "") return r[found];
+                        }
+                        return undefined;
+                    };
+
+                    // Playback Reporting columns: Date, UserId, User, ItemId, ItemType, ItemName, PlaybackMethod, ClientName, DeviceName, PlayDuration
+                    // Also supports "User Id", "Item Id", "Item Name" (spaced variants)
+                    const jellyfinUserId = get(row, "UserId", "User Id", "userid");
+                    const username = get(row, "User", "UserName", "User Name", "username") || "Unknown User";
+                    const jellyfinMediaId = get(row, "ItemId", "Item Id", "itemid");
+                    const mediaTitle = get(row, "ItemName", "Item Name", "ItemTitle", "Item", "itemname") || "Unknown Media";
+                    const mediaType = get(row, "ItemType", "Item Type", "itemtype") || "Movie";
 
                     if (!jellyfinUserId || !jellyfinMediaId) {
                         continue;
@@ -83,17 +107,17 @@ export async function POST(req: NextRequest) {
                         }
                     });
 
-                    const playMethod = row["PlaybackMethod"] || row["PlayMethod"] || "DirectPlay";
-                    const clientName = row["ClientName"] || "Playback Reporting";
-                    const deviceName = row["DeviceName"] || "Unknown Device";
+                    const playMethod = get(row, "PlaybackMethod", "PlayMethod", "Playback Method", "Play Method") || "DirectPlay";
+                    const clientName = get(row, "ClientName", "Client Name", "Client") || "Playback Reporting";
+                    const deviceName = get(row, "DeviceName", "Device Name", "Device") || "Unknown Device";
 
-                    let durationWatched = parseInt(row["PlayDuration"] || "0", 10);
+                    let durationWatched = parseInt(get(row, "PlayDuration", "Play Duration", "Duration") || "0", 10);
                     if (durationWatched > 10000000) {
                         durationWatched = Math.floor(durationWatched / 10000000); // Ticks to seconds if necessary
                     }
 
                     let startedAt = new Date();
-                    const dateStr = row["Date"] || row["DateCreated"];
+                    const dateStr = get(row, "Date", "DateCreated", "Date Created", "StartDate");
                     if (dateStr) {
                         const parsedDate = new Date(dateStr);
                         if (!isNaN(parsedDate.getTime())) {

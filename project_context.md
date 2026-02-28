@@ -62,6 +62,11 @@ A massive analytical refactoring was introduced focusing on Data Context and Res
 66.   - **Funnel segmentation**: Deep dive inside the UX by detecting behaviors like: Zapped (<10%), Tried (10-25%), Halfway (25-80%), Finished (>80%). Coupled with dynamic PieCharts for VF/VO and SRT breakdown.
 67. 
 68. 11. **Large File Support & Streaming Imports (Phase 10)**:
-69.   - **Advanced Configuration**: Next.js `bodySizeLimit` increased to `500mb` via `experimental` settings to handle mass exports.
-70.   - **TSV Support**: Playback Reporting migration now natively handles `.tsv` and `.csv` via automatic delimiter detection in PapaParse.
-71.   - **Memory-Efficient Streaming**: Jellystat JSON import (up to 174MB+) rewritten using `stream-json` and `stream-chain`. Records are parsed one by one from the stream and processed in chunks of 200, preventing RAM exhaustion on edge devices like Raspberry Pi.
+   - **Advanced Configuration**: Next.js `bodySizeLimit` increased to `500mb` via `experimental` settings to handle mass exports.
+   - **TSV Support**: Playback Reporting migration now natively handles `.tsv` and `.csv` via automatic delimiter detection in PapaParse.
+   - **Memory-Efficient Streaming**: Jellystat JSON import (up to 174MB+) rewritten using `stream-json` and `stream-chain`. Records are parsed one by one from the stream and processed in chunks of 200, preventing RAM exhaustion on edge devices like Raspberry Pi.
+
+12. **Critical Bug Fixes (Phase 11)**:
+   - **Jellystat Import 174MB Fix**: Completely bypassed Next.js's `req.formData()` 10MB body limit. Client now sends the raw `File` as the request body (with `X-File-Name`/`X-File-Size` headers) and the server pipes `req.body` ReadableStream directly into `stream-json`. Zero buffering, no size limit. Route also exports `runtime = "nodejs"`.
+   - **Playback Reporting TSV Fix**: PapaParse delimiter is now forced to `\t` when the file extension is `.tsv` (auto-detect kept for `.csv`). A case-insensitive column lookup helper (`get()`) was added to support all known column name variants (e.g. `"UserId"`, `"User Id"`, `"userid"`). Diagnostic `console.log` added for headers and row count.
+   - **Logout Redirect Fix**: `signOut({ callbackUrl: '/login' })` replaced by `await signOut({ redirect: false })` followed by `window.location.href = '/login'`. This forces a pure JS redirect that always uses the current host, eliminating the `localhost:3000` redirect bug caused by NextAuth's `callbackUrl` resolution.

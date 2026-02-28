@@ -155,13 +155,16 @@ export default function SettingsPage() {
         setIsImportingJellystat(true);
         setMigrationMsg({ type: "info", text: "Envoi et analyse du fichier JSON Jellystat..." });
 
-        const formData = new FormData();
-        formData.append("file", file);
-
         try {
+            // Send raw file body (not FormData) to bypass Next.js 10MB body limit
             const res = await fetch("/api/backup/import/jellystat", {
                 method: "POST",
-                body: formData
+                headers: {
+                    "Content-Type": "application/octet-stream",
+                    "X-File-Name": file.name,
+                    "X-File-Size": String(file.size),
+                },
+                body: file,
             });
 
             const data = await res.json();

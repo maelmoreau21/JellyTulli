@@ -8,6 +8,7 @@ import { parser } from "stream-json";
 import { streamArray } from "stream-json/streamers/StreamArray";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 export const maxDuration = 300; // Allow 5 minutes of execution for large APIs
 
 export async function POST(req: NextRequest) {
@@ -17,14 +18,16 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const formData = await req.formData();
-        const file = formData.get("file") as File | null;
-
-        if (!file) {
+        // Read raw body stream directly — bypasses Next.js FormData 10MB limit
+        const body = req.body;
+        if (!body) {
             return NextResponse.json({ error: "Aucun fichier fourni." }, { status: 400 });
         }
 
-        console.log(`[Jellystat Import] Démarrage de l'import en flux pour ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} Mo)`);
+        const fileName = req.headers.get("x-file-name") || "unknown.json";
+        const fileSize = req.headers.get("x-file-size");
+        const sizeMb = fileSize ? (parseInt(fileSize) / 1024 / 1024).toFixed(2) : "?";
+        console.log(`[Jellystat Import] Démarrage de l'import en flux pour ${fileName} (${sizeMb} Mo)`);
 
         let importedSess = 0;
         let errors = 0;
@@ -32,9 +35,10 @@ export async function POST(req: NextRequest) {
         const CHUNK_SIZE = 200;
         let currentChunk: any[] = [];
 
-        // pipeline definitions
+        // Stream request body directly into JSON parser — no buffering
+        const nodeStream = Readable.fromWeb(body as any);
         const pipeline = chain([
-            Readable.fromWeb(file.stream() as any),
+            nodeStream,
             parser(),
             streamArray()
         ]);
