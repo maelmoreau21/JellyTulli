@@ -83,13 +83,13 @@ export async function POST(req: NextRequest) {
                         continue;
                     }
 
-                    // Upsert User (no username column in TSV — will be updated on next Jellyfin sync)
+                    // Upsert User (no username column in TSV — name resolved on next Jellyfin sync)
                     const user = await prisma.user.upsert({
                         where: { jellyfinUserId: jellyfinUserId },
                         update: {},
                         create: {
                             jellyfinUserId: jellyfinUserId,
-                            username: "Unknown User",
+                            username: "Utilisateur Supprimé",
                         }
                     });
 

@@ -6,7 +6,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { importJellystatAction } from "@/app/actions/import-jellystat";
 
 export default function SettingsPage() {
     const [isLoading, setIsLoading] = useState(false);
@@ -157,15 +156,23 @@ export default function SettingsPage() {
         setMigrationMsg({ type: "info", text: `Envoi et analyse du fichier JSON Jellystat (${(file.size / 1024 / 1024).toFixed(0)} Mo)...` });
 
         try {
-            // Use Server Action — respects bodySizeLimit: '500mb' from next.config
-            const formData = new FormData();
-            formData.append("file", file);
-            const result = await importJellystatAction(formData);
+            // Send raw file body via fetch to Route Handler — bypasses Server Action 10MB limit
+            // The Route Handler streams req.body directly into stream-json (no buffering)
+            const res = await fetch("/api/backup/import/jellystat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/octet-stream",
+                    "X-File-Name": file.name,
+                    "X-File-Size": String(file.size),
+                },
+                body: file,
+            });
 
-            if (result.success) {
-                setMigrationMsg({ type: "success", text: result.message || "Importation depuis Jellystat réussie." });
+            const data = await res.json();
+            if (res.ok) {
+                setMigrationMsg({ type: "success", text: data.message || "Importation depuis Jellystat réussie." });
             } else {
-                setMigrationMsg({ type: "error", text: result.error || "Erreur lors de l'import Jellystat." });
+                setMigrationMsg({ type: "error", text: data.error || "Erreur lors de l'import Jellystat." });
             }
         } catch {
             setMigrationMsg({ type: "error", text: "Erreur réseau lors de la communication du fichier." });
