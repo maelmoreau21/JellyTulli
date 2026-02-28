@@ -104,7 +104,7 @@ export default async function LogsPage({
 
                                                     {/* Média */}
                                                     <TableCell className="overflow-hidden">
-                                                        <div className="flex items-center gap-3 w-full overflow-hidden">
+                                                        <div className="flex items-center gap-3 w-full overflow-hidden" title={log.media.title}>
                                                             <div className="relative w-12 aspect-[2/3] bg-muted rounded-md shrink-0 overflow-hidden ring-1 ring-white/10">
                                                                 <FallbackImage
                                                                     src={`/api/jellyfin/image?itemId=${log.media.jellyfinMediaId}&type=Primary`}

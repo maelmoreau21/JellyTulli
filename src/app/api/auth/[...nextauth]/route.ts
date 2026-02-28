@@ -63,9 +63,11 @@ export const authOptions: NextAuthOptions = {
             return token;
         },
         async session({ session, token }) {
-            // Expose custom fields on the client-side session object
-            (session as any).isAdmin = token.isAdmin ?? false;
-            (session as any).jellyfinUserId = token.jellyfinUserId ?? "";
+            // Expose custom fields on session.user for client-side access
+            if (session.user) {
+                (session.user as any).isAdmin = token.isAdmin ?? false;
+                (session.user as any).jellyfinUserId = token.jellyfinUserId ?? "";
+            }
             return session;
         },
     },

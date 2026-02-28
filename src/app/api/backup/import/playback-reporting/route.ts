@@ -53,9 +53,10 @@ export async function POST(req: NextRequest) {
 
         // Normalize UUID: Playback Reporting exports IDs without dashes (32 hex chars)
         // but Jellyfin stores them as standard UUID format (8-4-4-4-12)
-        const normalizeUuid = (id: string): string => {
-            const clean = id.trim();
-            if (clean.length === 32 && !clean.includes('-')) {
+        const normalizeUuid = (raw: string): string => {
+            const clean = raw.trim().toLowerCase();
+            // 32 hex chars without dashes → insert dashes (8-4-4-4-12)
+            if (clean.length === 32 && /^[0-9a-f]{32}$/.test(clean)) {
                 return clean.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
             }
             return clean;
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
 
         let importedSess = 0;
         let errors = 0;
+        let firstRowLogged = false;
 
         const CHUNK_SIZE = 500;
 
@@ -75,8 +77,18 @@ export async function POST(req: NextRequest) {
                     // [0]: Date  [1]: UserId  [2]: ItemId  [3]: ItemType  [4]: ItemName
                     // [5]: PlayMethod  [6]: ClientName  [7]: DeviceName  [8]: PlayDuration (seconds)
                     const dateStr = row[0];
-                    const jellyfinUserId = normalizeUuid(String(row[1] || ""));
-                    const jellyfinMediaId = normalizeUuid(String(row[2] || ""));
+
+                    // IMMEDIATELY normalize UUID before any DB operation
+                    const rawUserId = String(row[1] || "").trim();
+                    const jellyfinUserId = normalizeUuid(rawUserId);
+                    const rawMediaId = String(row[2] || "").trim();
+                    const jellyfinMediaId = normalizeUuid(rawMediaId);
+
+                    if (!firstRowLogged) {
+                        console.log(`[Playback Reporting Import] UUID normalization sample: "${rawUserId}" → "${jellyfinUserId}" | "${rawMediaId}" → "${jellyfinMediaId}"`);
+                        firstRowLogged = true;
+                    }
+
                     const mediaType = String(row[3] || "Movie").trim();
                     const mediaTitle = String(row[4] || "Unknown Media").trim();
                     const playMethod = String(row[5] || "DirectPlay").trim();

@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 
 // Admin-only routes: everything EXCEPT /wrapped/* and /api/auth/*
 const PUBLIC_USER_PATHS = ["/wrapped", "/api/auth"];
+// API routes that non-admins must NOT access
+const ADMIN_API_PATHS = ["/api/sync", "/api/backup", "/api/hardware", "/api/settings", "/api/admin"];
 
 export default withAuth(
     function middleware(req) {
@@ -18,6 +20,12 @@ export default withAuth(
         const isAllowed = PUBLIC_USER_PATHS.some(p => pathname.startsWith(p));
         if (isAllowed) {
             return NextResponse.next();
+        }
+
+        // Non-admin hitting admin API routes → 403 JSON response
+        const isAdminApi = ADMIN_API_PATHS.some(p => pathname.startsWith(p));
+        if (isAdminApi) {
+            return NextResponse.json({ error: "Accès réservé aux administrateurs." }, { status: 403 });
         }
 
         // Non-admin trying to access admin routes → redirect to their Wrapped page

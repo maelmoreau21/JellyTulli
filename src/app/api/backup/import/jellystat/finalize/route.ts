@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
-import { createReadStream, existsSync, readdirSync, unlinkSync, rmdirSync, readFileSync } from "fs";
-import { writeFile } from "fs/promises";
+import { createReadStream, existsSync, readdirSync, unlinkSync, rmdirSync } from "fs";
 import path from "path";
 import { chain } from "stream-chain";
 import { parser } from "stream-json";
-import { streamArray } from "stream-json/streamers/StreamArray";
-import { pick } from "stream-json/filters/Pick";
+import { streamValues } from "stream-json/streamers/StreamValues";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -17,21 +15,18 @@ export const maxDuration = 300;
 const UPLOAD_DIR = "/tmp/jellytulli-uploads";
 
 /**
- * Detect JSON structure by reading the first bytes of a file.
- * Returns the key name if it's an object with an array value, or null if root array.
+ * Duck-Typing : détecte si un objet JSON ressemble à une session Jellystat.
  */
-function detectJsonKey(filePath: string): string | null {
-    const fd = require("fs").openSync(filePath, "r");
-    const buf = Buffer.alloc(512);
-    require("fs").readSync(fd, buf, 0, 512, 0);
-    require("fs").closeSync(fd);
-    const str = buf.toString("utf8").trimStart();
-    if (str[0] === "[") return null;
-    if (str[0] === "{") {
-        const keyMatch = str.match(/"(\w+)"\s*:\s*\[/);
-        return keyMatch ? keyMatch[1] : null;
-    }
-    return null;
+function isSessionObject(obj: any): boolean {
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
+    const hasUserId = !!(obj.UserId || obj.userId);
+    const hasItemId = !!(obj.NowPlayingItemId || obj.ItemId || obj.itemId || obj.mediaId);
+    const hasActivity = !!(
+        obj.PlayDuration || obj.playDuration ||
+        obj.RunTimeTicks || obj.runTimeTicks ||
+        obj.DateCreated || obj.dateCreated || obj.startedAt
+    );
+    return hasUserId && hasItemId && hasActivity;
 }
 
 export async function POST(req: NextRequest) {
@@ -80,26 +75,17 @@ export async function POST(req: NextRequest) {
             writeStream.on("error", reject);
         });
 
-        console.log(`[Jellystat Finalize] Merged file created, starting stream-json import...`);
+        console.log(`[Jellystat Finalize] Merged file created, starting stream-json duck-typing import...`);
 
-        // Auto-detect JSON structure: root array [...] vs object { "key": [...] }
-        const detectedKey = detectJsonKey(mergedPath);
-        console.log(`[Jellystat Finalize] Structure détectée: ${detectedKey ? `objet avec clé "${detectedKey}"` : "tableau racine"}`);
-
-        // Now stream-parse the merged file with auto-detected structure
         let importedSess = 0;
+        let skipped = 0;
         let errors = 0;
         let processedCount = 0;
         const CHUNK_SIZE = 200;
         let currentChunk: any[] = [];
 
         const fileStream = createReadStream(mergedPath);
-        const pipelineStages: any[] = [fileStream, parser()];
-        if (detectedKey) {
-            pipelineStages.push(pick({ filter: detectedKey }));
-        }
-        pipelineStages.push(streamArray());
-        const pipeline = chain(pipelineStages);
+        const pipeline = chain([fileStream, parser(), streamValues()]);
 
         const processChunk = async (chunk: any[]) => {
             for (const row of chunk) {
@@ -161,13 +147,20 @@ export async function POST(req: NextRequest) {
         };
 
         for await (const data of pipeline) {
-            currentChunk.push(data.value);
+            const val = data.value;
             processedCount++;
+
+            if (isSessionObject(val)) {
+                currentChunk.push(val);
+            } else {
+                skipped++;
+            }
+
             if (currentChunk.length >= CHUNK_SIZE) {
                 await processChunk(currentChunk);
                 currentChunk = [];
                 if (processedCount % 1000 === 0) {
-                    console.log(`[Jellystat Finalize] Progress: ${processedCount} sessions traitées...`);
+                    console.log(`[Jellystat Finalize] Progress: ${processedCount} valeurs lues, ${importedSess} sessions importées...`);
                 }
             }
         }
@@ -176,7 +169,7 @@ export async function POST(req: NextRequest) {
             await processChunk(currentChunk);
         }
 
-        console.log(`[Jellystat Finalize] Terminé: ${importedSess} sessions importées, ${errors} erreurs.`);
+        console.log(`[Jellystat Finalize] Terminé: ${importedSess} sessions importées, ${skipped} valeurs ignorées, ${errors} erreurs.`);
 
         // Cleanup temp files
         try {
@@ -190,7 +183,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            message: `Importation terminée. ${importedSess} sessions traitées (${errors} erreurs).`
+            message: `Importation terminée. ${importedSess} sessions traitées (${skipped} valeurs ignorées, ${errors} erreurs).`
         });
 
     } catch (e: any) {

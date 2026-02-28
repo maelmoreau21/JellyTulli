@@ -11,6 +11,9 @@ import { Suspense } from "react";
 import { DeepInsights } from "@/components/dashboard/DeepInsights";
 import { GranularAnalysis } from "@/components/dashboard/GranularAnalysis";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation";
 
 // Charts
 import { ActivityByHourChart, ActivityHourData } from "@/components/charts/ActivityByHourChart";
@@ -357,6 +360,13 @@ async function HeatmapWrapper() {
 }
 
 export default async function DashboardPage(props: { searchParams: Promise<{ type?: string; timeRange?: string; from?: string; to?: string }> }) {
+  // RBAC: Non-admin users are redirected to their Wrapped page
+  const authSession = await getServerSession(authOptions);
+  if (!authSession?.user?.isAdmin) {
+    const uid = (authSession?.user as any)?.jellyfinUserId;
+    redirect(uid ? `/wrapped/${uid}` : "/login");
+  }
+
   const { type, timeRange = "7d", from, to } = await props.searchParams;
 
   const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
