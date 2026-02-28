@@ -1,0 +1,39 @@
+"use client";
+
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+
+const COLORS = {
+    "DirectPlay": "#10b981", // Emerald 500
+    "Transcode": "#f97316", // Orange 500
+    "DirectStream": "#3b82f6", // Blue 500
+    "Inconnu": "#71717a" // Zinc 500
+};
+
+export function StreamProportionsChart({ data }: { data: { name: string, value: number }[] }) {
+    return (
+        <ResponsiveContainer width="100%" height={250} minHeight={250}>
+            <PieChart>
+                <Pie
+                    data={data}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="none"
+                >
+                    {data.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[entry.name as keyof typeof COLORS] || COLORS.Inconnu} opacity={0.8} />
+                    ))}
+                </Pie>
+                <Tooltip
+                    contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }}
+                    itemStyle={{ color: '#f4f4f5' }}
+                    formatter={(value: any) => [`${value} sessions`, 'Total']}
+                />
+                <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+            </PieChart>
+        </ResponsiveContainer>
+    );
+}

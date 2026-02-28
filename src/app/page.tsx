@@ -5,8 +5,12 @@ import { Activity, ActivitySquare, MonitorPlay, Clock, PlayCircle, TrendingUp, T
 import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
 import Link from "next/link";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { unstable_cache } from "next/cache";
+import { Suspense } from "react";
+import { DeepInsights } from "@/components/dashboard/DeepInsights";
+import { GranularAnalysis } from "@/components/dashboard/GranularAnalysis";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Charts
 import { ActivityByHourChart, ActivityHourData } from "@/components/charts/ActivityByHourChart";
@@ -51,7 +55,7 @@ export const dynamic = "force-dynamic";
 
 // --- Aggregation Cache Helper ---
 const getDashboardMetrics = unstable_cache(
-  async (type: string | undefined, timeRange: string, excludedLibraries: string[]) => {
+  async (type: string | undefined, timeRange: string, excludedLibraries: string[], customFrom?: string, customTo?: string) => {
     // 1. Calculate time windows
     let currentStartDate: Date | undefined;
     let previousStartDate: Date | undefined;
@@ -60,7 +64,20 @@ const getDashboardMetrics = unstable_cache(
     const now = new Date();
     previousEndDate = new Date(now);
 
-    if (timeRange === "24h") {
+    if (timeRange === "custom" && customFrom && customTo) {
+      currentStartDate = new Date(customFrom);
+      currentStartDate.setHours(0, 0, 0, 0);
+
+      const toDate = new Date(customTo);
+      toDate.setHours(23, 59, 59, 999);
+
+      // Calculate previous span of identical length
+      const diff = toDate.getTime() - currentStartDate.getTime();
+      previousStartDate = new Date(currentStartDate.getTime() - diff - 1);
+      previousEndDate = new Date(currentStartDate.getTime() - 1);
+
+      // We overwrite previousEndDate to toDate for the main query filter later if we want a strict ceiling, but since we use `dateFilter = gte: currentStartDate` without ceiling for now, we should add ceiling.
+    } else if (timeRange === "24h") {
       currentStartDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       previousStartDate = new Date(now.getTime() - 48 * 60 * 60 * 1000);
       previousEndDate = currentStartDate;
@@ -82,7 +99,12 @@ const getDashboardMetrics = unstable_cache(
       previousEndDate = new Date(currentStartDate);
     }
 
-    const dateFilter = currentStartDate ? { gte: currentStartDate } : undefined;
+    const dateFilter: any = currentStartDate ? { gte: currentStartDate } : undefined;
+    if (timeRange === "custom" && customTo && dateFilter) {
+      const toDate = new Date(customTo);
+      toDate.setHours(23, 59, 59, 999);
+      dateFilter.lte = toDate;
+    }
     const prevDateFilter = (previousStartDate && previousEndDate) ? { gte: previousStartDate, lt: previousEndDate } : undefined;
 
     // 2. Build Media Filter
@@ -149,7 +171,7 @@ const getDashboardMetrics = unstable_cache(
 
       const key = getFormatKey(new Date(h.startedAt));
       if (!trendMap.has(key)) {
-        trendMap.set(key, { time: key, movieVolume: 0, seriesVolume: 0, musicVolume: 0, otherVolume: 0, totalViews: 0 });
+        trendMap.set(key, { time: key, movieVolume: 0, seriesVolume: 0, musicVolume: 0, booksVolume: 0, totalViews: 0 });
       }
       const entry = trendMap.get(key)!;
       const mType = h.media?.type?.toLowerCase() || "";
@@ -166,10 +188,10 @@ const getDashboardMetrics = unstable_cache(
         entry.musicVolume += hours;
         musicViews++; musicHours += hours;
       } else if (mType.includes('book')) {
-        entry.otherVolume += hours;
+        entry.booksVolume += hours;
         booksViews++; booksHours += hours;
       } else {
-        entry.otherVolume += hours;
+        entry.booksVolume += hours;
       }
 
       entry.totalViews += 1;
@@ -187,7 +209,7 @@ const getDashboardMetrics = unstable_cache(
       movieVolume: parseFloat(v.movieVolume.toFixed(2)),
       seriesVolume: parseFloat(v.seriesVolume.toFixed(2)),
       musicVolume: parseFloat(v.musicVolume.toFixed(2)),
-      otherVolume: parseFloat(v.otherVolume.toFixed(2)),
+      booksVolume: parseFloat(v.booksVolume.toFixed(2)),
       totalViews: v.totalViews
     }));
 
@@ -254,13 +276,13 @@ const getDashboardMetrics = unstable_cache(
   { revalidate: 60 }
 );
 
-export default async function DashboardPage(props: { searchParams: Promise<{ type?: string; timeRange?: string }> }) {
-  const { type, timeRange = "7d" } = await props.searchParams;
+export default async function DashboardPage(props: { searchParams: Promise<{ type?: string; timeRange?: string; from?: string; to?: string }> }) {
+  const { type, timeRange = "7d", from, to } = await props.searchParams;
 
   const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
   const excludedLibraries = settings?.excludedLibraries || [];
 
-  const metrics = await getDashboardMetrics(type, timeRange, excludedLibraries);
+  const metrics = await getDashboardMetrics(type, timeRange, excludedLibraries, from, to);
 
   // Redis Live Streams
   const keys = await redis.keys("stream:*");
@@ -312,267 +334,284 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
           </div>
         </div>
 
-        {/* Global Metrics Row 1 */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Streams Actifs</CardTitle>
-              <Activity className="h-4 w-4 text-emerald-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{activeStreamsCount}</div>
-              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                Actuellement gérés par le serveur
-              </p>
-            </CardContent>
-          </Card>
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="bg-zinc-900 border border-zinc-800">
+            <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
+            <TabsTrigger value="analytics">Analyses Détaillées</TabsTrigger>
+          </TabsList>
 
-          <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Bande Passante</CardTitle>
-              <ActivitySquare className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">~{totalBandwidthMbps} Mbps</div>
-              <p className="text-xs text-muted-foreground mt-1">Estimation sortante dynamique</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Efficacité DirectPlay</CardTitle>
-              <MonitorPlay className="h-4 w-4 text-purple-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.directPlayPercent}%</div>
-              <p className="text-xs text-muted-foreground mt-1">Contenus non transcodés (Période)</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Temps Global</CardTitle>
-              <Clock className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <div className="text-2xl font-bold">{metrics.hoursWatched.toLocaleString()}h</div>
-                {timeRange !== "all" && (
-                  <div className={`flex items-center text-xs font-semibold px-1.5 py-0.5 rounded-full ${metrics.hoursGrowth >= 0 ? 'text-emerald-500 bg-emerald-500/10' : 'text-red-500 bg-red-500/10'}`}>
-                    {metrics.hoursGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-                    {metrics.hoursGrowth > 0 ? "+" : ""}{metrics.hoursGrowth.toFixed(1)}%
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1 text-ellipsis overflow-hidden whitespace-nowrap">
-                {timeRange !== "all" ? `Cumulé par rapport à la période précédente (${metrics.previousHoursWatched}h)` : `Cumulé dans toute l'histoire pour ${metrics.totalUsers} Utilisateurs`}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Analytics Breadcrumb - Ultimate Expansion */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="bg-zinc-900/30 border-zinc-800/40">
-            <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-sm font-medium text-zinc-400">Films</CardTitle>
-              <Film className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-2xl font-bold text-white">{metrics.breakdown.movieViews} <span className="text-sm font-normal text-zinc-500">vues</span></div>
-              <p className="text-xs text-blue-500 font-medium">{metrics.breakdown.movieHours}h visionnées</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-zinc-900/30 border-zinc-800/40">
-            <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-sm font-medium text-zinc-400">Séries & Episodes</CardTitle>
-              <Tv className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-2xl font-bold text-white">{metrics.breakdown.seriesViews} <span className="text-sm font-normal text-zinc-500">lectures</span></div>
-              <p className="text-xs text-green-500 font-medium">{metrics.breakdown.seriesHours}h englouties</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-zinc-900/30 border-zinc-800/40">
-            <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-sm font-medium text-zinc-400">Musique</CardTitle>
-              <Music className="h-4 w-4 text-yellow-500" />
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-2xl font-bold text-white">{metrics.breakdown.musicViews} <span className="text-sm font-normal text-zinc-500">titres</span></div>
-              <p className="text-xs text-yellow-500 font-medium">{metrics.breakdown.musicHours}h écoutées</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-zinc-900/30 border-zinc-800/40">
-            <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-sm font-medium text-zinc-400">Livres & Audios</CardTitle>
-              <BookOpen className="h-4 w-4 text-purple-500" />
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-2xl font-bold text-white">{metrics.breakdown.booksViews} <span className="text-sm font-normal text-zinc-500">ouvertures</span></div>
-              <p className="text-xs text-purple-500 font-medium">{metrics.breakdown.booksHours}h passées</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Dataviz Row : Multi-Axis Volume & PieChart */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="col-span-1 lg:col-span-5 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-            <CardHeader className="pb-1">
-              <CardTitle>Volumes et Vues Historiques</CardTitle>
-              <CardDescription>Croisement temporel des Vues & Heures de visionnages par Bibliothèque.</CardDescription>
-            </CardHeader>
-            <CardContent className="pl-0 pb-4 pr-1">
-              <div className="h-[300px] min-h-[300px] w-full">
-                <ComposedTrendChart data={metrics.trendData} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="col-span-1 lg:col-span-2 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle>Répartition Catégorique</CardTitle>
-              <CardDescription>Part du volume global de lecture (Heures).</CardDescription>
-            </CardHeader>
-            <CardContent className="pl-0 pb-4">
-              <div className="h-[300px] min-h-[300px] w-full">
-                {metrics.categoryPieData.length > 0 ? (
-                  <CategoryPieChart data={metrics.categoryPieData} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">
-                    Aucune donnée pour générer le graphique
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Dataviz Row : Plateformes + Top Users + Live */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-8">
-
-          <Card className="col-span-2 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex gap-2"><Award className="w-5 h-5 text-yellow-500" /> Les Fidèles</CardTitle>
-              <CardDescription>Top Utilisateurs.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6 mt-4">
-                {metrics.topUsers.length === 0 && <span className="text-muted-foreground text-sm">Aucune activité</span>}
-                {metrics.topUsers.map((u, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-sm">
-                      #{i + 1}
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium leading-none truncate max-w-[100px]">{u.username}</p>
-                    </div>
-                    <div className="font-semibold text-sm">
-                      {u.hours}h
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="col-span-3 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle>Écosystème Clients</CardTitle>
-              <CardDescription>Répartition des plateformes de lecture (Top 8).</CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-center items-center pb-4">
-              <div className="h-[300px] w-full max-w-[400px]">
-                <PlatformDistributionChart data={metrics.platformChartData} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="col-span-3 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex gap-2"> En Direct <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse mt-1.5" /></CardTitle>
-              <CardDescription>
-                Actuellement {liveStreams.length} stream(s) en cours.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                {liveStreams.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    Aucun stream en cours de lecture.
+          <TabsContent value="overview" className="space-y-6">
+            {/* Global Metrics Row 1 */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Streams Actifs</CardTitle>
+                  <Activity className="h-4 w-4 text-emerald-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{activeStreamsCount}</div>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                    Actuellement gérés par le serveur
                   </p>
-                ) : (
-                  liveStreams.map((stream) => (
-                    <div
-                      key={stream.sessionId}
-                      className="flex items-center gap-4 p-3 border rounded-lg border-zinc-800 bg-zinc-950/50"
-                    >
-                      {/* Section Affiche du média */}
-                      {stream.itemId ? (
-                        <div className="relative w-12 aspect-[2/3] bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10">
-                          <Image
-                            src={getJellyfinImageUrl(stream.itemId, 'Primary')}
-                            alt={stream.mediaTitle}
-                            fill
-                            unoptimized
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-12 aspect-[2/3] bg-muted rounded shrink-0 flex items-center justify-center ring-1 ring-white/10">
-                          <PlayCircle className="w-5 h-5 opacity-50" />
-                        </div>
-                      )}
+                </CardContent>
+              </Card>
 
-                      <div className="space-y-1 max-w-[150px]">
-                        <p className="text-sm font-medium leading-none truncate">
-                          {stream.mediaTitle}
-                        </p>
-                        <p className="text-xs text-muted-foreground flex flex-col gap-0.5">
-                          <span className="truncate">{stream.user} • {stream.device}</span>
-                          {(stream.city !== "Unknown" || stream.country !== "Unknown") && (
-                            <span className="text-[10px] opacity-70 truncate">
-                              📍 {stream.city !== "Unknown" ? `${stream.city}, ` : ''}{stream.country}
-                            </span>
-                          )}
-                        </p>
+              <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Bande Passante</CardTitle>
+                  <ActivitySquare className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">~{totalBandwidthMbps} Mbps</div>
+                  <p className="text-xs text-muted-foreground mt-1">Estimation sortante dynamique</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Efficacité DirectPlay</CardTitle>
+                  <MonitorPlay className="h-4 w-4 text-purple-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{metrics.directPlayPercent}%</div>
+                  <p className="text-xs text-muted-foreground mt-1">Contenus non transcodés (Période)</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Temps Global</CardTitle>
+                  <Clock className="h-4 w-4 text-orange-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <div className="text-2xl font-bold">{metrics.hoursWatched.toLocaleString()}h</div>
+                    {timeRange !== "all" && (
+                      <div className={`flex items-center text-xs font-semibold px-1.5 py-0.5 rounded-full ${metrics.hoursGrowth >= 0 ? 'text-emerald-500 bg-emerald-500/10' : 'text-red-500 bg-red-500/10'}`}>
+                        {metrics.hoursGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                        {metrics.hoursGrowth > 0 ? "+" : ""}{metrics.hoursGrowth.toFixed(1)}%
                       </div>
-                      <div className="ml-auto font-medium text-xs">
-                        <span
-                          className={`px-2 py-1 rounded-full ${stream.playMethod === "Transcode"
-                            ? "bg-orange-500/10 text-orange-500"
-                            : "bg-emerald-500/10 text-emerald-500"
-                            }`}
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 text-ellipsis overflow-hidden whitespace-nowrap">
+                    {timeRange !== "all" ? `Cumulé par rapport à la période précédente (${metrics.previousHoursWatched}h)` : `Cumulé dans toute l'histoire pour ${metrics.totalUsers} Utilisateurs`}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Analytics Breadcrumb - Ultimate Expansion */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card className="bg-zinc-900/30 border-zinc-800/40">
+                <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-sm font-medium text-zinc-400">Films</CardTitle>
+                  <Film className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <div className="text-2xl font-bold text-white">{metrics.breakdown.movieViews} <span className="text-sm font-normal text-zinc-500">vues</span></div>
+                  <p className="text-xs text-blue-500 font-medium">{metrics.breakdown.movieHours}h visionnées</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-zinc-900/30 border-zinc-800/40">
+                <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-sm font-medium text-zinc-400">Séries & Episodes</CardTitle>
+                  <Tv className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <div className="text-2xl font-bold text-white">{metrics.breakdown.seriesViews} <span className="text-sm font-normal text-zinc-500">lectures</span></div>
+                  <p className="text-xs text-green-500 font-medium">{metrics.breakdown.seriesHours}h englouties</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-zinc-900/30 border-zinc-800/40">
+                <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-sm font-medium text-zinc-400">Musique</CardTitle>
+                  <Music className="h-4 w-4 text-yellow-500" />
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <div className="text-2xl font-bold text-white">{metrics.breakdown.musicViews} <span className="text-sm font-normal text-zinc-500">titres</span></div>
+                  <p className="text-xs text-yellow-500 font-medium">{metrics.breakdown.musicHours}h écoutées</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-zinc-900/30 border-zinc-800/40">
+                <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-sm font-medium text-zinc-400">Livres & Audios</CardTitle>
+                  <BookOpen className="h-4 w-4 text-purple-500" />
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <div className="text-2xl font-bold text-white">{metrics.breakdown.booksViews} <span className="text-sm font-normal text-zinc-500">ouvertures</span></div>
+                  <p className="text-xs text-purple-500 font-medium">{metrics.breakdown.booksHours}h passées</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Dataviz Row : Multi-Axis Volume & PieChart */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+              <Card className="col-span-1 lg:col-span-5 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <CardHeader className="pb-1">
+                  <CardTitle>Volumes et Vues Historiques</CardTitle>
+                  <CardDescription>Croisement temporel des Vues & Heures de visionnages par Bibliothèque.</CardDescription>
+                </CardHeader>
+                <CardContent className="pl-0 pb-4 pr-1">
+                  <div className="h-[300px] min-h-[300px] w-full">
+                    <ComposedTrendChart data={metrics.trendData} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="col-span-1 lg:col-span-2 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle>Répartition Catégorique</CardTitle>
+                  <CardDescription>Part du volume global de lecture (Heures).</CardDescription>
+                </CardHeader>
+                <CardContent className="pl-0 pb-4">
+                  <div className="h-[300px] min-h-[300px] w-full">
+                    {metrics.categoryPieData.length > 0 ? (
+                      <CategoryPieChart data={metrics.categoryPieData} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">
+                        Aucune donnée pour générer le graphique
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Dataviz Row : Plateformes + Top Users + Live */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-8">
+
+              <Card className="col-span-2 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="flex gap-2"><Award className="w-5 h-5 text-yellow-500" /> Les Fidèles</CardTitle>
+                  <CardDescription>Top Utilisateurs.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6 mt-4">
+                    {metrics.topUsers.length === 0 && <span className="text-muted-foreground text-sm">Aucune activité</span>}
+                    {metrics.topUsers.map((u, i) => (
+                      <div key={i} className="flex items-center gap-4">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-sm">
+                          #{i + 1}
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm font-medium leading-none truncate max-w-[100px]">{u.username}</p>
+                        </div>
+                        <div className="font-semibold text-sm">
+                          {u.hours}h
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="col-span-3 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle>Écosystème Clients</CardTitle>
+                  <CardDescription>Répartition des plateformes de lecture (Top 8).</CardDescription>
+                </CardHeader>
+                <CardContent className="flex justify-center items-center pb-4">
+                  <div className="h-[300px] w-full max-w-[400px]">
+                    <PlatformDistributionChart data={metrics.platformChartData} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="col-span-3 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="flex gap-2"> En Direct <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse mt-1.5" /></CardTitle>
+                  <CardDescription>
+                    Actuellement {liveStreams.length} stream(s) en cours.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                    {liveStreams.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        Aucun stream en cours de lecture.
+                      </p>
+                    ) : (
+                      liveStreams.map((stream) => (
+                        <div
+                          key={stream.sessionId}
+                          className="flex items-center gap-4 p-3 border rounded-lg border-zinc-800 bg-zinc-950/50"
                         >
-                          {stream.playMethod}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                          {/* Section Affiche du média */}
+                          {stream.itemId ? (
+                            <div className="relative w-12 aspect-[2/3] bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10">
+                              <Image
+                                src={getJellyfinImageUrl(stream.itemId, 'Primary')}
+                                alt={stream.mediaTitle}
+                                fill
+                                unoptimized
+                                className="object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-12 aspect-[2/3] bg-muted rounded shrink-0 flex items-center justify-center ring-1 ring-white/10">
+                              <PlayCircle className="w-5 h-5 opacity-50" />
+                            </div>
+                          )}
 
-        {/* Third Row Analytics - Hourly Activity Heatmap Backup */}
-        <div className="grid gap-4 md:grid-cols-1">
-          <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle>Moyenne d'Activité Horaire</CardTitle>
-              <CardDescription>Heure de démarrage des sessions sur la période donnée.</CardDescription>
-            </CardHeader>
-            <CardContent className="pl-0 pb-4">
-              <div className="h-[250px] min-h-[250px] w-full">
-                <ActivityByHourChart data={metrics.hourlyChartData} />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                          <div className="space-y-1 max-w-[150px]">
+                            <p className="text-sm font-medium leading-none truncate">
+                              {stream.mediaTitle}
+                            </p>
+                            <p className="text-xs text-muted-foreground flex flex-col gap-0.5">
+                              <span className="truncate">{stream.user} • {stream.device}</span>
+                              {(stream.city !== "Unknown" || stream.country !== "Unknown") && (
+                                <span className="text-[10px] opacity-70 truncate">
+                                  📍 {stream.city !== "Unknown" ? `${stream.city}, ` : ''}{stream.country}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="ml-auto font-medium text-xs">
+                            <span
+                              className={`px-2 py-1 rounded-full ${stream.playMethod === "Transcode"
+                                ? "bg-orange-500/10 text-orange-500"
+                                : "bg-emerald-500/10 text-emerald-500"
+                                }`}
+                            >
+                              {stream.playMethod}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
+            {/* Third Row Analytics - Hourly Activity Heatmap Backup */}
+            <div className="grid gap-4 md:grid-cols-1">
+              <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle>Moyenne d'Activité Horaire</CardTitle>
+                  <CardDescription>Heure de démarrage des sessions sur la période donnée.</CardDescription>
+                </CardHeader>
+                <CardContent className="pl-0 pb-4">
+                  <div className="h-[250px] min-h-[250px] w-full">
+                    <ActivityByHourChart data={metrics.hourlyChartData} />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-6">
+            <Suspense fallback={<Skeleton className="h-[400px] w-full bg-zinc-900/50 rounded-xl" />}>
+              <DeepInsights type={type} timeRange={timeRange} excludedLibraries={excludedLibraries} />
+            </Suspense>
+            <Suspense fallback={<Skeleton className="h-[400px] w-full bg-zinc-900/50 rounded-xl" />}>
+              <GranularAnalysis type={type} timeRange={timeRange} excludedLibraries={excludedLibraries} />
+            </Suspense>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Settings as SettingsIcon, RefreshCw, CheckCircle2, AlertCircle, Save } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Settings as SettingsIcon, RefreshCw, CheckCircle2, AlertCircle, Save, Download, UploadCloud } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,13 @@ import { Switch } from "@/components/ui/switch";
 export default function SettingsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
+    const [isRestoring, setIsRestoring] = useState(false);
+
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [settingsMsg, setSettingsMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [backupMsg, setBackupMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [discordEnabled, setDiscordEnabled] = useState(false);
     const [discordUrl, setDiscordUrl] = useState("");
@@ -79,6 +84,56 @@ export default function SettingsPage() {
             setSettingsMsg({ type: "error", text: "Erreur réseau." });
         } finally {
             setIsSavingSettings(false);
+        }
+    };
+
+    const handleExportBackup = () => {
+        window.location.href = "/api/backup/export";
+    };
+
+    const handleImportBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsRestoring(true);
+        setBackupMsg(null);
+
+        try {
+            const fileReader = new FileReader();
+            fileReader.onload = async (e) => {
+                const text = e.target?.result;
+                if (typeof text !== 'string') return;
+
+                try {
+                    const parsedJson = JSON.parse(text);
+                    const res = await fetch("/api/backup/import", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(parsedJson)
+                    });
+
+                    const data = await res.json();
+                    if (res.ok) {
+                        setBackupMsg({ type: "success", text: "Restauration terminée avec succès ! La page va redémarrer dans 3 secondes..." });
+                        setTimeout(() => window.location.reload(), 3000);
+                    } else {
+                        setBackupMsg({ type: "error", text: data.error || "Le fichier de sauvegarde est invalide ou corrompu." });
+                        setIsRestoring(false);
+                    }
+                } catch (err) {
+                    setBackupMsg({ type: "error", text: "Erreur lors de l'analyse du fichier JSON." });
+                    setIsRestoring(false);
+                }
+            };
+            fileReader.readAsText(file);
+        } catch (error) {
+            setBackupMsg({ type: "error", text: "Impossible de lire le fichier." });
+            setIsRestoring(false);
+        }
+
+        // Reset file input
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
         }
     };
 
@@ -203,8 +258,53 @@ export default function SettingsPage() {
                             {isSavingSettings ? 'Enregistrement...' : 'Enregistrer les paramètres'}
                         </button>
                     </CardFooter>
-                </Card>
-            </div>
-        </div>
+                </button>
+            </CardFooter>
+        </Card>
+
+                {/* BACKUP & RESTORE CARD */ }
+    <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
+        <CardHeader>
+            <CardTitle>Données & Sauvegardes</CardTitle>
+            <CardDescription>
+                Exportez l'ensemble de votre base de données et de vos statistiques, ou restaurez une configuration précédente sans aucune perte.
+            </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            {backupMsg && (
+                <div className={`p-4 rounded-md flex items-center gap-3 text-sm ${backupMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                    {backupMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                    {backupMsg.text}
+                </div>
+            )}
+            <input
+                type="file"
+                accept=".json"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={handleImportBackup}
+            />
+        </CardContent>
+        <CardFooter className="flex flex-col sm:flex-row gap-4">
+            <button
+                onClick={handleExportBackup}
+                className="flex-1 flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors border border-zinc-700 hover:bg-zinc-800"
+            >
+                <Download className="w-4 h-4" />
+                Exporter la sauvegarde
+            </button>
+            <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isRestoring}
+                className={`flex-1 flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${isRestoring ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    }`}
+            >
+                <UploadCloud className={`w-4 h-4 ${isRestoring ? 'animate-bounce' : ''}`} />
+                {isRestoring ? 'Restauration en cours...' : 'Importer une sauvegarde'}
+            </button>
+        </CardFooter>
+    </Card>
+            </div >
+        </div >
     );
 }
