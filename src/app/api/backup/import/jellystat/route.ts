@@ -19,8 +19,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "L'URL et la clé API Jellystat sont obligatoires." }, { status: 400 });
         }
 
-        // Clean trailing slashes and /api if present so we can append predictably
-        const baseUrl = jellystatUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "");
+        const cleanBaseUrl = jellystatUrl.replace(/\/+$/, '').replace(/\/api$/, '');
 
         // Setup headers
         const headers = {
@@ -28,8 +27,11 @@ export async function POST(req: NextRequest) {
             "Content-Type": "application/json"
         };
 
+        const fetchUrl = cleanBaseUrl + '/api/getUsers';
+        console.log("Tentative URL Jellystat:", fetchUrl);
+
         // First, check if connection works by calling a basic endpoint
-        const testRes = await fetch(`${baseUrl}/api/getUsers`, { headers });
+        const testRes = await fetch(fetchUrl, { headers });
         if (!testRes.ok) {
             const errText = await testRes.text();
             console.error("[Jellystat] API /getUsers error:", testRes.status, errText);
@@ -49,7 +51,8 @@ export async function POST(req: NextRequest) {
 
         while (hasMore) {
             // e.g: GET /api/getPlays?skip=0&take=500 -> Adapt this endpoint if Jellystat exposes history differently.
-            const historyRes = await fetch(`${baseUrl}/api/getPlays?skip=${skip}&take=${take}`, { headers });
+            const historyFetchUrl = `${cleanBaseUrl}/api/getPlays?skip=${skip}&take=${take}`;
+            const historyRes = await fetch(historyFetchUrl, { headers });
 
             if (!historyRes.ok) {
                 const errText = await historyRes.text();

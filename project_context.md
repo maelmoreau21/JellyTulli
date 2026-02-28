@@ -35,7 +35,7 @@ A massive analytical refactoring was introduced focusing on Data Context and Res
 5. **Universal Security & Backups & External Migrations (`src/app/api/backup`)**:
   - Zero-Constraint JSON architecture backing up all `Users`, `Media`, `Settings`, and `Logs`.
   - Import leverages Prisma `$transaction` with a timeout of 60000ms. If one line is corrupted, the DB rolls back safely.
-  - Integration of **API-Based External Migrations** from `Jellystat` and **CSV Uploads** for the `Playback Reporting` plugin. By communicating securely and parsing data in chunks (FormData), the application safely builds an iterative Sync Pipeline preventing OOM crashes on small edge devices like Raspberry Pi.
+  - Integration of **API-Based External Migrations** from `Jellystat` and the `Playback Reporting` plugin. By communicating directly and securely via backend HTTP requests, the application safely builds an iterative Sync Pipeline preventing OOM crashes on small edge devices like Raspberry Pi. The system automatically fetches and parses the CSV exports natively.
   
 6. **Autonomy Core (`src/server/monitor.ts`) & Docker Strategy**:
   - The heartbeat pulls from `[GlobalSettings.jellyfinUrl]/Sessions` directly from the database configuration.
