@@ -26,6 +26,7 @@
     "papaparse": "^5.5.3",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
+    "react-activity-calendar": "^3.1.1",
     "react-day-picker": "^9.14.0",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",

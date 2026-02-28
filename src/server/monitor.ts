@@ -29,8 +29,9 @@ export async function startMonitoring() {
 }
 
 async function pollJellyfinSessions() {
-    const baseUrl = process.env.JELLYFIN_URL;
-    const apiKey = process.env.JELLYFIN_API_KEY;
+    const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
+    const baseUrl = settings?.jellyfinUrl;
+    const apiKey = settings?.jellyfinApiKey;
 
     if (!baseUrl || !apiKey) {
         console.warn("[Monitor] Jellyfin URL or API Key missing.");
@@ -183,7 +184,7 @@ async function pollJellyfinSessions() {
             // Discord Notifications
             try {
                 const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
-                const webhookUrl = settings?.discordWebhookUrl || process.env.DISCORD_WEBHOOK_URL;
+                const webhookUrl = settings?.discordWebhookUrl;
                 const isEnabled = settings?.discordAlertsEnabled;
 
                 if (isEnabled && webhookUrl) {

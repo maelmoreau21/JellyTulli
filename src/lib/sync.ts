@@ -8,12 +8,13 @@ import prisma from "./prisma";
 export async function syncJellyfinLibrary() {
     console.log("[Sync] Démarrage de la synchronisation de la librairie Jellyfin...");
 
-    const baseUrl = process.env.JELLYFIN_URL;
-    const apiKey = process.env.JELLYFIN_API_KEY;
+    const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
+    const baseUrl = settings?.jellyfinUrl;
+    const apiKey = settings?.jellyfinApiKey;
 
     if (!baseUrl || !apiKey) {
-        console.error("[Sync Error] JELLYFIN_URL ou JELLYFIN_API_KEY manquants.");
-        return { success: false, error: "Missing Env Variables" };
+        console.error("[Sync Error] JELLYFIN_URL ou JELLYFIN_API_KEY manquants dans la BDD.");
+        return { success: false, error: "Serveur non configuré (URL/API Key manquants)." };
     }
 
     try {

@@ -1,88 +1,47 @@
-"use client";
+import { Suspense } from "react";
+import prisma from "@/lib/prisma";
+import { redirect } from "next/navigation";
+import { Lock } from "lucide-react";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import LoginForm from "./LoginForm";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { PlayCircle, Lock, Loader2 } from "lucide-react";
+export const dynamic = "force-dynamic";
 
-export default function LoginPage() {
-    const router = useRouter();
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError("");
-
-        const result = await signIn("credentials", {
-            password,
-            redirect: false,
-        });
-
-        if (result?.error) {
-            setError("Mot de passe incorrect");
-            setIsLoading(false);
-        } else {
-            router.push("/");
-            router.refresh();
+export default async function LoginPage() {
+    // SECURITY & ERROR HANDLING:
+    // Ensure the JellyTulli server has at least a Jellyfin URL configured before allowing login.
+    // If not, redirect to the Setup Wizard.
+    try {
+        const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
+        if (!settings?.jellyfinUrl || !settings?.jellyfinApiKey) {
+            redirect("/setup");
         }
-    };
+    } catch (e) {
+        // If the database connection fails completely or Prisma is not initialized, 
+        // we can't do much but we must not crash the whole page rendering unexpectedly.
+        console.error("Erreur lors de la vérification des paramètres dans LoginPage :", e);
+    }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background p-4">
-            <div className="w-full max-w-md space-y-8">
-                <div className="flex flex-col items-center justify-center text-center">
-                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                        <PlayCircle className="w-10 h-10 text-primary" />
-                    </div>
-                    <h2 className="text-3xl font-extrabold text-foreground tracking-tight">
-                        JellyTulli
-                    </h2>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                        Authentification requise pour accéder au dashboard
-                    </p>
-                </div>
+        <div className="min-h-screen bg-black text-white flex items-center justify-center p-4 selection:bg-indigo-500/30">
+            <div className="absolute inset-0 z-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-900 via-black to-black" />
 
-                <div className="bg-card border border-border rounded-xl shadow-sm p-8">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-2">
-                                <span className="flex items-center gap-2">
-                                    <Lock className="w-4 h-4" /> Mot de passe Administrateur
-                                </span>
-                            </label>
-                            <input
-                                type="password"
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full form-input block rounded-md border-border bg-background text-foreground shadow-sm focus:border-primary focus:ring-primary sm:text-sm px-4 py-3 border"
-                                placeholder="••••••••"
-                            />
+            <Card className="w-full max-w-sm z-10 bg-zinc-900/80 border-zinc-800/50 backdrop-blur-xl shadow-2xl">
+                <CardHeader className="space-y-3 pb-6 border-b border-zinc-800/50">
+                    <div className="flex flex-col items-center gap-3 text-center">
+                        <div className="p-3 bg-indigo-500/10 rounded-full border border-indigo-500/20">
+                            <Lock className="w-6 h-6 text-indigo-400" />
                         </div>
-
-                        {error && (
-                            <div className="text-sm text-red-500 font-medium">
-                                {error}
-                            </div>
-                        )}
-
-                        <button
-                            type="submit"
-                            disabled={isLoading || !password}
-                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            {isLoading ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                                "Se connecter"
-                            )}
-                        </button>
-                    </form>
-                </div>
-            </div>
+                        <div>
+                            <CardTitle className="text-2xl font-bold tracking-tight text-white">Connexion Administrateur</CardTitle>
+                            <CardDescription className="text-zinc-400 mt-1 text-sm font-medium">Authentifiez-vous via Jellyfin</CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <Suspense fallback={<div className="p-6 text-center text-zinc-500">Chargement du formulaire...</div>}>
+                    <LoginForm />
+                </Suspense>
+            </Card>
         </div>
     );
 }

@@ -38,5 +38,17 @@ A massive analytical refactoring was introduced focusing on Data Context and Res
   - Integration of **API-Based External Migrations** from `Jellystat` and the `Playback Reporting` plugin. By communicating directly via paginated HTTPS APIs (instead of massive in-memory JSON/CSV file uploads), the application safely builds an iterative Sync Pipeline preventing OOM crashes on small edge devices like Raspberry Pi.
   
 6. **Autonomy Core (`src/server/monitor.ts`) & Docker Strategy**:
-  - The heartbeat continues pulling from `${JELLYFIN_URL}/Sessions`.
+  - The heartbeat pulls from `[GlobalSettings.jellyfinUrl]/Sessions` directly from the database configuration.
   - Build pipeline relies on `output: "standalone"` making it highly effective structurally.
+
+7. **Security & Setup (Phase 5)**:
+  - Global `GlobalSettings` database configuration completely replaced `.env` variables (`JELLYFIN_URL`, `JELLYFIN_API_KEY` and `DISCORD_WEBHOOK_URL` have been strictly deleted from the codebase and Docker).
+  - Implements a Setup Wizard (`/setup`) upon first boot, preventing crashes by redirecting unconfigured instances directly.
+  - Jellyfin-Native Authentication via NextAuth `CredentialsProvider` calling `/Users/AuthenticateByName` enforcing `Policy.IsAdministrator`.
+  - Next.js Middleware protects all analytical routes.
+
+8. **Elite Features (Phase 6)**:
+  - **Jellyfin Native Webhooks**: `/api/webhook/jellyfin` endpoint securely traps `PlaybackStart` events for real-time Discord Alerts without polling.
+  - **Yearly Heatmap**: Github-style 365-day contribution chart tracking user activity density efficiently.
+  - **Newsletter Generator**: `/newsletter` standalone responsive A4-sized report aggregating the month's biggest viewers and top videos with visually immersive backdrops.
+  - **Draggable Dashboard**: Utilizes a persistent `localStorage` layout state and a React wrapper `DraggableDashboard` to rearrange Server Components instantly via up/down controls in the UI.

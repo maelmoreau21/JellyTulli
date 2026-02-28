@@ -1,27 +1,53 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import prisma from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
     providers: [
         CredentialsProvider({
-            name: "Password",
+            name: "Jellyfin",
             credentials: {
+                username: { label: "Nom d'utilisateur", type: "text", placeholder: "Admin" },
                 password: { label: "Mot de passe Administrateur", type: "password", placeholder: "********" }
             },
             async authorize(credentials) {
-                const adminPassword = process.env.ADMIN_PASSWORD;
+                if (!credentials?.username || !credentials?.password) return null;
 
-                if (!adminPassword) {
-                    throw new Error("ADMIN_PASSWORD n'est pas configuré sur le serveur.");
+                const settings = await prisma.globalSettings.findUnique({
+                    where: { id: "global" }
+                });
+
+                if (!settings || !settings.jellyfinUrl) {
+                    throw new Error("Serveur non configuré. Accédez à /setup.");
                 }
 
-                if (credentials?.password === adminPassword) {
-                    // Authentification réussie
-                    return { id: "admin", name: "Administrateur" };
-                }
+                try {
+                    const res = await fetch(`${settings.jellyfinUrl}/Users/AuthenticateByName`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `MediaBrowser Client="JellyTulli", Device="Server", DeviceId="JellyTulli-1", Version="1.0.0"`
+                        },
+                        body: JSON.stringify({
+                            Username: credentials.username,
+                            Pw: credentials.password
+                        })
+                    });
 
-                // Echec de l'authentification
-                return null;
+                    if (!res.ok) {
+                        throw new Error("Identifiants Jellyfin incorrects.");
+                    }
+
+                    const data = await res.json();
+
+                    if (!data.User?.Policy?.IsAdministrator) {
+                        throw new Error("Accès refusé : Autorisations d'Administrateur requises.");
+                    }
+
+                    return { id: data.User.Id, name: data.User.Name };
+                } catch (error: any) {
+                    throw new Error(error.message || "Erreur de connexion à Jellyfin.");
+                }
             }
         })
     ],

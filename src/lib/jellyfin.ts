@@ -1,18 +1,19 @@
 export function getJellyfinImageUrl(itemId: string, type: 'Primary' | 'Thumb' = 'Primary'): string {
-    const baseUrl = process.env.JELLYFIN_URL || "";
-    const apiKey = process.env.JELLYFIN_API_KEY || "";
-    if (baseUrl && apiKey) {
-        return `${baseUrl}/Items/${itemId}/Images/${type}?api_key=${apiKey}&fillWidth=300&quality=80`;
-    }
+    // Redirige toujours vers l'API interne pour masquer l'URL et la clé de l'utilisateur final
     return `/api/jellyfin/image?itemId=${itemId}&type=${type}`;
 }
 
 export async function fetchJellyfinImage(itemId: string, type: string) {
-    const baseUrl = process.env.JELLYFIN_URL;
-    const apiKey = process.env.JELLYFIN_API_KEY;
+    // Required to prevent import loops if this is a lib (better to import inline or ensure prisma is available)
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+
+    const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
+    const baseUrl = settings?.jellyfinUrl;
+    const apiKey = settings?.jellyfinApiKey;
 
     if (!baseUrl || !apiKey) {
-        throw new Error("JELLYFIN_URL or JELLYFIN_API_KEY is not configured securely in environment variables");
+        throw new Error("Le serveur Jellyfin n'est pas configuré dans les paramètres globaux.");
     }
 
     // L'API Jellyfin prend en charge plusieurs tailles et qualités, on force un format pour nos UI de façon performante

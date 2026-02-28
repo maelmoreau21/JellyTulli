@@ -12,11 +12,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const JELLYFIN_URL = process.env.JELLYFIN_URL?.replace(/\/+$/, '');
-    const API_KEY = process.env.JELLYFIN_API_KEY;
+    const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
+    const JELLYFIN_URL = settings?.jellyfinUrl?.replace(/\/+$/, '');
+    const API_KEY = settings?.jellyfinApiKey;
 
     if (!JELLYFIN_URL || !API_KEY) {
-        return NextResponse.json({ error: "Variables d'environnement Jellyfin manquantes (URL ou API_KEY)." }, { status: 500 });
+        return NextResponse.json({ error: "Le serveur Jellyfin n'est pas configuré. Rendez-vous dans les Paramètres." }, { status: 500 });
     }
 
     try {

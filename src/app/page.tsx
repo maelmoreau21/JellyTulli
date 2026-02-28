@@ -18,6 +18,8 @@ import { PlatformDistributionChart, PlatformData } from "@/components/charts/Pla
 import { TimeRangeSelector } from "@/components/TimeRangeSelector";
 import { ComposedTrendChart } from "@/components/charts/ComposedTrendChart";
 import { CategoryPieChart } from "@/components/charts/CategoryPieChart";
+import { YearlyHeatmap, HeatmapData } from "@/components/charts/YearlyHeatmap";
+import { DraggableDashboard } from "@/components/dashboard/DraggableDashboard";
 
 // Webhook / Redis types
 type WebhookPayload = {
@@ -276,6 +278,43 @@ const getDashboardMetrics = unstable_cache(
   { revalidate: 60 }
 );
 
+async function HeatmapWrapper() {
+  const today = new Date();
+  const lastYear = new Date();
+  lastYear.setDate(today.getDate() - 365);
+
+  const rawData = await prisma.playbackHistory.findMany({
+    where: { startedAt: { gte: lastYear } },
+    select: { startedAt: true }
+  });
+
+  const countsByDate = new Map<string, number>();
+  rawData.forEach(r => {
+    const d = r.startedAt.toISOString().split('T')[0];
+    countsByDate.set(d, (countsByDate.get(d) || 0) + 1);
+  });
+
+  const counts = Array.from(countsByDate.values());
+  const maxCount = counts.length > 0 ? Math.max(...counts) : 1;
+
+  const getLevel = (count: number): 0 | 1 | 2 | 3 | 4 => {
+    if (count === 0) return 0;
+    const ratio = count / maxCount;
+    if (ratio < 0.25) return 1;
+    if (ratio < 0.5) return 2;
+    if (ratio < 0.75) return 3;
+    return 4;
+  };
+
+  const heatmapData: HeatmapData[] = Array.from(countsByDate.entries()).map(([date, count]) => ({
+    date,
+    count,
+    level: getLevel(count)
+  }));
+
+  return <YearlyHeatmap data={heatmapData} />;
+}
+
 export default async function DashboardPage(props: { searchParams: Promise<{ type?: string; timeRange?: string; from?: string; to?: string }> }) {
   const { type, timeRange = "7d", from, to } = await props.searchParams;
 
@@ -341,8 +380,9 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            {/* Global Metrics Row 1 */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <DraggableDashboard blocks={[
+            /* Global Metrics Row 1 */
+            <div key="metrics" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Streams Actifs</CardTitle>
@@ -398,10 +438,10 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                   </p>
                 </CardContent>
               </Card>
-            </div>
+            </div>,
 
-            {/* Analytics Breadcrumb - Ultimate Expansion */}
-            <div className="grid gap-4 md:grid-cols-4">
+            /* Analytics Breadcrumb - Ultimate Expansion */
+            <div key="breadcrumb" className="grid gap-4 md:grid-cols-4">
               <Card className="bg-zinc-900/30 border-zinc-800/40">
                 <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
                   <CardTitle className="text-sm font-medium text-zinc-400">Films</CardTitle>
@@ -445,10 +485,10 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                   <p className="text-xs text-purple-500 font-medium">{metrics.breakdown.booksHours}h passées</p>
                 </CardContent>
               </Card>
-            </div>
+            </div>,
 
-            {/* Dataviz Row : Multi-Axis Volume & PieChart */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+            /* Dataviz Row : Multi-Axis Volume & PieChart */
+            <div key="volumes" className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
               <Card className="col-span-1 lg:col-span-5 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                 <CardHeader className="pb-1">
                   <CardTitle>Volumes et Vues Historiques</CardTitle>
@@ -478,10 +518,15 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </div>,
 
-            {/* Dataviz Row : Plateformes + Top Users + Live */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-8">
+            /* Yearly Heatmap Contribution Component - Phase 6 */
+            <Suspense key="heatmap" fallback={<Skeleton className="h-[250px] w-full rounded-xl" />}>
+              <HeatmapWrapper />
+            </Suspense>,
+
+            /* Dataviz Row : Plateformes + Top Users + Live */
+            <div key="platforms" className="grid gap-4 md:grid-cols-2 lg:grid-cols-8">
 
               <Card className="col-span-2 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                 <CardHeader>
@@ -585,10 +630,10 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </div>,
 
-            {/* Third Row Analytics - Hourly Activity Heatmap Backup */}
-            <div className="grid gap-4 md:grid-cols-1">
+            /* Third Row Analytics - Hourly Activity Heatmap Backup */
+            <div key="hourly" className="grid gap-4 md:grid-cols-1">
               <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle>Moyenne d'Activité Horaire</CardTitle>
@@ -601,6 +646,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                 </CardContent>
               </Card>
             </div>
+            ]} />
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">

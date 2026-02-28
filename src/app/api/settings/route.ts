@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
             settings = await prisma.globalSettings.create({
                 data: {
                     id: "global",
-                    discordWebhookUrl: process.env.DISCORD_WEBHOOK_URL || null,
+                    discordWebhookUrl: null,
                     discordAlertsEnabled: false,
                     excludedLibraries: [],
                 }
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
             },
             create: {
                 id: "global",
-                discordWebhookUrl: discordWebhookUrl || process.env.DISCORD_WEBHOOK_URL || null,
+                discordWebhookUrl: discordWebhookUrl || null,
                 discordAlertsEnabled: discordAlertsEnabled || false,
                 excludedLibraries: excludedLibraries || [],
             }

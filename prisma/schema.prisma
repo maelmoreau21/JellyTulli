@@ -101,6 +101,8 @@ model ActiveStream {
 
 model GlobalSettings {
   id                  String   @id @default("global") // Singleton pattern pour les settings
+  jellyfinUrl         String?  // Nouveauté: URL du serveur pour l'auth et l'API
+  jellyfinApiKey      String?  // Nouveauté: Clé API du serveur
   discordWebhookUrl   String?
   discordAlertsEnabled Boolean @default(false)
   excludedLibraries   String[] @default([]) // Nouveauté : Filtre les types de collection (ex: Photo, HomeVideos)

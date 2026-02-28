@@ -32,6 +32,12 @@ export function Navigation() {
                 Logs
             </Link>
             <Link
+                href="/newsletter"
+                className={`text-sm font-medium transition-colors ${isActive('/newsletter') ? 'text-primary' : 'text-emerald-500 hover:text-emerald-400'}`}
+            >
+                Newsletter
+            </Link>
+            <Link
                 href="/settings"
                 className={`text-sm font-medium transition-colors ${isActive('/settings') ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
             >

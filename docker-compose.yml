@@ -9,12 +9,9 @@ services:
     environment:
       - DATABASE_URL=postgresql://jellytulli:jellytulli_password@postgres:5432/jellytulli?schema=public
       - REDIS_URL=redis://redis:6379
-      - JELLYFIN_URL=http://your-jellyfin-instance:8096
-      - JELLYFIN_API_KEY=your_api_key_here
       - ADMIN_PASSWORD=supersecretadmin
       - NEXTAUTH_SECRET=your-generated-random-secret
       - NEXTAUTH_URL=http://localhost:3000
-      - DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN
     depends_on:
       postgres:
         condition: service_healthy
