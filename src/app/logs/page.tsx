@@ -1,4 +1,4 @@
-import { PlayCircle, Search, ArrowUpDown, ChevronDown } from "lucide-react";
+import { PlayCircle, Search, ArrowUpDown, ChevronDown, Users } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,55 @@ import { FallbackImage } from "@/components/FallbackImage";
 import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic"; // Bypass statis rendering for real-time logs
+
+// --- Watch Party Detection Algorithm ---
+// Groups sessions of the same media started by different users within a 5-minute window
+interface WatchPartyGroup {
+    partyId: string;
+    mediaTitle: string;
+    mediaId: string;
+    members: string[];
+    logs: any[];
+}
+
+function detectWatchParties(logs: any[]): Map<string, string> {
+    // Returns a map: logId -> partyId (only for logs that are part of a watch party)
+    const WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+
+    // Group logs by mediaId
+    const byMedia = new Map<string, any[]>();
+    logs.forEach(log => {
+        const mId = log.mediaId;
+        if (!byMedia.has(mId)) byMedia.set(mId, []);
+        byMedia.get(mId)!.push(log);
+    });
+
+    const partyMap = new Map<string, string>(); // logId -> partyId
+    let partyCounter = 0;
+
+    byMedia.forEach((mediaLogs, mediaId) => {
+        // Sort by startedAt
+        const sorted = [...mediaLogs].sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
+
+        let clusterStart = 0;
+        for (let i = 1; i <= sorted.length; i++) {
+            // End of cluster if gap > WINDOW_MS or end of array
+            if (i === sorted.length || sorted[i].startedAt.getTime() - sorted[i - 1].startedAt.getTime() > WINDOW_MS) {
+                const cluster = sorted.slice(clusterStart, i);
+                // Only count as watch party if 2+ DIFFERENT users
+                const uniqueUsers = new Set(cluster.map((l: any) => l.userId));
+                if (uniqueUsers.size >= 2) {
+                    partyCounter++;
+                    const pid = `party-${partyCounter}`;
+                    cluster.forEach((l: any) => partyMap.set(l.id, pid));
+                }
+                clusterStart = i;
+            }
+        }
+    });
+
+    return partyMap;
+}
 
 export default async function LogsPage({
     searchParams
@@ -42,6 +91,22 @@ export default async function LogsPage({
         orderBy: orderBy,
         take: 500, // Limit to 500 rows to prevent overwhelming the browser
     });
+
+    // Detect Watch Parties
+    const watchPartyMap = detectWatchParties(logs);
+
+    // Build party info for badges
+    const partyInfo = new Map<string, { members: Set<string>, mediaTitle: string }>();
+    logs.forEach((log: any) => {
+        const pid = watchPartyMap.get(log.id);
+        if (pid) {
+            if (!partyInfo.has(pid)) partyInfo.set(pid, { members: new Set(), mediaTitle: log.media?.title || "" });
+            partyInfo.get(pid)!.members.add(log.user?.username || "?");
+        }
+    });
+
+    // Track which partyId has already shown the banner
+    const shownPartyBanners = new Set<string>();
 
     return (
         <div className="flex-col md:flex">
@@ -86,82 +151,120 @@ export default async function LogsPage({
                                     ) : (
                                         logs.map((log: any) => {
                                             const isTranscode = log.playMethod?.toLowerCase().includes("transcode");
+                                            const partyId = watchPartyMap.get(log.id);
+                                            const isParty = !!partyId;
+                                            const party = partyId ? partyInfo.get(partyId) : null;
+                                            const isFirstOfParty = partyId && !shownPartyBanners.has(partyId);
+                                            if (isFirstOfParty && partyId) shownPartyBanners.add(partyId);
 
                                             return (
-                                                <TableRow key={log.id} className="even:bg-zinc-900/30 hover:bg-zinc-800/50 border-zinc-800/50 transition-colors">
-                                                    {/* Date */}
-                                                    <TableCell className="font-medium whitespace-nowrap">
-                                                        {log.startedAt.toLocaleString('fr-FR', {
-                                                            day: '2-digit', month: '2-digit', year: 'numeric',
-                                                            hour: '2-digit', minute: '2-digit'
-                                                        })}
-                                                    </TableCell>
-
-                                                    {/* Utilisateur */}
-                                                    <TableCell className="font-semibold text-primary">
-                                                        {log.user?.username || "Utilisateur Supprimé"}
-                                                    </TableCell>
-
-                                                    {/* Média */}
-                                                    <TableCell className="overflow-hidden">
-                                                        <div className="flex items-center gap-3 w-full overflow-hidden" title={log.media.title}>
-                                                            <div className="relative w-12 aspect-[2/3] bg-muted rounded-md shrink-0 overflow-hidden ring-1 ring-white/10">
-                                                                <FallbackImage
-                                                                    src={`/api/jellyfin/image?itemId=${log.media.jellyfinMediaId}&type=Primary`}
-                                                                    alt={log.media.title}
-                                                                />
-                                                            </div>
-                                                            <div className="flex flex-col min-w-0 flex-1">
-                                                                <span className="truncate font-medium text-zinc-100" title={log.media.title}>{log.media.title}</span>
-                                                                <span className="text-xs text-zinc-500">{log.media.type}</span>
-                                                            </div>
-                                                        </div>
-                                                    </TableCell>
-
-                                                    {/* Client & IP */}
-                                                    <TableCell>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-sm font-semibold">{log.clientName || "Inconnu"}</span>
-                                                            <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded-sm w-fit mt-0.5">
-                                                                {log.ipAddress || "Local"}
-                                                            </span>
-                                                            {log.country && log.country !== "Unknown" && (
-                                                                <span className="text-xs text-muted-foreground mt-0.5">
-                                                                    {log.city}, {log.country}
+                                                <>
+                                                    {/* Watch Party Banner — first log of each party */}
+                                                    {isFirstOfParty && party && (
+                                                        <TableRow key={`party-banner-${partyId}`} className="border-none">
+                                                            <TableCell colSpan={7} className="py-1.5 px-3">
+                                                                <div className="flex items-center gap-2 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-violet-500/10 border border-violet-500/20 rounded-lg px-4 py-2 animate-pulse-slow">
+                                                                    <span className="text-lg" role="img" aria-label="Watch Party">🍿</span>
+                                                                    <span className="font-bold text-sm bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+                                                                        Watch Party
+                                                                    </span>
+                                                                    <span className="text-xs text-zinc-400 ml-1">
+                                                                        {party.members.size} spectateurs — <span className="font-medium text-zinc-300">{party.mediaTitle}</span>
+                                                                    </span>
+                                                                    <div className="ml-auto flex items-center gap-1">
+                                                                        {Array.from(party.members).slice(0, 4).map((m, i) => (
+                                                                            <span key={i} className="text-[10px] bg-violet-500/20 text-violet-300 px-1.5 py-0.5 rounded-full">{m}</span>
+                                                                        ))}
+                                                                        {party.members.size > 4 && (
+                                                                            <span className="text-[10px] text-zinc-500">+{party.members.size - 4}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                    <TableRow key={log.id} className={`even:bg-zinc-900/30 hover:bg-zinc-800/50 border-zinc-800/50 transition-colors ${isParty ? 'border-l-2 border-l-violet-500/40' : ''}`}>
+                                                        {/* Date */}
+                                                        <TableCell className="font-medium whitespace-nowrap">
+                                                            <div className="flex items-center gap-1.5">
+                                                                {isParty && (
+                                                                    <Users className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                                                                )}
+                                                                <span>
+                                                                    {log.startedAt.toLocaleString('fr-FR', {
+                                                                        day: '2-digit', month: '2-digit', year: 'numeric',
+                                                                        hour: '2-digit', minute: '2-digit'
+                                                                    })}
                                                                 </span>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-
-                                                    {/* Statut (Méthode) */}
-                                                    <TableCell>
-                                                        <Badge variant={isTranscode ? "destructive" : "default"} className={`shadow-sm ${isTranscode ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'}`}>
-                                                            {log.playMethod || "DirectPlay"}
-                                                        </Badge>
-                                                    </TableCell>
-
-                                                    {/* Codecs */}
-                                                    <TableCell>
-                                                        {isTranscode && log.videoCodec ? (
-                                                            <div className="flex flex-col text-xs text-muted-foreground font-mono">
-                                                                <span>V: {log.videoCodec}</span>
-                                                                {log.audioCodec && <span>A: {log.audioCodec}</span>}
                                                             </div>
-                                                        ) : (
-                                                            <span className="text-xs text-muted-foreground italic">Source</span>
-                                                        )}
-                                                    </TableCell>
+                                                        </TableCell>
 
-                                                    {/* Durée */}
-                                                    <TableCell className="text-right whitespace-nowrap">
-                                                        {log.durationWatched
-                                                            ? `${Math.floor(log.durationWatched / 60)} min`
-                                                            : (
-                                                                <span className="text-amber-500/80 animate-pulse text-xs uppercase tracking-wider font-semibold flex flex-row items-center justify-end gap-1"><span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>En cours</span>
-                                                            )
-                                                        }
-                                                    </TableCell>
-                                                </TableRow>
+                                                        {/* Utilisateur */}
+                                                        <TableCell className="font-semibold text-primary">
+                                                            {log.user?.username || "Utilisateur Supprimé"}
+                                                        </TableCell>
+
+                                                        {/* Média */}
+                                                        <TableCell className="overflow-hidden">
+                                                            <div className="flex items-center gap-3 w-full overflow-hidden" title={log.media.title}>
+                                                                <div className="relative w-12 aspect-[2/3] bg-muted rounded-md shrink-0 overflow-hidden ring-1 ring-white/10">
+                                                                    <FallbackImage
+                                                                        src={`/api/jellyfin/image?itemId=${log.media.jellyfinMediaId}&type=Primary`}
+                                                                        alt={log.media.title}
+                                                                    />
+                                                                </div>
+                                                                <div className="flex flex-col min-w-0 flex-1">
+                                                                    <span className="truncate font-medium text-zinc-100" title={log.media.title}>{log.media.title}</span>
+                                                                    <span className="text-xs text-zinc-500">{log.media.type}</span>
+                                                                </div>
+                                                            </div>
+                                                        </TableCell>
+
+                                                        {/* Client & IP */}
+                                                        <TableCell>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-semibold">{log.clientName || "Inconnu"}</span>
+                                                                <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded-sm w-fit mt-0.5">
+                                                                    {log.ipAddress || "Local"}
+                                                                </span>
+                                                                {log.country && log.country !== "Unknown" && (
+                                                                    <span className="text-xs text-muted-foreground mt-0.5">
+                                                                        {log.city}, {log.country}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+
+                                                        {/* Statut (Méthode) */}
+                                                        <TableCell>
+                                                            <Badge variant={isTranscode ? "destructive" : "default"} className={`shadow-sm ${isTranscode ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'}`}>
+                                                                {log.playMethod || "DirectPlay"}
+                                                            </Badge>
+                                                        </TableCell>
+
+                                                        {/* Codecs */}
+                                                        <TableCell>
+                                                            {isTranscode && log.videoCodec ? (
+                                                                <div className="flex flex-col text-xs text-muted-foreground font-mono">
+                                                                    <span>V: {log.videoCodec}</span>
+                                                                    {log.audioCodec && <span>A: {log.audioCodec}</span>}
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-xs text-muted-foreground italic">Source</span>
+                                                            )}
+                                                        </TableCell>
+
+                                                        {/* Durée */}
+                                                        <TableCell className="text-right whitespace-nowrap">
+                                                            {log.durationWatched
+                                                                ? `${Math.floor(log.durationWatched / 60)} min`
+                                                                : (
+                                                                    <span className="text-amber-500/80 animate-pulse text-xs uppercase tracking-wider font-semibold flex flex-row items-center justify-end gap-1"><span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>En cours</span>
+                                                                )
+                                                            }
+                                                        </TableCell>
+                                                    </TableRow>
+                                                </>
                                             );
                                         })
                                     )}

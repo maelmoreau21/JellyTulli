@@ -10,6 +10,7 @@ import { unstable_cache } from "next/cache";
 import { Suspense } from "react";
 import { DeepInsights } from "@/components/dashboard/DeepInsights";
 import { GranularAnalysis } from "@/components/dashboard/GranularAnalysis";
+import { NetworkAnalysis } from "@/components/dashboard/NetworkAnalysis";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -430,6 +431,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
           <TabsList className="bg-zinc-900 border border-zinc-800">
             <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
             <TabsTrigger value="analytics">Analyses Détaillées</TabsTrigger>
+            <TabsTrigger value="network">Réseau</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -733,6 +735,12 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
             </Suspense>
             <Suspense fallback={<Skeleton className="h-[400px] w-full bg-zinc-900/50 rounded-xl" />}>
               <GranularAnalysis type={type} timeRange={timeRange} excludedLibraries={excludedLibraries} />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="network" className="space-y-6">
+            <Suspense fallback={<Skeleton className="h-[400px] w-full bg-zinc-900/50 rounded-xl" />}>
+              <NetworkAnalysis type={type} timeRange={timeRange} excludedLibraries={excludedLibraries} />
             </Suspense>
           </TabsContent>
         </Tabs>

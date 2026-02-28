@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { unstable_cache } from "next/cache";
 import { StreamProportionsChart } from "@/components/charts/StreamProportionsChart";
+import { StandardPieChart } from "@/components/charts/StandardMetricsCharts";
 
 const getDeepInsights = unstable_cache(
     async (type: string | undefined, timeRange: string, excludedLibraries: string[]) => {
@@ -62,9 +63,44 @@ const getDeepInsights = unstable_cache(
             value: s._count.id
         }));
 
-        return { categorized, topClients, streamMethodsChartData };
+        // --- Pro Telemetry: Resolution Matrix ---
+        // Join PlaybackHistory → Media to get resolution distribution
+        const resolutionData = await prisma.playbackHistory.findMany({
+            select: { media: { select: { resolution: true } } },
+        });
+
+        const resolutionMap = new Map<string, number>();
+        resolutionData.forEach(r => {
+            const res = r.media?.resolution || "Inconnu";
+            resolutionMap.set(res, (resolutionMap.get(res) || 0) + 1);
+        });
+
+        const resolutionChartData = Array.from(resolutionMap.entries())
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 6);
+
+        // --- Pro Telemetry: Device Ecosystem ---
+        // More detailed than PlatformDistributionChart: clientName + deviceName combo
+        const deviceData = await prisma.playbackHistory.findMany({
+            select: { clientName: true, deviceName: true },
+        });
+
+        const deviceMap = new Map<string, number>();
+        deviceData.forEach(d => {
+            // Combine client + device for a more detailed breakdown
+            const device = d.deviceName || "Appareil Inconnu";
+            deviceMap.set(device, (deviceMap.get(device) || 0) + 1);
+        });
+
+        const deviceChartData = Array.from(deviceMap.entries())
+            .map(([name, value]) => ({ name: name.length > 20 ? name.substring(0, 20) + "…" : name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 8);
+
+        return { categorized, topClients, streamMethodsChartData, resolutionChartData, deviceChartData };
     },
-    ['jellytulli-deep-insights-categorized'],
+    ['jellytulli-deep-insights-v2'],
     { revalidate: 300 } // Cache for 5 minutes
 );
 
@@ -128,6 +164,37 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
                     </CardHeader>
                     <CardContent className="flex justify-center">
                         <StreamProportionsChart data={data.streamMethodsChartData} />
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Pro Telemetry Section */}
+            <div className="grid gap-4 md:grid-cols-2">
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                    <CardHeader>
+                        <CardTitle>Matrice Résolution</CardTitle>
+                        <CardDescription>Répartition des sessions par résolution du média (4K, 1080p, 720p, SD).</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[300px] flex items-center justify-center">
+                        {data.resolutionChartData.length > 0 ? (
+                            <StandardPieChart data={data.resolutionChartData} nameKey="name" dataKey="value" />
+                        ) : (
+                            <p className="text-xs text-muted-foreground">Aucune donnée de résolution disponible.</p>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                    <CardHeader>
+                        <CardTitle>Écosystème Appareils</CardTitle>
+                        <CardDescription>Top 8 des appareils physiques utilisés pour la lecture.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[300px] flex items-center justify-center">
+                        {data.deviceChartData.length > 0 ? (
+                            <StandardPieChart data={data.deviceChartData} nameKey="name" dataKey="value" />
+                        ) : (
+                            <p className="text-xs text-muted-foreground">Aucune donnée d'appareils disponible.</p>
+                        )}
                     </CardContent>
                 </Card>
             </div>
