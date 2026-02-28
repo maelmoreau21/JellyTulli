@@ -446,7 +446,7 @@ export default function SettingsPage() {
 
                             <input
                                 type="file"
-                                accept=".csv"
+                                accept=".csv,.tsv"
                                 ref={prFileInputRef}
                                 className="hidden"
                                 onChange={handleImportPR}

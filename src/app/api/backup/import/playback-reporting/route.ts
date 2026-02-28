@@ -23,11 +23,16 @@ export async function POST(req: NextRequest) {
 
         const text = await file.text();
 
-        // Parse CSV with PapaParse
+        // Parse CSV/TSV with PapaParse (auto-detects delimiter by default)
         const parsed = Papa.parse(text, {
             header: true,
             skipEmptyLines: true,
+            dynamicTyping: true, // Useful for numbers
         });
+
+        if (parsed.errors.length > 0) {
+            console.warn("[Playback Reporting Import] PapaParse errors:", parsed.errors);
+        }
 
         const rows = parsed.data as any[];
 

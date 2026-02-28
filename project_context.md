@@ -59,8 +59,9 @@ A massive analytical refactoring was introduced focusing on Data Context and Res
 59.   - **Granular Drop-off Stats**: Detailed Analytics tab now renders average completion rates per library (Movies, Series, Music).
 60.   - **Peak Concurrent Streams KPI**: Dashboard natively plots historic `PlaybackHistory` overlap using timeline events to calculate the absolute peak concurrent stream load since database origin.
 61. 
-62. 10. **Advanced Telemetry: Concurrency, Drop-off & Languages (Phase 9)**:
-63.   - **Audio & Subtitles Database Schema**: Schema modified to track `audioLanguage`, `audioCodec`, `subtitleLanguage`, `subtitleCodec`.
-64.   - **Real-Time Extraction Payload**: Webhook and local monitor parse active streaming parameters directly pushing them natively to Prisma structures.
-65.   - **Concurrent Streams Evolution Chart**: Granular analysis rendering historical `peakStreams` aligned with visual timeframe.
 66.   - **Funnel segmentation**: Deep dive inside the UX by detecting behaviors like: Zapped (<10%), Tried (10-25%), Halfway (25-80%), Finished (>80%). Coupled with dynamic PieCharts for VF/VO and SRT breakdown.
+67. 
+68. 11. **Large File Support & Streaming Imports (Phase 10)**:
+69.   - **Advanced Configuration**: Next.js `bodySizeLimit` increased to `500mb` via `experimental` settings to handle mass exports.
+70.   - **TSV Support**: Playback Reporting migration now natively handles `.tsv` and `.csv` via automatic delimiter detection in PapaParse.
+71.   - **Memory-Efficient Streaming**: Jellystat JSON import (up to 174MB+) rewritten using `stream-json` and `stream-chain`. Records are parsed one by one from the stream and processed in chunks of 200, preventing RAM exhaustion on edge devices like Raspberry Pi.

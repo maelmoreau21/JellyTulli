@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
+import { Readable } from "stream";
+import { chain } from "stream-chain";
+import { parser } from "stream-json";
+import { streamArray } from "stream-json/streamers/StreamArray";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // Allow 5 minutes of execution for large APIs
@@ -20,32 +24,22 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Aucun fichier fourni." }, { status: 400 });
         }
 
-        // Use Buffer to read the full file reliably to prevent "Unterminated string in JSON" from next.js text limits
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const fileContent = buffer.toString('utf-8');
-
-        let jsonData;
-        try {
-            jsonData = JSON.parse(fileContent);
-        } catch (err: any) {
-            console.error("[Jellystat Import] Failed to parse JSON", err);
-            return NextResponse.json({ error: "Fichier JSON invalide. (JSON.parse failed)" }, { status: 400 });
-        }
-
-        const entries = Array.isArray(jsonData) ? jsonData : (jsonData.data || jsonData.result || []);
-
-        if (entries.length === 0) {
-            return NextResponse.json({ error: "Le fichier JSON est vide ou invalide." }, { status: 400 });
-        }
+        console.log(`[Jellystat Import] Démarrage de l'import en flux pour ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} Mo)`);
 
         let importedSess = 0;
         let errors = 0;
-        const CHUNK_SIZE = 500;
+        let processedCount = 0;
+        const CHUNK_SIZE = 200;
+        let currentChunk: any[] = [];
 
-        for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
-            const chunk = entries.slice(i, i + CHUNK_SIZE);
+        // pipeline definitions
+        const pipeline = chain([
+            Readable.fromWeb(file.stream() as any),
+            parser(),
+            streamArray()
+        ]);
 
+        const processChunk = async (chunk: any[]) => {
             for (const row of chunk) {
                 try {
                     const jellyfinUserId = row.UserId || row.userId;
@@ -88,7 +82,6 @@ export async function POST(req: NextRequest) {
                     if (durationWatched > 10000000) {
                         durationWatched = Math.floor(durationWatched / 10000000);
                     }
-
                     if (isNaN(durationWatched)) durationWatched = 0;
 
                     const startedAtStr = row.DateCreated || row.dateCreated || row.startedAt || new Date().toISOString();
@@ -133,7 +126,26 @@ export async function POST(req: NextRequest) {
                     console.error("[Jellystat Import] Line error:", err);
                 }
             }
+        };
+
+        // Standard for-await-of for streams
+        for await (const data of pipeline) {
+            currentChunk.push(data.value);
+            processedCount++;
+
+            if (currentChunk.length >= CHUNK_SIZE) {
+                await processChunk(currentChunk);
+                currentChunk = [];
+                console.log(`[Jellystat Import] Progress: ${processedCount} sessions traitées...`);
+            }
         }
+
+        // Process final chunk
+        if (currentChunk.length > 0) {
+            await processChunk(currentChunk);
+        }
+
+        console.log(`[Jellystat Import] Terminé: ${importedSess} sessions importées, ${errors} erreurs.`);
 
         return NextResponse.json({
             success: true,
