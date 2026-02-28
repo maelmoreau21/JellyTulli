@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { importJellystatAction } from "@/app/actions/import-jellystat";
 
 export default function SettingsPage() {
     const [isLoading, setIsLoading] = useState(false);
@@ -153,25 +154,18 @@ export default function SettingsPage() {
         if (!file) return;
 
         setIsImportingJellystat(true);
-        setMigrationMsg({ type: "info", text: "Envoi et analyse du fichier JSON Jellystat..." });
+        setMigrationMsg({ type: "info", text: `Envoi et analyse du fichier JSON Jellystat (${(file.size / 1024 / 1024).toFixed(0)} Mo)...` });
 
         try {
-            // Send raw file body (not FormData) to bypass Next.js 10MB body limit
-            const res = await fetch("/api/backup/import/jellystat", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/octet-stream",
-                    "X-File-Name": file.name,
-                    "X-File-Size": String(file.size),
-                },
-                body: file,
-            });
+            // Use Server Action — respects bodySizeLimit: '500mb' from next.config
+            const formData = new FormData();
+            formData.append("file", file);
+            const result = await importJellystatAction(formData);
 
-            const data = await res.json();
-            if (res.ok) {
-                setMigrationMsg({ type: "success", text: data.message || "Importation depuis Jellystat réussie." });
+            if (result.success) {
+                setMigrationMsg({ type: "success", text: result.message || "Importation depuis Jellystat réussie." });
             } else {
-                setMigrationMsg({ type: "error", text: data.error || "Erreur lors de l'import Jellystat." });
+                setMigrationMsg({ type: "error", text: result.error || "Erreur lors de l'import Jellystat." });
             }
         } catch {
             setMigrationMsg({ type: "error", text: "Erreur réseau lors de la communication du fichier." });
@@ -188,7 +182,7 @@ export default function SettingsPage() {
         if (!file) return;
 
         setIsImportingPR(true);
-        setMigrationMsg({ type: "info", text: "Envoi et analyse du fichier CSV Playback Reporting..." });
+        setMigrationMsg({ type: "info", text: "Envoi et analyse du fichier TSV Playback Reporting..." });
 
         const formData = new FormData();
         formData.append("file", file);
@@ -445,7 +439,7 @@ export default function SettingsPage() {
 
                         <div className="space-y-4 border p-4 rounded-lg bg-black/20">
                             <h4 className="text-sm font-semibold opacity-90">2. Depuis Playback Reporting</h4>
-                            <p className="text-xs text-muted-foreground">Importez le fichier CSV d'export généré par le plugin officiel Playback Reporting de Jellyfin.</p>
+                            <p className="text-xs text-muted-foreground">Importez le fichier TSV d'export généré par le plugin officiel Playback Reporting de Jellyfin.</p>
 
                             <input
                                 type="file"
@@ -461,7 +455,7 @@ export default function SettingsPage() {
                                     }`}
                             >
                                 <UploadCloud className={`w-4 h-4 ${isImportingPR ? 'animate-bounce' : ''}`} />
-                                {isImportingPR ? 'Analyse du fichier CSV en cours...' : 'Uploader le CSV Playback Reporting'}
+                                {isImportingPR ? 'Analyse du fichier TSV en cours...' : 'Uploader le TSV Playback Reporting'}
                             </button>
                         </div>
                     </CardContent>

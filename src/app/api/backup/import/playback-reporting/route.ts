@@ -23,31 +23,32 @@ export async function POST(req: NextRequest) {
 
         const text = await file.text();
 
-        // Detect delimiter based on file extension (.tsv → tab, else auto-detect)
+        // Detect delimiter: force TAB for .tsv files, auto-detect for .csv
         const isTsv = file.name?.toLowerCase().endsWith(".tsv");
         const delimiterConfig = isTsv ? "\t" : undefined;
         console.log(`[Playback Reporting Import] Fichier: ${file.name}, TSV détecté: ${isTsv}, délimiteur forcé: ${isTsv ? "TAB" : "auto"}`);
 
-        // Parse CSV/TSV with PapaParse
+        // Parse with header: false — Playback Reporting exports have NO header row
         const parsed = Papa.parse(text, {
-            header: true,
+            header: false,
             skipEmptyLines: true,
             dynamicTyping: true,
             delimiter: delimiterConfig,
         });
 
-        // Log detected headers for debugging column mapping
-        console.log("[Playback Reporting Import] Headers trouvés:", parsed.meta.fields);
-
         if (parsed.errors.length > 0) {
             console.warn("[Playback Reporting Import] PapaParse errors:", parsed.errors.slice(0, 5));
         }
 
-        const rows = parsed.data as any[];
+        const rows = parsed.data as any[][];
         console.log(`[Playback Reporting Import] Lignes parsées: ${rows.length}`);
+        if (rows.length > 0) {
+            console.log("[Playback Reporting Import] Première ligne (sample):", rows[0]);
+            console.log(`[Playback Reporting Import] Colonnes détectées: ${rows[0].length}`);
+        }
 
         if (!rows || rows.length === 0) {
-            return NextResponse.json({ error: "Le fichier CSV/TSV est vide ou invalide. Vérifiez le format du fichier." }, { status: 400 });
+            return NextResponse.json({ error: "Le fichier TSV est vide ou invalide. Vérifiez le format du fichier." }, { status: 400 });
         }
 
         let importedSess = 0;
@@ -60,39 +61,35 @@ export async function POST(req: NextRequest) {
 
             for (const row of chunk) {
                 try {
-                    // Case-insensitive column lookup helper
-                    const get = (r: any, ...keys: string[]) => {
-                        for (const key of keys) {
-                            if (r[key] !== undefined && r[key] !== null && r[key] !== "") return r[key];
-                        }
-                        // Fallback: case-insensitive search
-                        const rowKeys = Object.keys(r);
-                        for (const key of keys) {
-                            const found = rowKeys.find(k => k.toLowerCase() === key.toLowerCase());
-                            if (found && r[found] !== undefined && r[found] !== null && r[found] !== "") return r[found];
-                        }
-                        return undefined;
-                    };
+                    // Playback Reporting TSV columns (no header row):
+                    // [0]: Date  [1]: UserId  [2]: ItemId  [3]: ItemType  [4]: ItemName
+                    // [5]: PlayMethod  [6]: ClientName  [7]: DeviceName  [8]: PlayDuration (seconds)
+                    const dateStr = row[0];
+                    const jellyfinUserId = String(row[1] || "").trim();
+                    const jellyfinMediaId = String(row[2] || "").trim();
+                    const mediaType = String(row[3] || "Movie").trim();
+                    const mediaTitle = String(row[4] || "Unknown Media").trim();
+                    const playMethod = String(row[5] || "DirectPlay").trim();
+                    const clientName = String(row[6] || "Playback Reporting").trim();
+                    const deviceName = String(row[7] || "Unknown Device").trim();
 
-                    // Playback Reporting columns: Date, UserId, User, ItemId, ItemType, ItemName, PlaybackMethod, ClientName, DeviceName, PlayDuration
-                    // Also supports "User Id", "Item Id", "Item Name" (spaced variants)
-                    const jellyfinUserId = get(row, "UserId", "User Id", "userid");
-                    const username = get(row, "User", "UserName", "User Name", "username") || "Unknown User";
-                    const jellyfinMediaId = get(row, "ItemId", "Item Id", "itemid");
-                    const mediaTitle = get(row, "ItemName", "Item Name", "ItemTitle", "Item", "itemname") || "Unknown Media";
-                    const mediaType = get(row, "ItemType", "Item Type", "itemtype") || "Movie";
+                    let durationWatched = parseInt(String(row[8] || "0"), 10);
+                    if (isNaN(durationWatched)) durationWatched = 0;
+                    if (durationWatched > 10000000) {
+                        durationWatched = Math.floor(durationWatched / 10000000); // Ticks to seconds if necessary
+                    }
 
                     if (!jellyfinUserId || !jellyfinMediaId) {
                         continue;
                     }
 
-                    // Upsert User
+                    // Upsert User (no username column in TSV — will be updated on next Jellyfin sync)
                     const user = await prisma.user.upsert({
                         where: { jellyfinUserId: jellyfinUserId },
                         update: {},
                         create: {
                             jellyfinUserId: jellyfinUserId,
-                            username: username,
+                            username: "Unknown User",
                         }
                     });
 
@@ -107,17 +104,7 @@ export async function POST(req: NextRequest) {
                         }
                     });
 
-                    const playMethod = get(row, "PlaybackMethod", "PlayMethod", "Playback Method", "Play Method") || "DirectPlay";
-                    const clientName = get(row, "ClientName", "Client Name", "Client") || "Playback Reporting";
-                    const deviceName = get(row, "DeviceName", "Device Name", "Device") || "Unknown Device";
-
-                    let durationWatched = parseInt(get(row, "PlayDuration", "Play Duration", "Duration") || "0", 10);
-                    if (durationWatched > 10000000) {
-                        durationWatched = Math.floor(durationWatched / 10000000); // Ticks to seconds if necessary
-                    }
-
                     let startedAt = new Date();
-                    const dateStr = get(row, "Date", "DateCreated", "Date Created", "StartDate");
                     if (dateStr) {
                         const parsedDate = new Date(dateStr);
                         if (!isNaN(parsedDate.getTime())) {
@@ -169,7 +156,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ message: `Importation terminée. ${importedSess} sessions ajoutées ou mises à jour (${errors} erreurs).` });
 
     } catch (error) {
-        console.error("[Playback Reporting API] Error fetching backend plugin:", error);
-        return NextResponse.json({ error: "Erreur lors du traitement distant du CSV." }, { status: 500 });
+        console.error("[Playback Reporting API] Error:", error);
+        return NextResponse.json({ error: "Erreur lors du traitement du fichier TSV/CSV." }, { status: 500 });
     }
 }
