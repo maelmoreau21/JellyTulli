@@ -23,19 +23,15 @@ function toLowerKeys(obj: any): Record<string, any> {
 }
 
 /**
- * Duck-Typing case-insensitive : détecte si un objet JSON ressemble à une session Jellystat.
+ * Duck-Typing case-insensitive RELAXÉ : détecte si un objet JSON ressemble à une session Jellystat.
+ * Critère simplifié : possède userid ET (nowplayingitemid|itemid|mediaid).
  */
 function isSessionObject(obj: any): boolean {
     if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
     const lk = toLowerKeys(obj);
     const hasUserId = !!(lk.userid || lk.user_id);
     const hasItemId = !!(lk.nowplayingitemid || lk.itemid || lk.item_id || lk.mediaid || lk.media_id);
-    const hasActivity = !!(
-        lk.playduration || lk.play_duration ||
-        lk.runtimeticks || lk.runtime_ticks ||
-        lk.datecreated || lk.date_created || lk.startedat || lk.started_at
-    );
-    return hasUserId && hasItemId && hasActivity;
+    return hasUserId && hasItemId;
 }
 
 export async function POST(req: NextRequest) {
@@ -162,13 +158,22 @@ export async function POST(req: NextRequest) {
                 processedCount++;
 
                 if (!firstObjLogged && obj && typeof obj === "object" && !Array.isArray(obj)) {
-                    console.log(`[Jellystat Finalize] Exemple d'objet trouvé:`, Object.keys(obj));
+                    console.log(`[Jellystat Finalize] Premier objet scanné — clés:`, Object.keys(obj));
                     firstObjLogged = true;
                 }
 
                 if (isSessionObject(obj)) {
                     currentChunk.push(obj);
+                    if (currentChunk.length === 1 && importedSess === 0) {
+                        console.log(`[Jellystat Finalize] Session trouvée :`, JSON.stringify(obj).substring(0, 500));
+                    }
                 } else {
+                    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+                        const lk = toLowerKeys(obj);
+                        if ((lk.userid || lk.user_id) && skipped < 3) {
+                            console.log(`[Jellystat Finalize] Objet avec userId ignoré (pas d'ItemId) — clés:`, Object.keys(obj));
+                        }
+                    }
                     skipped++;
                 }
 

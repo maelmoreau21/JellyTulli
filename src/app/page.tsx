@@ -227,7 +227,7 @@ const getDashboardMetrics = unstable_cache(
     const topUsersAgg = await prisma.playbackHistory.groupBy({
       by: ['userId'],
       _sum: { durationWatched: true },
-      where: { media: mediaWhere, startedAt: dateFilter },
+      where: { media: mediaWhere, startedAt: dateFilter, userId: { not: null } },
       orderBy: { _sum: { durationWatched: 'desc' } },
       take: 5
     });

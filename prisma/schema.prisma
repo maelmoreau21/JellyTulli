@@ -40,7 +40,7 @@ model Media {
 
 model PlaybackHistory {
   id              String    @id @default(uuid())
-  userId          String
+  userId          String?
   mediaId         String
   
   // Streaming Info
@@ -64,7 +64,7 @@ model PlaybackHistory {
   subtitleLanguage String?   // ex: "fre", "eng"
   subtitleCodec    String?   // ex: "subrip", "ass"
   
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   media           Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@index([userId])

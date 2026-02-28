@@ -101,19 +101,18 @@ export async function POST(req: NextRequest) {
                         durationWatched = Math.floor(durationWatched / 10000000); // Ticks to seconds if necessary
                     }
 
-                    if (!jellyfinUserId || !jellyfinMediaId) {
+                    if (!jellyfinMediaId) {
                         continue;
                     }
 
-                    // Upsert User (no username column in TSV — name resolved on next Jellyfin sync)
-                    const user = await prisma.user.upsert({
-                        where: { jellyfinUserId: jellyfinUserId },
-                        update: {},
-                        create: {
-                            jellyfinUserId: jellyfinUserId,
-                            username: "Utilisateur Supprimé",
-                        }
-                    });
+                    // Try to find existing user — do NOT create ghost users for unknown UUIDs
+                    const user = jellyfinUserId
+                        ? await prisma.user.findUnique({ where: { jellyfinUserId } })
+                        : null;
+
+                    if (!user && jellyfinUserId) {
+                        console.log(`[Playback Reporting Import] UUID inconnu: "${jellyfinUserId}" — session importée sans lien utilisateur.`);
+                    }
 
                     // Upsert Media
                     const media = await prisma.media.upsert({
@@ -134,13 +133,17 @@ export async function POST(req: NextRequest) {
                         }
                     }
 
+                    const historyUserId = user?.id ?? null;
+
                     const existingHistory = await prisma.playbackHistory.findFirst({
                         where: {
-                            userId: user.id,
+                            userId: historyUserId,
                             mediaId: media.id,
                             startedAt: startedAt,
                         }
                     });
+
+                    const effectiveClientName = user ? clientName : `${clientName} (Utilisateur Inconnu - TSV)`;
 
                     if (existingHistory) {
                         await prisma.playbackHistory.update({
@@ -148,19 +151,19 @@ export async function POST(req: NextRequest) {
                             data: {
                                 durationWatched: durationWatched,
                                 playMethod: playMethod,
-                                clientName: clientName,
+                                clientName: effectiveClientName,
                                 deviceName: deviceName,
                             }
                         });
                     } else {
                         await prisma.playbackHistory.create({
                             data: {
-                                userId: user.id,
+                                userId: historyUserId,
                                 mediaId: media.id,
                                 startedAt: startedAt,
                                 durationWatched: durationWatched,
                                 playMethod: playMethod,
-                                clientName: clientName,
+                                clientName: effectiveClientName,
                                 deviceName: deviceName,
                             }
                         });

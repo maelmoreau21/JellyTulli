@@ -37,6 +37,18 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
         }
     });
 
+    // Fallback : si aucune session cette année, charger toutes les données (all-time)
+    if (user && user.playbackHistory.length === 0) {
+        user = await prisma.user.findUnique({
+            where: { jellyfinUserId: userId },
+            include: {
+                playbackHistory: {
+                    include: { media: true }
+                }
+            }
+        });
+    }
+
     // Auto-create the user in Prisma if they authenticated via Jellyfin but
     // were never synced/imported. Use session data to populate the record.
     if (!user) {
@@ -51,7 +63,7 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
                     username: session.user.name || "Utilisateur Supprimé",
                 },
             }) as any;
-            // Re-fetch with relations (newly created user has 0 history)
+            // Re-fetch with relations
             user = await prisma.user.findUnique({
                 where: { jellyfinUserId: userId },
                 include: {
@@ -61,6 +73,17 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
                     }
                 }
             });
+            // Fallback all-time si aucune session cette année
+            if (user && user.playbackHistory.length === 0) {
+                user = await prisma.user.findUnique({
+                    where: { jellyfinUserId: userId },
+                    include: {
+                        playbackHistory: {
+                            include: { media: true }
+                        }
+                    }
+                });
+            }
         }
     }
 
