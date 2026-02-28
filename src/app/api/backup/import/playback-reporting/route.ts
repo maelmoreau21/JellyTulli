@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
-import Papa from "papaparse";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -12,104 +12,122 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const JELLYFIN_URL = process.env.JELLYFIN_URL?.replace(/\/+$/, '');
+    const API_KEY = process.env.JELLYFIN_API_KEY;
+
+    if (!JELLYFIN_URL || !API_KEY) {
+        return NextResponse.json({ error: "Variables d'environnement Jellyfin manquantes (URL ou API_KEY)." }, { status: 500 });
+    }
+
     try {
-        const formData = await req.formData();
-        const file = formData.get("file") as File;
+        // The Plugin Playback Reporting exposes data via its own API on Jellyfin.
+        // Known structure: /PlaybackReporting/ReportData?api_key=XXX -> but it's often a heavy JSON payload directly
+        // Some users access it as an sqlite DB, but if it has JSON endpoints:
 
-        if (!file) {
-            return NextResponse.json({ error: "No file uploaded." }, { status: 400 });
-        }
-
-        const text = await file.text();
-
-        // Use PapaParse to safely traverse the CSV
-        const parsed = Papa.parse(text, {
-            header: true,
-            skipEmptyLines: true,
-            dynamicTyping: true, // Attempts to parse numbers/booleans
-        });
-
-        if (parsed.errors.length > 0 && parsed.data.length === 0) {
-            return NextResponse.json({ error: "CSV parsing failed." }, { status: 400 });
-        }
+        const prUrl = `${JELLYFIN_URL}/PlaybackReporting/ReportData`;
 
         let importedSess = 0;
         let errors = 0;
 
-        for (const row of parsed.data as any[]) {
-            try {
-                // Playback Reporting CSV Columns typical headers:
-                // DateCreated, UserId, UserName, ItemId, ItemName, ItemType, PlayMethod, ClientName, DeviceName, PlayDuration
-                const jellyfinUserId = row["UserId"] || row["User Id"] || row["userid"];
-                const username = row["UserName"] || row["User Name"] || row["username"] || "Unknown User";
+        // Fetching Playback Reporting might return everything in one massive array since the plugin doesn't natively expose good pagination
+        // However, we stream it securely here locally into our Next.js backend and process in memory chunks instead of blowing up the client browser.
+        const res = await fetch(prUrl, {
+            headers: {
+                "X-Emby-Token": API_KEY,
+                "Content-Type": "application/json"
+            }
+        });
 
-                const jellyfinMediaId = row["ItemId"] || row["Item Id"] || row["itemid"];
-                const mediaTitle = row["ItemName"] || row["Item Name"] || row["itemname"] || "Unknown Media";
-                const mediaType = row["ItemType"] || row["Item Type"] || row["itemtype"] || "Movie";
+        if (!res.ok) {
+            return NextResponse.json({ error: "Impossible de joindre le plugin Playback Reporting sur le serveur Jellyfin. Vérifiez qu'il est bien installé." }, { status: 400 });
+        }
 
-                if (!jellyfinUserId || !jellyfinMediaId) {
-                    continue; // Skip invalid records without breaking the process
+        const data = await res.json();
+        const entries = Array.isArray(data) ? data : (data.Items || []);
+
+        if (entries.length === 0) {
+            return NextResponse.json({ error: "Aucune donnée trouvée dans Playback Reporting." }, { status: 400 });
+        }
+
+        // Processing via memory chunks to avoid Prisma transaction blocking issues
+        const CHUNK_SIZE = 500;
+
+        for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
+            const chunk = entries.slice(i, i + CHUNK_SIZE);
+
+            for (const row of chunk) {
+                try {
+                    // Playback Reporting internal keys
+                    const jellyfinUserId = row.UserId;
+                    const username = row.UserName || "Unknown User";
+
+                    const jellyfinMediaId = row.ItemId;
+                    const mediaTitle = row.ItemName || "Unknown Media";
+                    const mediaType = row.ItemType || "Movie";
+
+                    if (!jellyfinUserId || !jellyfinMediaId) {
+                        continue;
+                    }
+
+                    // Upsert User
+                    const user = await prisma.user.upsert({
+                        where: { jellyfinUserId: jellyfinUserId },
+                        update: {},
+                        create: {
+                            jellyfinUserId: jellyfinUserId,
+                            username: username,
+                        }
+                    });
+
+                    // Upsert Media
+                    const media = await prisma.media.upsert({
+                        where: { jellyfinMediaId: jellyfinMediaId },
+                        update: {},
+                        create: {
+                            jellyfinMediaId: jellyfinMediaId,
+                            title: mediaTitle,
+                            type: mediaType,
+                        }
+                    });
+
+                    const playMethod = row.PlayMethod || "DirectPlay";
+                    const clientName = row.ClientName || "Playback Reporting";
+                    const deviceName = row.DeviceName || "Unknown Device";
+
+                    let durationWatched = parseInt(row.PlayDuration || "0");
+                    if (durationWatched > 10000000) {
+                        durationWatched = Math.floor(durationWatched / 10000000); // Ticks to seconds if necessary
+                    }
+                    if (isNaN(durationWatched)) durationWatched = 0;
+
+                    const startedAt = row.DateCreated || new Date().toISOString();
+
+                    await prisma.playbackHistory.create({
+                        data: {
+                            userId: user.id,
+                            mediaId: media.id,
+                            playMethod: String(playMethod),
+                            clientName: String(clientName),
+                            deviceName: String(deviceName),
+                            durationWatched: durationWatched,
+                            startedAt: new Date(startedAt),
+                        }
+                    });
+
+                    importedSess++;
+                } catch (err) {
+                    errors++;
                 }
-
-                // Upsert User
-                const user = await prisma.user.upsert({
-                    where: { jellyfinUserId: String(jellyfinUserId) },
-                    update: {},
-                    create: {
-                        jellyfinUserId: String(jellyfinUserId),
-                        username: String(username),
-                    }
-                });
-
-                // Upsert Media
-                const media = await prisma.media.upsert({
-                    where: { jellyfinMediaId: String(jellyfinMediaId) },
-                    update: {},
-                    create: {
-                        jellyfinMediaId: String(jellyfinMediaId),
-                        title: String(mediaTitle),
-                        type: String(mediaType),
-                    }
-                });
-
-                const playMethod = row["PlayMethod"] || row["Play Method"] || "DirectPlay";
-                const clientName = row["ClientName"] || row["Client Name"] || "Playback Reporting";
-                const deviceName = row["DeviceName"] || row["Device Name"] || "Unknown Device";
-
-                let durationWatched = parseInt(row["PlayDuration"] || row["PlaybackDuration"] || "0");
-                if (isNaN(durationWatched)) durationWatched = 0;
-
-                if (durationWatched > 10000000) {
-                    durationWatched = Math.floor(durationWatched / 10000000); // Ticks to seconds if necessary
-                }
-
-                const startedAt = row["DateCreated"] || row["Date"] || row["startedAt"] || new Date().toISOString();
-
-                await prisma.playbackHistory.create({
-                    data: {
-                        userId: user.id,
-                        mediaId: media.id,
-                        playMethod: String(playMethod),
-                        clientName: String(clientName),
-                        deviceName: String(deviceName),
-                        durationWatched: durationWatched,
-                        startedAt: new Date(startedAt),
-                    }
-                });
-
-                importedSess++;
-            } catch (err) {
-                errors++;
             }
         }
 
         return NextResponse.json({
             success: true,
-            message: `Playback Reporting CSV import completed. ${importedSess} sessions imported. ${errors} errors skipped.`
+            message: `Synchronisation Playback Reporting terminée. ${importedSess} sessions ajoutées en local.`
         }, { status: 200 });
 
     } catch (e: any) {
-        console.error("[PlaybackReportingImport] Failed:", e);
-        return NextResponse.json({ error: e.message || "Failed to process PR CSV" }, { status: 500 });
+        console.error("[PR APISync] Failed:", e);
+        return NextResponse.json({ error: e.message || "Echec de connexion à Playback Reporting API" }, { status: 500 });
     }
 }

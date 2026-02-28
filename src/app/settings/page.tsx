@@ -19,9 +19,10 @@ export default function SettingsPage() {
     const [backupMsg, setBackupMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [migrationMsg, setMigrationMsg] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
 
+    const [jellystatUrl, setJellystatUrl] = useState("");
+    const [jellystatApiKey, setJellystatApiKey] = useState("");
+
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const jellystatInputRef = useRef<HTMLInputElement>(null);
-    const prInputRef = useRef<HTMLInputElement>(null);
 
     const [discordEnabled, setDiscordEnabled] = useState(false);
     const [discordUrl, setDiscordUrl] = useState("");
@@ -142,78 +143,55 @@ export default function SettingsPage() {
         }
     };
 
-    const handleImportJellystat = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
+    const handleImportJellystat = async () => {
+        if (!jellystatUrl || !jellystatApiKey) {
+            setMigrationMsg({ type: "error", text: "Veuillez fournir l'URL et la clé API Jellystat." });
+            return;
+        }
 
         setIsImportingJellystat(true);
-        setMigrationMsg(null);
+        setMigrationMsg({ type: "info", text: "Connexion à Jellystat en cours... Le transfert se fait en arrière-plan." });
 
         try {
-            const fileReader = new FileReader();
-            fileReader.onload = async (e) => {
-                const text = e.target?.result;
-                if (typeof text !== 'string') return;
+            const res = await fetch("/api/backup/import/jellystat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ jellystatUrl, jellystatApiKey })
+            });
 
-                try {
-                    const parsedJson = JSON.parse(text);
-                    const res = await fetch("/api/backup/import/jellystat", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(parsedJson)
-                    });
-
-                    const data = await res.json();
-                    if (res.ok) {
-                        setMigrationMsg({ type: "success", text: data.message || "Importation depuis Jellystat réussie." });
-                    } else {
-                        setMigrationMsg({ type: "error", text: data.error || "Erreur lors de l'import Jellystat." });
-                        setIsImportingJellystat(false);
-                    }
-                } catch (err) {
-                    setMigrationMsg({ type: "error", text: "Erreur lors de l'analyse du fichier JSON." });
-                    setIsImportingJellystat(false);
-                } finally {
-                    setIsImportingJellystat(false);
-                }
-            };
-            fileReader.readAsText(file);
+            const data = await res.json();
+            if (res.ok) {
+                setMigrationMsg({ type: "success", text: data.message || "Importation depuis Jellystat réussie." });
+            } else {
+                setMigrationMsg({ type: "error", text: data.error || "Erreur lors de l'import Jellystat." });
+            }
         } catch (error) {
-            setMigrationMsg({ type: "error", text: "Impossible de lire le fichier." });
+            setMigrationMsg({ type: "error", text: "Erreur réseau avec l'API Jellystat." });
+        } finally {
             setIsImportingJellystat(false);
         }
-        if (jellystatInputRef.current) jellystatInputRef.current.value = "";
     };
 
-    const handleImportPR = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
+    const handleImportPR = async () => {
         setIsImportingPR(true);
-        setMigrationMsg(null);
+        setMigrationMsg({ type: "info", text: "Connexion au plugin Playback Reporting sur Jellyfin en cours..." });
 
         try {
-            const formData = new FormData();
-            formData.append("file", file);
-
             const res = await fetch("/api/backup/import/playback-reporting", {
                 method: "POST",
-                body: formData
             });
 
             const data = await res.json();
             if (res.ok) {
                 setMigrationMsg({ type: "success", text: data.message || "Importation Playback Reporting réussie." });
             } else {
-                setMigrationMsg({ type: "error", text: data.error || "Erreur lors de l'import CSV." });
+                setMigrationMsg({ type: "error", text: data.error || "Erreur lors de l'import du plugin." });
             }
         } catch {
-            setMigrationMsg({ type: "error", text: "Erreur réseau lors de l'import CSV." });
+            setMigrationMsg({ type: "error", text: "Erreur réseau lors de la communication avec le plugin." });
         } finally {
             setIsImportingPR(false);
         }
-
-        if (prInputRef.current) prInputRef.current.value = "";
     };
 
     return (
@@ -385,41 +363,75 @@ export default function SettingsPage() {
                 {/* EXTERNAL MIGRATIONS CARD */}
                 <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
                     <CardHeader>
-                        <CardTitle>Migrations Externes</CardTitle>
+                        <CardTitle>Migrations Externes (Mode API)</CardTitle>
                         <CardDescription>
-                            Migrez votre historique complet depuis d'autres plugins. (Si vous avez déjà beaucoup de données, ignorez cette étape).
+                            Importez votre historique complet sans saturer le serveur via ces connexions directes aux API d'autres plugins.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-6">
                         {migrationMsg && (
-                            <div className={`p-4 rounded-md flex items-center gap-3 text-sm ${migrationMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                                {migrationMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                            <div className={`p-4 rounded-md flex items-center gap-3 text-sm ${migrationMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
+                                migrationMsg.type === 'error' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
+                                    'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                                }`}>
+                                {migrationMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> :
+                                    migrationMsg.type === 'error' ? <AlertCircle className="w-5 h-5" /> :
+                                        <RefreshCw className="w-5 h-5 animate-spin" />}
                                 {migrationMsg.text}
                             </div>
                         )}
-                        <input type="file" accept=".json" ref={jellystatInputRef} className="hidden" onChange={handleImportJellystat} />
-                        <input type="file" accept=".csv" ref={prInputRef} className="hidden" onChange={handleImportPR} />
+
+                        <div className="space-y-4 border p-4 rounded-lg bg-black/20">
+                            <h4 className="text-sm font-semibold opacity-90">1. Depuis Jellystat</h4>
+                            <div className="space-y-2">
+                                <Label htmlFor="jellystat-url">URL de l'API Jellystat</Label>
+                                <Input
+                                    id="jellystat-url"
+                                    type="url"
+                                    placeholder="http://votre-serveur:3000"
+                                    value={jellystatUrl}
+                                    onChange={(e) => setJellystatUrl(e.target.value)}
+                                    className="font-mono text-sm"
+                                    disabled={isImportingJellystat || isImportingPR}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="jellystat-key">Clé API (Token) Jellystat</Label>
+                                <Input
+                                    id="jellystat-key"
+                                    type="password"
+                                    placeholder="xxxx-xxxx-xxxx-xxxx"
+                                    value={jellystatApiKey}
+                                    onChange={(e) => setJellystatApiKey(e.target.value)}
+                                    className="font-mono text-sm"
+                                    disabled={isImportingJellystat || isImportingPR}
+                                />
+                            </div>
+                            <button
+                                onClick={handleImportJellystat}
+                                disabled={isImportingJellystat || isImportingPR}
+                                className={`w-full flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${isImportingJellystat ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                    }`}
+                            >
+                                <RefreshCw className={`w-4 h-4 ${isImportingJellystat ? 'animate-spin' : ''}`} />
+                                {isImportingJellystat ? 'Synchronisation Jellystat en tâche de fond...' : 'Lancer la synchronisation API Jellystat'}
+                            </button>
+                        </div>
+
+                        <div className="space-y-4 border p-4 rounded-lg bg-black/20">
+                            <h4 className="text-sm font-semibold opacity-90">2. Depuis Playback Reporting</h4>
+                            <p className="text-xs text-muted-foreground">Utilise automatiquement les accès JELLYFIN_URL locaux. L'import va scanner le plugin embarqué dans le serveur.</p>
+                            <button
+                                onClick={handleImportPR}
+                                disabled={isImportingPR || isImportingJellystat}
+                                className={`w-full flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${isImportingPR ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                    }`}
+                            >
+                                <RefreshCw className={`w-4 h-4 ${isImportingPR ? 'animate-spin' : ''}`} />
+                                {isImportingPR ? 'Analyse du plugin Playback Reporting...' : 'Synchroniser depuis le plugin interne Jellyfin'}
+                            </button>
+                        </div>
                     </CardContent>
-                    <CardFooter className="flex flex-col sm:flex-row gap-4">
-                        <button
-                            onClick={() => jellystatInputRef.current?.click()}
-                            disabled={isImportingJellystat}
-                            className={`flex-1 flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${isImportingJellystat ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'border border-zinc-700 hover:bg-zinc-800'
-                                }`}
-                        >
-                            <UploadCloud className={`w-4 h-4 ${isImportingJellystat ? 'animate-bounce' : ''}`} />
-                            {isImportingJellystat ? 'Importation Jellystat...' : 'Importer depuis Jellystat (.json)'}
-                        </button>
-                        <button
-                            onClick={() => prInputRef.current?.click()}
-                            disabled={isImportingPR}
-                            className={`flex-1 flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${isImportingPR ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'border border-zinc-700 hover:bg-zinc-800'
-                                }`}
-                        >
-                            <UploadCloud className={`w-4 h-4 ${isImportingPR ? 'animate-bounce' : ''}`} />
-                            {isImportingPR ? 'Importation Playback...' : 'Importer depuis Playback Reporting (.csv)'}
-                        </button>
-                    </CardFooter>
                 </Card>
             </div>
         </div>
