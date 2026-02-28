@@ -9,8 +9,8 @@ interface CategoryData {
 
 const COLORS = ['#3b82f6', '#22c55e', '#eab308', '#a855f7', '#64748b'];
 
-const formatTooltipValue = (value: number) => {
-    return [`${value.toFixed(1)}h`, 'Volume de lecture'];
+const formatTooltipValue = (value: any) => {
+    return [`${Number(value).toFixed(1)}h`, 'Volume de lecture'];
 };
 
 export function CategoryPieChart({ data }: { data: CategoryData[] }) {

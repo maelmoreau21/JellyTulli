@@ -17,19 +17,29 @@ import {
 
 interface TrendData {
     time: string;
-    movieVolume: number; // in hours
-    seriesVolume: number;
-    musicVolume: number;
-    booksVolume: number;
-    totalViews: number; // Bar chart
+    movieVolume?: number; // in hours
+    seriesVolume?: number;
+    musicVolume?: number;
+    booksVolume?: number;
+    totalViews?: number; // Bar chart
+    peakStreams?: number; // Server load
+}
+
+interface ChartSeries {
+    key: string;
+    name: string;
+    color: string;
+    type: "area" | "line" | "bar";
+    yAxisId?: "left" | "right";
 }
 
 const formatTooltipValue = (value: any, name: any) => {
     if (name === "Vues (Total)") return [`${value} lectures`, name];
+    if (name === "Serveur") return [`${value} flux actifs max`, name];
     return [`${Number(value).toFixed(1)}h`, name];
 };
 
-export function ComposedTrendChart({ data }: { data: TrendData[] }) {
+export function ComposedTrendChart({ data, series }: { data: TrendData[], series?: ChartSeries[] }) {
     const [hidden, setHidden] = useState<Set<string>>(new Set());
 
     const toggleLegend = (e: any) => {
@@ -82,14 +92,28 @@ export function ComposedTrendChart({ data }: { data: TrendData[] }) {
                 />
                 <Legend onClick={toggleLegend} wrapperStyle={{ fontSize: '12px', paddingTop: '10px', cursor: 'pointer' }} />
 
-                {/* Les Barres pour le nombre total de lectures (Vues) */}
-                <Bar hide={hidden.has("totalViews")} yAxisId="right" dataKey="totalViews" barSize={20} fill="#3f3f46" radius={[4, 4, 0, 0]} name="Vues (Total)" />
+                {series ? (
+                    series.map((s) => {
+                        if (s.type === "line") {
+                            return <Line key={s.key} hide={hidden.has(s.key)} yAxisId={s.yAxisId || "left"} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={2} dot={false} name={s.name} />;
+                        }
+                        if (s.type === "bar") {
+                            return <Bar key={s.key} hide={hidden.has(s.key)} yAxisId={s.yAxisId || "left"} dataKey={s.key} barSize={20} fill={s.color} radius={[4, 4, 0, 0]} name={s.name} />;
+                        }
+                        return <Area key={s.key} hide={hidden.has(s.key)} yAxisId={s.yAxisId || "left"} type="monotone" dataKey={s.key} stackId="1" stroke={s.color} fill={s.color} fillOpacity={0.6} name={s.name} />;
+                    })
+                ) : (
+                    <>
+                        {/* Les Barres pour le nombre total de lectures (Vues) */}
+                        <Bar hide={hidden.has("totalViews")} yAxisId="right" dataKey="totalViews" barSize={20} fill="#3f3f46" radius={[4, 4, 0, 0]} name="Vues (Total)" />
 
-                {/* Les zones empilées pour les volumes horaires */}
-                <Area hide={hidden.has("movieVolume")} yAxisId="left" type="monotone" dataKey="movieVolume" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name="Films" />
-                <Area hide={hidden.has("seriesVolume")} yAxisId="left" type="monotone" dataKey="seriesVolume" stackId="1" stroke="#22c55e" fill="#22c55e" fillOpacity={0.6} name="Séries" />
-                <Area hide={hidden.has("musicVolume")} yAxisId="left" type="monotone" dataKey="musicVolume" stackId="1" stroke="#eab308" fill="#eab308" fillOpacity={0.6} name="Musique" />
-                <Area hide={hidden.has("booksVolume")} yAxisId="left" type="monotone" dataKey="booksVolume" stackId="1" stroke="#a855f7" fill="#a855f7" fillOpacity={0.6} name="Livres" />
+                        {/* Les zones empilées pour les volumes horaires */}
+                        <Area hide={hidden.has("movieVolume")} yAxisId="left" type="monotone" dataKey="movieVolume" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name="Films" />
+                        <Area hide={hidden.has("seriesVolume")} yAxisId="left" type="monotone" dataKey="seriesVolume" stackId="1" stroke="#22c55e" fill="#22c55e" fillOpacity={0.6} name="Séries" />
+                        <Area hide={hidden.has("musicVolume")} yAxisId="left" type="monotone" dataKey="musicVolume" stackId="1" stroke="#eab308" fill="#eab308" fillOpacity={0.6} name="Musique" />
+                        <Area hide={hidden.has("booksVolume")} yAxisId="left" type="monotone" dataKey="booksVolume" stackId="1" stroke="#a855f7" fill="#a855f7" fillOpacity={0.6} name="Livres" />
+                    </>
+                )}
 
             </ComposedChart>
         </ResponsiveContainer>

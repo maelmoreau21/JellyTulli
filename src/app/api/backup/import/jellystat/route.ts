@@ -13,66 +13,40 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { jellystatUrl, jellystatApiKey } = await req.json();
+        const formData = await req.formData();
+        const file = formData.get("file") as File | null;
 
-        if (!jellystatUrl || !jellystatApiKey) {
-            return NextResponse.json({ error: "L'URL et la clé API Jellystat sont obligatoires." }, { status: 400 });
+        if (!file) {
+            return NextResponse.json({ error: "Aucun fichier fourni." }, { status: 400 });
         }
 
-        const cleanBaseUrl = jellystatUrl.replace(/\/+$/, '').replace(/\/api$/, '');
+        // Use Buffer to read the full file reliably to prevent "Unterminated string in JSON" from next.js text limits
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const fileContent = buffer.toString('utf-8');
 
-        // Setup headers
-        const headers = {
-            "x-api-token": jellystatApiKey, // Assuming Jellystat uses this header. Sometimes it's Authorization: Bearer
-            "Content-Type": "application/json"
-        };
-
-        const fetchUrl = cleanBaseUrl + '/api/getUsers';
-        console.log("Tentative URL Jellystat:", fetchUrl);
-
-        // First, check if connection works by calling a basic endpoint
-        const testRes = await fetch(fetchUrl, { headers });
-        if (!testRes.ok) {
-            const errText = await testRes.text();
-            console.error("[Jellystat] API /getUsers error:", testRes.status, errText);
-            return NextResponse.json({ error: "Impossible de se connecter à Jellystat. Vérifiez l'URL ou la clé API." }, { status: 400 });
+        let jsonData;
+        try {
+            jsonData = JSON.parse(fileContent);
+        } catch (err: any) {
+            console.error("[Jellystat Import] Failed to parse JSON", err);
+            return NextResponse.json({ error: "Fichier JSON invalide. (JSON.parse failed)" }, { status: 400 });
         }
 
-        const usersData = await testRes.json();
-        const usersArray = Array.isArray(usersData) ? usersData : [];
+        const entries = Array.isArray(jsonData) ? jsonData : (jsonData.data || jsonData.result || []);
+
+        if (entries.length === 0) {
+            return NextResponse.json({ error: "Le fichier JSON est vide ou invalide." }, { status: 400 });
+        }
+
         let importedSess = 0;
         let errors = 0;
+        const CHUNK_SIZE = 500;
 
-        // Since Jellystat API structure varies, we'll try to fetch playback data via their /api/getPlays endpoint or similar.
-        // If not standard, you might have to adjust the endpoint path.
-        let skip = 0;
-        const take = 500; // Batch size
-        let hasMore = true;
+        for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
+            const chunk = entries.slice(i, i + CHUNK_SIZE);
 
-        while (hasMore) {
-            // e.g: GET /api/getPlays?skip=0&take=500 -> Adapt this endpoint if Jellystat exposes history differently.
-            const historyFetchUrl = `${cleanBaseUrl}/api/getPlays?skip=${skip}&take=${take}`;
-            const historyRes = await fetch(historyFetchUrl, { headers });
-
-            if (!historyRes.ok) {
-                const errText = await historyRes.text();
-                console.error("[Jellystat] API /getPlays error:", historyRes.status, errText);
-                if (historyRes.status === 404) {
-                    throw new Error("L'endpoint /api/getPlays n'existe pas ou la structure API de Jellystat a changé.");
-                }
-                break;
-            }
-
-            const historyBatch = await historyRes.json();
-            const entries = Array.isArray(historyBatch) ? historyBatch : (historyBatch.data || historyBatch.result || []);
-
-            if (entries.length === 0) {
-                hasMore = false;
-                break;
-            }
-
-            // Mappages et Upsert par Batch pour ce lot
-            for (const row of entries) {
+            for (const row of chunk) {
                 try {
                     const jellyfinUserId = row.UserId || row.userId;
                     const username = row.UserName || row.userName || "Unknown User";
@@ -117,41 +91,57 @@ export async function POST(req: NextRequest) {
 
                     if (isNaN(durationWatched)) durationWatched = 0;
 
-                    const startedAt = row.DateCreated || row.dateCreated || row.startedAt || new Date().toISOString();
+                    const startedAtStr = row.DateCreated || row.dateCreated || row.startedAt || new Date().toISOString();
+                    const startedAt = new Date(startedAtStr);
 
-                    await prisma.playbackHistory.create({
-                        data: {
+                    // Re-using findFirst and update/create to avoid missing unique constraint errors on PlaybackHistory
+                    const existingHistory = await prisma.playbackHistory.findFirst({
+                        where: {
                             userId: user.id,
                             mediaId: media.id,
-                            playMethod: playMethod,
-                            clientName: clientName,
-                            deviceName: deviceName,
-                            durationWatched: durationWatched,
-                            startedAt: new Date(startedAt),
+                            startedAt: startedAt,
                         }
                     });
+
+                    if (existingHistory) {
+                        await prisma.playbackHistory.update({
+                            where: { id: existingHistory.id },
+                            data: {
+                                durationWatched: durationWatched,
+                                playMethod: playMethod,
+                                clientName: clientName,
+                                deviceName: deviceName,
+                            }
+                        });
+                    } else {
+                        await prisma.playbackHistory.create({
+                            data: {
+                                userId: user.id,
+                                mediaId: media.id,
+                                playMethod: playMethod,
+                                clientName: clientName,
+                                deviceName: deviceName,
+                                durationWatched: durationWatched,
+                                startedAt: startedAt,
+                            }
+                        });
+                    }
 
                     importedSess++;
                 } catch (err) {
                     errors++;
+                    console.error("[Jellystat Import] Line error:", err);
                 }
-            }
-
-            // Si moins d'éléments reçus que le blocksize, c'était la dernière page
-            if (entries.length < take) {
-                hasMore = false;
-            } else {
-                skip += take;
             }
         }
 
         return NextResponse.json({
             success: true,
-            message: `Synchronisation Jellystat terminée. ${importedSess} sessions importées par API distante.`
+            message: `Importation terminée. ${importedSess} sessions traitées (${errors} erreurs).`
         }, { status: 200 });
 
     } catch (e: any) {
-        console.error("[JellystatAPISync] Failed:", e);
-        return NextResponse.json({ error: e.message || "Failed to sync with Jellystat API" }, { status: 500 });
+        console.error("[Jellystat Import] Failed:", e);
+        return NextResponse.json({ error: e.message || "Erreur critique lors de l'import Jellystat." }, { status: 500 });
     }
 }

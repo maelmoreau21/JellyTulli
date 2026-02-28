@@ -58,6 +58,12 @@ model PlaybackHistory {
   startedAt       DateTime  @default(now())
   endedAt         DateTime? // Rempli lorsque la session s'arrête
   
+  // Telemetry (Audio & Subtitles)
+  audioLanguage    String?   // ex: "fre", "eng"
+  audioCodec       String?   // ex: "aac", "ac3"
+  subtitleLanguage String?   // ex: "fre", "eng"
+  subtitleCodec    String?   // ex: "subrip", "ass"
+  
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   media           Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
@@ -87,6 +93,11 @@ model ActiveStream {
   audioCodec      String?
   transcodeFps    Float?
   bitrate         Int?
+  
+  // Telemetry (Audio & Subtitles)
+  audioLanguage    String?
+  subtitleLanguage String?
+  subtitleCodec    String?
   
   // Tick updates
   positionTicks   BigInt?   // Position actuelle de lecture

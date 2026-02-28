@@ -8,7 +8,8 @@ import {
     ScrollText,
     Users,
     Settings,
-    PlayCircle
+    PlayCircle,
+    Eraser
 } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 
@@ -17,6 +18,7 @@ const navigation = [
     { name: 'Bibliothèque', href: '/media', icon: Film },
     { name: 'Logs', href: '/logs', icon: ScrollText },
     { name: 'Utilisateurs', href: '/users', icon: Users },
+    { name: 'Nettoyage', href: '/admin/cleanup', icon: Eraser },
     { name: 'Paramètres', href: '/settings', icon: Settings },
 ];
 
@@ -46,8 +48,8 @@ export function Sidebar() {
                                 key={item.name}
                                 href={item.href}
                                 className={`group flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-50"
+                                    ? "bg-primary/10 text-primary"
+                                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-50"
                                     }`}
                             >
                                 <item.icon

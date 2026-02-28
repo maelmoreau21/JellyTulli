@@ -257,16 +257,55 @@ const getDashboardMetrics = unstable_cache(
       .sort((a, b) => b.value - a.value)
       .slice(0, 8);
 
+    // Peak Concurrent Streams
+    const events: { time: number, type: number }[] = [];
+    histories.forEach((h: any) => {
+      const start = h.startedAt.getTime();
+      const end = start + (h.durationWatched * 1000);
+      events.push({ time: start, type: 1 });
+      events.push({ time: end, type: -1 });
+    });
+
+    events.sort((a, b) => a.time - b.time || a.type - b.type);
+
+    let currentConcurrent = 0;
+    let peakConcurrentStreams = 0;
+
+    // Track historical peak by hour for the chart
+    const serverLoadMap = new Map<string, number>();
+
+    for (const evt of events) {
+      currentConcurrent += evt.type;
+      if (currentConcurrent > peakConcurrentStreams) {
+        peakConcurrentStreams = currentConcurrent;
+      }
+
+      const evtFullHourKey = getFormatKey(new Date(evt.time));
+      // Overwrite the mapped hour with the max concurrency seen in that window
+      const mappedVal = serverLoadMap.get(evtFullHourKey) || 0;
+      if (currentConcurrent > mappedVal) {
+        serverLoadMap.set(evtFullHourKey, currentConcurrent);
+      }
+    }
+
+    // Merge into trend data
+    const serverLoadData = Array.from(trendMap.values()).map(v => ({
+      time: v.time,
+      peakStreams: serverLoadMap.get(v.time) || 0
+    }));
+
     return {
       totalUsers,
       hoursWatched,
       hoursGrowth,
       previousHoursWatched,
       directPlayPercent,
+      peakConcurrentStreams,
       trendData,
       categoryPieData,
       hourlyChartData,
       platformChartData,
+      serverLoadData,
       topUsers,
       breakdown: {
         movieViews, movieHours: parseFloat(movieHours.toFixed(1)),
@@ -386,7 +425,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
           <TabsContent value="overview" className="space-y-6">
             <DraggableDashboard blocks={[
               /* Global Metrics Row 1 */
-              <div key="metrics" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div key="metrics" className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
                 <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Streams Actifs</CardTitle>
@@ -440,6 +479,17 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                     <p className="text-xs text-muted-foreground mt-1 text-ellipsis overflow-hidden whitespace-nowrap">
                       {timeRange !== "all" ? `Cumulé par rapport à la période précédente (${metrics.previousHoursWatched}h)` : `Cumulé dans toute l'histoire pour ${metrics.totalUsers} Utilisateurs`}
                     </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Pic de Charge</CardTitle>
+                    <Activity className="h-4 w-4 text-red-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{metrics.peakConcurrentStreams}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Record de flux simultanés</p>
                   </CardContent>
                 </Card>
               </div>,
@@ -648,6 +698,19 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                     <div className="h-[250px] min-h-[250px] w-full">
                       <ActivityByHourChart data={metrics.hourlyChartData} />
                     </div>
+                  </CardContent>
+                </Card>
+              </div>,
+
+              /* Expansion: Server Load Timeline */
+              <div key="server-load" className="grid gap-4 md:grid-cols-1">
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                  <CardHeader>
+                    <CardTitle>Charge Serveur (Concurrent Streams)</CardTitle>
+                    <CardDescription>Évolution temporelle absolue du nombre de flux actifs simultanés enregistrés.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ComposedTrendChart data={metrics.serverLoadData} series={[{ key: "peakStreams", color: "#ef4444", name: "Serveur", type: "line" }]} />
                   </CardContent>
                 </Card>
               </div>

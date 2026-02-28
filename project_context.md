@@ -35,7 +35,7 @@ A massive analytical refactoring was introduced focusing on Data Context and Res
 5. **Universal Security & Backups & External Migrations (`src/app/api/backup`)**:
   - Zero-Constraint JSON architecture backing up all `Users`, `Media`, `Settings`, and `Logs`.
   - Import leverages Prisma `$transaction` with a timeout of 60000ms. If one line is corrupted, the DB rolls back safely.
-  - Integration of **API-Based External Migrations** from `Jellystat` and the `Playback Reporting` plugin. By communicating directly and securely via backend HTTP requests, the application safely builds an iterative Sync Pipeline preventing OOM crashes on small edge devices like Raspberry Pi. The system automatically fetches and parses the CSV exports natively.
+  - Integration of **Chunked File Migrations** from `Jellystat` (JSON) and the `Playback Reporting` plugin (CSV). The application handles these uploads via Buffers and streams to process massive imports iteratively (e.g., 500 records at a time), preventing OOM crashes on edge devices like Raspberry Pi.
   
 6. **Autonomy Core (`src/server/monitor.ts`) & Docker Strategy**:
   - The heartbeat pulls from `[GlobalSettings.jellyfinUrl]/Sessions` directly from the database configuration.
@@ -52,3 +52,15 @@ A massive analytical refactoring was introduced focusing on Data Context and Res
   - **Yearly Heatmap**: Github-style 365-day contribution chart tracking user activity density efficiently.
   - **Newsletter Generator**: `/newsletter` standalone responsive A4-sized report aggregating the month's biggest viewers and top videos with visually immersive backdrops.
   - **Draggable Dashboard**: Utilizes a persistent `localStorage` layout state and a React wrapper `DraggableDashboard` to rearrange Server Components instantly via up/down controls in the UI.
+
+56. 9. **Elite Features: Wrapped, Clean-up & Advanced Stats (Phase 8)**:
+57.   - **JellyTulli Wrapped**: `/wrapped/[userId]` portal dynamically calculating each user's year in review (Total Watch Time, Top 3 Media, Favorite Genre, Most Active Day). Presented in a modern Instagram/Spotify Story format.
+58.   - **Administrator Clean-up Assistant**: `/admin/cleanup` routing featuring a Tabular Dashboard for detecting *Ghost Media* (added >30 days ago, 0 plays) and *Abandoned Media* (started but with <80% average completion rate).
+59.   - **Granular Drop-off Stats**: Detailed Analytics tab now renders average completion rates per library (Movies, Series, Music).
+60.   - **Peak Concurrent Streams KPI**: Dashboard natively plots historic `PlaybackHistory` overlap using timeline events to calculate the absolute peak concurrent stream load since database origin.
+61. 
+62. 10. **Advanced Telemetry: Concurrency, Drop-off & Languages (Phase 9)**:
+63.   - **Audio & Subtitles Database Schema**: Schema modified to track `audioLanguage`, `audioCodec`, `subtitleLanguage`, `subtitleCodec`.
+64.   - **Real-Time Extraction Payload**: Webhook and local monitor parse active streaming parameters directly pushing them natively to Prisma structures.
+65.   - **Concurrent Streams Evolution Chart**: Granular analysis rendering historical `peakStreams` aligned with visual timeframe.
+66.   - **Funnel segmentation**: Deep dive inside the UX by detecting behaviors like: Zapped (<10%), Tried (10-25%), Halfway (25-80%), Finished (>80%). Coupled with dynamic PieCharts for VF/VO and SRT breakdown.

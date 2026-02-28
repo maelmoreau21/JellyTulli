@@ -2,7 +2,7 @@ import prisma from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { unstable_cache } from "next/cache";
 import { format } from "date-fns";
-import { StandardAreaChart, StandardBarChart } from "@/components/charts/StandardMetricsCharts";
+import { StandardAreaChart, StandardBarChart, StandardPieChart } from "@/components/charts/StandardMetricsCharts";
 import { StackedBarChart, StackedAreaChart } from "@/components/charts/StackedMetricsCharts";
 
 const getGranularData = unstable_cache(
@@ -18,7 +18,9 @@ const getGranularData = unstable_cache(
             select: {
                 startedAt: true,
                 durationWatched: true,
-                media: { select: { collectionType: true, type: true } }
+                audioLanguage: true,
+                subtitleLanguage: true,
+                media: { select: { collectionType: true, type: true, durationMs: true, title: true } }
             },
             orderBy: { startedAt: 'asc' }
         });
@@ -26,6 +28,20 @@ const getGranularData = unstable_cache(
         const dailyMap = new Map<string, any>();
         const hourlyMap = new Map<string, any>();
         const collections = new Set<string>();
+        const completionMap = new Map<string, { totalCompletion: number, sessions: number }>();
+
+        // Segments
+        let drop10 = 0;
+        let drop25 = 0;
+        let drop50 = 0;
+        let drop90 = 0;
+
+        // Media specific Drop-off
+        const mediaDropMap = new Map<string, { title: string, completion: number, count: number }>();
+
+        // Languages
+        const audioMap = new Map<string, number>();
+        const subMap = new Map<string, number>();
 
         // Init 0-23 hours
         for (let i = 0; i < 24; i++) {
@@ -56,6 +72,49 @@ const getGranularData = unstable_cache(
             const hourEntry = hourlyMap.get(hourKey);
             hourEntry.plays += 1;
             hourEntry.duration += durationH;
+
+            // Completion Rate Aggregation
+            if (h.media.durationMs) {
+                const durationTicks = Number(h.media.durationMs);
+                if (durationTicks > 0) {
+                    const durationSecs = durationTicks / 10000000;
+                    let comp = (h.durationWatched / durationSecs) * 100;
+                    if (comp > 100) comp = 100;
+
+                    // 1. Avg per Library
+                    if (!completionMap.has(lib)) {
+                        completionMap.set(lib, { totalCompletion: 0, sessions: 0 });
+                    }
+                    const compEntry = completionMap.get(lib)!;
+                    compEntry.totalCompletion += comp;
+                    compEntry.sessions += 1;
+
+                    // 2. Segmentation
+                    if (comp < 10) drop10++;
+                    else if (comp < 25) drop25++;
+                    else if (comp < 80) drop50++;
+                    else drop90++;
+
+                    // 3. Top Abandoned Media Tracker
+                    if (comp < 80) { // Only track those visibly dropped
+                        const mKey = h.media.title;
+                        if (!mediaDropMap.has(mKey)) mediaDropMap.set(mKey, { title: mKey, completion: 0, count: 0 });
+                        const mEntry = mediaDropMap.get(mKey)!;
+                        mEntry.completion += comp;
+                        mEntry.count++;
+                    }
+                }
+            }
+
+            // Languages
+            if (h.audioLanguage) {
+                const aKey = h.audioLanguage.toUpperCase();
+                audioMap.set(aKey, (audioMap.get(aKey) || 0) + 1);
+            }
+
+            // For subtitles, we count "None" if null/undefined, otherwise the language
+            const sKey = h.subtitleLanguage ? h.subtitleLanguage.toUpperCase() : "Désactivés";
+            subMap.set(sKey, (subMap.get(sKey) || 0) + 1);
         });
 
         const dailyData = Array.from(dailyMap.values()).map(d => {
@@ -73,9 +132,44 @@ const getGranularData = unstable_cache(
             duration: parseFloat(h.duration.toFixed(2))
         }));
 
-        return { dailyData, hourlyData, collections: Array.from(collections) };
+        const dropOffData = Array.from(completionMap.entries()).map(([lib, data]) => ({
+            time: lib,
+            completion: Math.round(data.totalCompletion / data.sessions)
+        })).sort((a, b) => b.completion - a.completion);
+
+        // Finalize Segment Data
+        const dropSegments = [
+            { name: "< 10% (Zappé)", value: drop10, fill: "#ef4444" },
+            { name: "10-25% (Essayé)", value: drop25, fill: "#f97316" },
+            { name: "25-80% (Moitié)", value: drop50, fill: "#eab308" },
+            { name: "> 80% (Terminé)", value: drop90, fill: "#22c55e" },
+        ];
+
+        // Finalize Top 5 Abandonnés
+        const topAbandoned = Array.from(mediaDropMap.values())
+            .filter(m => m.count >= 2) // At least tried a few times
+            .map(m => ({
+                title: m.title.length > 20 ? m.title.substring(0, 20) + '...' : m.title,
+                completion: Math.round(m.completion / m.count)
+            }))
+            .sort((a, b) => a.completion - b.completion) // Lowest completion first
+            .slice(0, 5);
+
+        // Finalize Languages (top 5 max for pies)
+        const audioData = Array.from(audioMap.entries())
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value).slice(0, 6);
+
+        const subtitleData = Array.from(subMap.entries())
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value).slice(0, 6);
+
+        return {
+            dailyData, hourlyData, collections: Array.from(collections),
+            dropOffData, dropSegments, topAbandoned, audioData, subtitleData
+        };
     },
-    ['jellytulli-granular-analysis'],
+    ['jellytulli-granular-analysis-v2'],
     { revalidate: 300 }
 );
 
@@ -146,6 +240,60 @@ export async function GranularAnalysis({ type, timeRange, excludedLibraries }: {
                     </CardHeader>
                     <CardContent>
                         <StandardAreaChart data={data.hourlyData} dataKey="duration" stroke="#22c55e" name="Heures" />
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm lg:col-span-1">
+                    <CardHeader>
+                        <CardTitle>Segments d'Abandons</CardTitle>
+                        <CardDescription>Où les utilisateurs s'arrêtent-ils ?</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[300px] flex items-center justify-center">
+                        <StandardBarChart data={data.dropSegments} dataKey="value" fill="#ec4899" name="Vues" horizontal />
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Taux de Complétion Moyen par Bibliothèque</CardTitle>
+                        <CardDescription>Pourcentage moyen de visionnage des médias (100% = Terminés).</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <StandardBarChart data={data.dropOffData} dataKey="completion" fill="#8b5cf6" name="% Moyen" />
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                    <CardHeader>
+                        <CardTitle>Pires Taux de Complétion</CardTitle>
+                        <CardDescription>Top 5 des médias abandonnés à répétition.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[300px] flex items-center justify-center">
+                        <StandardBarChart data={data.topAbandoned} dataKey="completion" fill="#ef4444" name="% Complétion" horizontal xAxisKey="title" />
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                    <CardHeader>
+                        <CardTitle>Répartition Audio</CardTitle>
+                        <CardDescription>Langues écoutées sur cette période.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[300px] flex items-center justify-center">
+                        <StandardPieChart data={data.audioData} nameKey="name" dataKey="value" />
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                    <CardHeader>
+                        <CardTitle>Sous-titres</CardTitle>
+                        <CardDescription>Activés vs Désactivés et langues.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[300px] flex items-center justify-center">
+                        <StandardPieChart data={data.subtitleData} nameKey="name" dataKey="value" />
                     </CardContent>
                 </Card>
             </div>

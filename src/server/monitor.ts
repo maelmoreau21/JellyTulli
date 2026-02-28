@@ -81,6 +81,35 @@ async function pollJellyfinSessions() {
         const TranscodeFps = TranscodingInfo ? TranscodingInfo.Framerate : null;
         const Bitrate = TranscodingInfo ? TranscodingInfo.Bitrate : null;
 
+        // Telemetry: Audio & Subtitles Extraction
+        let AudioLanguage: string | null = null;
+        let SubtitleLanguage: string | null = null;
+        let SubtitleCodec: string | null = null;
+
+        if (session.NowPlayingItem && session.NowPlayingItem.MediaStreams) {
+            const streams: any[] = session.NowPlayingItem.MediaStreams;
+            // Native active streams are usually denoted by IsActive usually index matching PlayState.SubtitleStreamIndex/AudioStreamIndex
+            const audioStreamIndex = PlayState?.AudioStreamIndex;
+            const subtitleStreamIndex = PlayState?.SubtitleStreamIndex;
+
+            if (audioStreamIndex !== undefined && audioStreamIndex !== null) {
+                const audioStream = streams.find(s => s.Index === audioStreamIndex && s.Type === "Audio");
+                if (audioStream) AudioLanguage = audioStream.Language || "Unknown";
+            } else {
+                // Fallback to first active audio
+                const audioStream = streams.find(s => s.Type === "Audio" /* && s.IsDefault */);
+                if (audioStream) AudioLanguage = audioStream.Language || "Unknown";
+            }
+
+            if (subtitleStreamIndex !== undefined && subtitleStreamIndex !== null && subtitleStreamIndex >= 0) {
+                const subStream = streams.find(s => s.Index === subtitleStreamIndex && s.Type === "Subtitle");
+                if (subStream) {
+                    SubtitleLanguage = subStream.Language || "Unknown";
+                    SubtitleCodec = subStream.Codec || "Unknown";
+                }
+            }
+        }
+
         const isNew = !previousSessionIds.has(SessionId);
 
         // Ensure User exists in DB
@@ -141,6 +170,9 @@ async function pollJellyfinSessions() {
                     lastPingAt: new Date(),
                     videoCodec: VideoCodec,
                     audioCodec: AudioCodec,
+                    audioLanguage: AudioLanguage,
+                    subtitleCodec: SubtitleCodec,
+                    subtitleLanguage: SubtitleLanguage,
                     transcodeFps: TranscodeFps ? parseFloat(TranscodeFps) : null,
                     bitrate: Bitrate ? parseInt(Bitrate, 10) : null,
                     country: geoData.country,
@@ -156,6 +188,9 @@ async function pollJellyfinSessions() {
                     ipAddress: IpAddress,
                     videoCodec: VideoCodec,
                     audioCodec: AudioCodec,
+                    audioLanguage: AudioLanguage,
+                    subtitleCodec: SubtitleCodec,
+                    subtitleLanguage: SubtitleLanguage,
                     transcodeFps: TranscodeFps ? parseFloat(TranscodeFps) : null,
                     bitrate: Bitrate ? parseInt(Bitrate, 10) : null,
                     positionTicks: PlaybackPositionTicks || null,
@@ -183,6 +218,10 @@ async function pollJellyfinSessions() {
                     ipAddress: IpAddress,
                     country: geoData.country,
                     city: geoData.city,
+                    audioCodec: AudioCodec,
+                    audioLanguage: AudioLanguage,
+                    subtitleCodec: SubtitleCodec,
+                    subtitleLanguage: SubtitleLanguage,
                 },
             });
 

@@ -13,27 +13,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
-    const JELLYFIN_URL = settings?.jellyfinUrl?.replace(/\/+$/, '');
-    const API_KEY = settings?.jellyfinApiKey;
-
-    if (!JELLYFIN_URL || !API_KEY) {
-        return NextResponse.json({ error: "Le serveur Jellyfin n'est pas configuré. Rendez-vous dans les Paramètres." }, { status: 500 });
-    }
-
     try {
-        const exportUrl = `${JELLYFIN_URL}/PlaybackReporting/Export`;
-        const res = await fetch(exportUrl, {
-            headers: {
-                "X-Emby-Token": API_KEY,
-            }
-        });
+        const formData = await req.formData();
+        const file = formData.get("file") as File | null;
 
-        if (!res.ok) {
-            return NextResponse.json({ error: "Impossible de générer l'export Playback Reporting depuis le serveur Jellyfin." }, { status: 400 });
+        if (!file) {
+            return NextResponse.json({ error: "Aucun fichier fourni." }, { status: 400 });
         }
 
-        const text = await res.text();
+        const text = await file.text();
 
         // Parse CSV with PapaParse
         const parsed = Papa.parse(text, {
