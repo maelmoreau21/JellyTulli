@@ -1,10 +1,33 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
+// Admin-only routes: everything EXCEPT /wrapped/* and /api/auth/*
+const PUBLIC_USER_PATHS = ["/wrapped", "/api/auth"];
+
 export default withAuth(
     function middleware(req) {
-        // Optionnel : ajouter de la logique personnalisée si besoin
-        return NextResponse.next();
+        const token = req.nextauth.token;
+        const pathname = req.nextUrl.pathname;
+
+        // Allow admin users everywhere
+        if (token?.isAdmin) {
+            return NextResponse.next();
+        }
+
+        // Non-admin users: allow /wrapped/* routes only
+        const isAllowed = PUBLIC_USER_PATHS.some(p => pathname.startsWith(p));
+        if (isAllowed) {
+            return NextResponse.next();
+        }
+
+        // Non-admin trying to access admin routes → redirect to their Wrapped page
+        const jellyfinUserId = token?.jellyfinUserId as string;
+        if (jellyfinUserId) {
+            return NextResponse.redirect(new URL(`/wrapped/${jellyfinUserId}`, req.url));
+        }
+
+        // Fallback: redirect to login
+        return NextResponse.redirect(new URL("/login", req.url));
     },
     {
         callbacks: {

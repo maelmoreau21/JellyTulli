@@ -2,18 +2,37 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
-import { createReadStream, existsSync, readdirSync, unlinkSync, rmdirSync } from "fs";
+import { createReadStream, existsSync, readdirSync, unlinkSync, rmdirSync, readFileSync } from "fs";
 import { writeFile } from "fs/promises";
 import path from "path";
 import { chain } from "stream-chain";
 import { parser } from "stream-json";
 import { streamArray } from "stream-json/streamers/StreamArray";
+import { pick } from "stream-json/filters/Pick";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const UPLOAD_DIR = "/tmp/jellytulli-uploads";
+
+/**
+ * Detect JSON structure by reading the first bytes of a file.
+ * Returns the key name if it's an object with an array value, or null if root array.
+ */
+function detectJsonKey(filePath: string): string | null {
+    const fd = require("fs").openSync(filePath, "r");
+    const buf = Buffer.alloc(512);
+    require("fs").readSync(fd, buf, 0, 512, 0);
+    require("fs").closeSync(fd);
+    const str = buf.toString("utf8").trimStart();
+    if (str[0] === "[") return null;
+    if (str[0] === "{") {
+        const keyMatch = str.match(/"(\w+)"\s*:\s*\[/);
+        return keyMatch ? keyMatch[1] : null;
+    }
+    return null;
+}
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -63,7 +82,11 @@ export async function POST(req: NextRequest) {
 
         console.log(`[Jellystat Finalize] Merged file created, starting stream-json import...`);
 
-        // Now stream-parse the merged file exactly like the original route
+        // Auto-detect JSON structure: root array [...] vs object { "key": [...] }
+        const detectedKey = detectJsonKey(mergedPath);
+        console.log(`[Jellystat Finalize] Structure détectée: ${detectedKey ? `objet avec clé "${detectedKey}"` : "tableau racine"}`);
+
+        // Now stream-parse the merged file with auto-detected structure
         let importedSess = 0;
         let errors = 0;
         let processedCount = 0;
@@ -71,11 +94,12 @@ export async function POST(req: NextRequest) {
         let currentChunk: any[] = [];
 
         const fileStream = createReadStream(mergedPath);
-        const pipeline = chain([
-            fileStream,
-            parser(),
-            streamArray()
-        ]);
+        const pipelineStages: any[] = [fileStream, parser()];
+        if (detectedKey) {
+            pipelineStages.push(pick({ filter: detectedKey }));
+        }
+        pipelineStages.push(streamArray());
+        const pipeline = chain(pipelineStages);
 
         const processChunk = async (chunk: any[]) => {
             for (const row of chunk) {

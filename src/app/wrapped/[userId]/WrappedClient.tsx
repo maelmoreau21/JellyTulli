@@ -1,8 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronRight, ChevronLeft, Share2, Play, Star, Calendar, Clock, X } from "lucide-react";
+import { ChevronRight, ChevronLeft, Share2, Play, Star, Calendar, Clock, X, Film, Tv, Music } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+interface CategoryBreakdown {
+    totalSeconds: number;
+    totalHours: number;
+    topMedia: { title: string; seconds: number }[];
+}
 
 interface WrappedData {
     username: string;
@@ -12,6 +18,48 @@ interface WrappedData {
     topGenre: string;
     topDay: string;
     totalSessions: number;
+    categories: {
+        movies: CategoryBreakdown;
+        series: CategoryBreakdown;
+        music: CategoryBreakdown;
+    };
+}
+
+function formatDuration(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (h > 0) return `${h}h${m > 0 ? ` ${m}min` : ""}`;
+    return `${m}min`;
+}
+
+function CategorySlide({ label, icon, breakdown, gradient }: { label: string; icon: React.ReactNode; breakdown: CategoryBreakdown; gradient: string }) {
+    if (breakdown.topMedia.length === 0) {
+        return (
+            <div className="flex flex-col items-center gap-4">
+                <p className="text-zinc-400">Aucune donnée pour {label.toLowerCase()} cette année.</p>
+            </div>
+        );
+    }
+    return (
+        <div className="flex flex-col items-center gap-6 w-full max-w-md px-6">
+            <div className="flex items-center gap-3">
+                {icon}
+                <span className={`text-3xl font-black text-transparent bg-clip-text ${gradient}`}>
+                    {breakdown.totalHours}h
+                </span>
+                <span className="text-zinc-300 text-lg">de {label}</span>
+            </div>
+            <div className="flex flex-col w-full gap-3">
+                {breakdown.topMedia.map((m, i) => (
+                    <div key={i} className="flex items-center p-4 bg-white/10 rounded-xl backdrop-blur-md">
+                        <span className="text-2xl font-bold text-white/50 w-8">{i + 1}</span>
+                        <span className="text-lg font-bold text-white truncate flex-1">{m.title}</span>
+                        <span className="text-sm text-zinc-400 ml-2 shrink-0">{formatDuration(m.seconds)}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 }
 
 export default function WrappedClient({ data }: { data: WrappedData }) {
@@ -86,6 +134,27 @@ export default function WrappedClient({ data }: { data: WrappedData }) {
             )
         },
         {
+            title: "Le Grand Écran.",
+            subtitle: "Top Films",
+            icon: <Film className="w-16 h-16 mb-4 text-red-400" />,
+            bgColor: "bg-gradient-to-br from-red-900 via-rose-900 to-black",
+            content: <CategorySlide label="Films" icon={<Film className="w-8 h-8 text-red-400" />} breakdown={data.categories.movies} gradient="bg-gradient-to-r from-red-400 to-orange-400" />
+        },
+        {
+            title: "Binge Watching.",
+            subtitle: "Top Séries",
+            icon: <Tv className="w-16 h-16 mb-4 text-sky-400" />,
+            bgColor: "bg-gradient-to-br from-sky-900 via-blue-900 to-black",
+            content: <CategorySlide label="Séries" icon={<Tv className="w-8 h-8 text-sky-400" />} breakdown={data.categories.series} gradient="bg-gradient-to-r from-sky-400 to-blue-400" />
+        },
+        {
+            title: "La Bande Son.",
+            subtitle: "Top Musique",
+            icon: <Music className="w-16 h-16 mb-4 text-green-400" />,
+            bgColor: "bg-gradient-to-br from-green-900 via-emerald-900 to-black",
+            content: <CategorySlide label="Musique" icon={<Music className="w-8 h-8 text-green-400" />} breakdown={data.categories.music} gradient="bg-gradient-to-r from-green-400 to-emerald-400" />
+        },
+        {
             title: "C'est dans la boîte.",
             subtitle: "Raconte-le au monde.",
             icon: <Share2 className="w-16 h-16 mb-4 text-fuchsia-400" />,
@@ -97,6 +166,11 @@ export default function WrappedClient({ data }: { data: WrappedData }) {
                         <h3 className="text-2xl font-bold text-white mb-4">{data.username}</h3>
                         <p className="text-fuchsia-400 font-bold">{data.totalHours}h de stream</p>
                         <p className="text-zinc-300 text-sm mt-1">Top Genre: {data.topGenre}</p>
+                        <div className="flex gap-4 mt-3 text-xs text-zinc-400">
+                            {data.categories.movies.totalHours > 0 && <span>🎬 {data.categories.movies.totalHours}h</span>}
+                            {data.categories.series.totalHours > 0 && <span>📺 {data.categories.series.totalHours}h</span>}
+                            {data.categories.music.totalHours > 0 && <span>🎵 {data.categories.music.totalHours}h</span>}
+                        </div>
                     </div>
                     <p className="text-xs text-zinc-500">Capture cet écran pour partager.</p>
                 </div>

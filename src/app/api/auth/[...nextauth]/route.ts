@@ -39,18 +39,36 @@ export const authOptions: NextAuthOptions = {
                     }
 
                     const data = await res.json();
+                    const isAdmin = !!data.User?.Policy?.IsAdministrator;
 
-                    if (!data.User?.Policy?.IsAdministrator) {
-                        throw new Error("Accès refusé : Autorisations d'Administrateur requises.");
-                    }
-
-                    return { id: data.User.Id, name: data.User.Name };
+                    return {
+                        id: data.User.Id,
+                        name: data.User.Name,
+                        isAdmin,
+                        jellyfinUserId: data.User.Id,
+                    };
                 } catch (error: any) {
                     throw new Error(error.message || "Erreur de connexion à Jellyfin.");
                 }
             }
         })
     ],
+    callbacks: {
+        async jwt({ token, user }) {
+            // On first sign-in, `user` is defined — persist custom fields into the JWT
+            if (user) {
+                token.isAdmin = (user as any).isAdmin ?? false;
+                token.jellyfinUserId = (user as any).jellyfinUserId ?? user.id;
+            }
+            return token;
+        },
+        async session({ session, token }) {
+            // Expose custom fields on the client-side session object
+            (session as any).isAdmin = token.isAdmin ?? false;
+            (session as any).jellyfinUserId = token.jellyfinUserId ?? "";
+            return session;
+        },
+    },
     session: {
         strategy: "jwt",
         maxAge: 30 * 24 * 60 * 60, // 30 jours

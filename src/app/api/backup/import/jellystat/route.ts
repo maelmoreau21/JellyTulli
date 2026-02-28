@@ -6,10 +6,45 @@ import { Readable } from "stream";
 import { chain } from "stream-chain";
 import { parser } from "stream-json";
 import { streamArray } from "stream-json/streamers/StreamArray";
+import { pick } from "stream-json/filters/Pick";
+import { streamValues } from "stream-json/streamers/StreamValues";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 300; // Allow 5 minutes of execution for large APIs
+
+/**
+ * Detect whether the Jellystat export is a root-level array or an object with a known key.
+ * Reads the first few bytes to peek at the structure.
+ * Returns { isArray: boolean, detectedKey: string | null, buffer: Buffer }
+ */
+async function detectJsonStructure(stream: Readable): Promise<{ isArray: boolean; detectedKey: string | null; buffer: Buffer }> {
+    return new Promise((resolve, reject) => {
+        let accumulated = Buffer.alloc(0);
+        const onData = (chunk: Buffer) => {
+            accumulated = Buffer.concat([accumulated, chunk]);
+            // Look at first non-whitespace char
+            const str = accumulated.toString("utf8").trimStart();
+            if (str.length === 0) return; // need more data
+            
+            stream.removeListener("data", onData);
+            stream.pause();
+
+            if (str[0] === "[") {
+                resolve({ isArray: true, detectedKey: null, buffer: accumulated });
+            } else if (str[0] === "{") {
+                // Try to find first key — look for "key": [
+                const keyMatch = str.match(/"(\w+)"\s*:\s*\[/);
+                const detectedKey = keyMatch ? keyMatch[1] : null;
+                resolve({ isArray: false, detectedKey, buffer: accumulated });
+            } else {
+                resolve({ isArray: true, detectedKey: null, buffer: accumulated });
+            }
+        };
+        stream.on("data", onData);
+        stream.on("error", reject);
+    });
+}
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -37,11 +72,28 @@ export async function POST(req: NextRequest) {
 
         // Stream request body directly into JSON parser — no buffering
         const nodeStream = Readable.fromWeb(body as any);
-        const pipeline = chain([
-            nodeStream,
-            parser(),
-            streamArray()
-        ]);
+        
+        // Auto-detect JSON structure: root array [...] vs object { "key": [...] }
+        const { isArray, detectedKey, buffer } = await detectJsonStructure(nodeStream);
+        console.log(`[Jellystat Import] Structure détectée: ${isArray ? "tableau racine" : `objet avec clé "${detectedKey}"`}`);
+
+        // Re-create a stream with the peeked buffer prepended
+        const { PassThrough } = require("stream");
+        const combinedStream = new PassThrough();
+        combinedStream.write(buffer);
+        nodeStream.pipe(combinedStream);
+
+        // Build pipeline based on detected structure
+        const pipelineStages: any[] = [combinedStream, parser()];
+        if (!isArray && detectedKey) {
+            // Jellystat object format: { "jf_playback_activity": [...], ... }
+            pipelineStages.push(pick({ filter: detectedKey }));
+            pipelineStages.push(streamArray());
+        } else {
+            // Root-level array format: [...]
+            pipelineStages.push(streamArray());
+        }
+        const pipeline = chain(pipelineStages);
 
         const processChunk = async (chunk: any[]) => {
             for (const row of chunk) {
