@@ -234,7 +234,7 @@ const getDashboardMetrics = unstable_cache(
     const topUsers = await Promise.all(topUsersAgg.map(async (agg: any) => {
       const u = await prisma.user.findUnique({ where: { id: agg.userId } });
       return {
-        username: u?.username || "Unknown",
+        username: u?.username || "Utilisateur Supprimé",
         hours: parseFloat(((agg._sum.durationWatched || 0) / 3600).toFixed(1))
       };
     }));

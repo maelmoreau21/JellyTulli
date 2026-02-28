@@ -51,7 +51,7 @@ export default async function UsersPage() {
         return {
             id: user.id,
             jellyfinUserId: user.jellyfinUserId,
-            username: user.username,
+            username: user.username || "Utilisateur Supprimé",
             totalHours: parseFloat((totalSeconds / 3600).toFixed(1)),
             sessionsCount: user.playbackHistory.length,
             lastActive: lastActive,

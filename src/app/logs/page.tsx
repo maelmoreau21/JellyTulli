@@ -99,7 +99,7 @@ export default async function LogsPage({
 
                                                     {/* Utilisateur */}
                                                     <TableCell className="font-semibold text-primary">
-                                                        {log.user.username}
+                                                        {log.user?.username || "Utilisateur Supprimé"}
                                                     </TableCell>
 
                                                     {/* Média */}

@@ -10,17 +10,29 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 /**
- * Duck-Typing : détecte si un objet JSON ressemble à une session Jellystat.
- * Critère : possède UserId ET (NowPlayingItemId|ItemId) ET (PlayDuration|RunTimeTicks|DateCreated).
+ * Normalise toutes les clés d'un objet en minuscules pour supporter
+ * toutes les variantes de casse (UserId, userId, user_id, etc.).
+ */
+function toLowerKeys(obj: any): Record<string, any> {
+    return Object.keys(obj).reduce((acc: Record<string, any>, key) => {
+        acc[key.toLowerCase()] = obj[key];
+        return acc;
+    }, {});
+}
+
+/**
+ * Duck-Typing case-insensitive : détecte si un objet JSON ressemble à une session Jellystat.
+ * Critère : possède userid ET (nowplayingitemid|itemid) ET (playduration|runtimeticks|datecreated).
  */
 function isSessionObject(obj: any): boolean {
     if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
-    const hasUserId = !!(obj.UserId || obj.userId);
-    const hasItemId = !!(obj.NowPlayingItemId || obj.ItemId || obj.itemId || obj.mediaId);
+    const lk = toLowerKeys(obj);
+    const hasUserId = !!(lk.userid || lk.user_id);
+    const hasItemId = !!(lk.nowplayingitemid || lk.itemid || lk.item_id || lk.mediaid || lk.media_id);
     const hasActivity = !!(
-        obj.PlayDuration || obj.playDuration ||
-        obj.RunTimeTicks || obj.runTimeTicks ||
-        obj.DateCreated || obj.dateCreated || obj.startedAt
+        lk.playduration || lk.play_duration ||
+        lk.runtimeticks || lk.runtime_ticks ||
+        lk.datecreated || lk.date_created || lk.startedat || lk.started_at
     );
     return hasUserId && hasItemId && hasActivity;
 }
@@ -46,6 +58,7 @@ export async function POST(req: NextRequest) {
         let skipped = 0;
         let errors = 0;
         let processedCount = 0;
+        let firstObjLogged = false;
         const CHUNK_SIZE = 200;
         let currentChunk: any[] = [];
 
@@ -56,12 +69,13 @@ export async function POST(req: NextRequest) {
         const processChunk = async (chunk: any[]) => {
             for (const row of chunk) {
                 try {
-                    const jellyfinUserId = row.UserId || row.userId;
-                    const username = row.UserName || row.userName || "Unknown User";
+                    const lk = toLowerKeys(row);
+                    const jellyfinUserId = lk.userid || lk.user_id;
+                    const username = lk.username || lk.user_name || "Utilisateur Supprimé";
 
-                    const jellyfinMediaId = row.NowPlayingItemId || row.ItemId || row.itemId || row.mediaId;
-                    const mediaTitle = row.ItemName || row.itemName || row.title || "Unknown Media";
-                    const mediaType = row.ItemType || row.itemType || row.type || "Movie";
+                    const jellyfinMediaId = lk.nowplayingitemid || lk.itemid || lk.item_id || lk.mediaid || lk.media_id;
+                    const mediaTitle = lk.itemname || lk.item_name || lk.title || "Unknown Media";
+                    const mediaType = lk.itemtype || lk.item_type || lk.type || "Movie";
 
                     if (!jellyfinUserId || !jellyfinMediaId) {
                         continue;
@@ -79,17 +93,17 @@ export async function POST(req: NextRequest) {
                         create: { jellyfinMediaId, title: mediaTitle, type: mediaType }
                     });
 
-                    const playMethod = row.PlayMethod || row.playMethod || "DirectPlay";
-                    const clientName = row.Client || row.client || "Jellystat Import";
-                    const deviceName = row.DeviceName || row.deviceName || "Unknown Device";
-                    let durationWatched = parseInt(row.PlayDuration || row.playDuration) || 0;
+                    const playMethod = lk.playmethod || lk.play_method || "DirectPlay";
+                    const clientName = lk.client || lk.clientname || lk.client_name || "Jellystat Import";
+                    const deviceName = lk.devicename || lk.device_name || "Unknown Device";
+                    let durationWatched = parseInt(lk.playduration || lk.play_duration) || 0;
 
                     if (durationWatched > 10000000) {
                         durationWatched = Math.floor(durationWatched / 10000000);
                     }
                     if (isNaN(durationWatched)) durationWatched = 0;
 
-                    const startedAtStr = row.DateCreated || row.dateCreated || row.startedAt || new Date().toISOString();
+                    const startedAtStr = lk.datecreated || lk.date_created || lk.startedat || lk.started_at || new Date().toISOString();
                     const startedAt = new Date(startedAtStr);
 
                     const existingHistory = await prisma.playbackHistory.findFirst({
@@ -119,6 +133,12 @@ export async function POST(req: NextRequest) {
         await new Promise<void>((resolve, reject) => {
             jsonStream.on("data", async (obj: any) => {
                 processedCount++;
+
+                // Diagnostic: log les clés du tout premier objet scanné
+                if (!firstObjLogged && obj && typeof obj === "object" && !Array.isArray(obj)) {
+                    console.log(`[Jellystat Import] Exemple d'objet trouvé:`, Object.keys(obj));
+                    firstObjLogged = true;
+                }
 
                 if (isSessionObject(obj)) {
                     currentChunk.push(obj);
@@ -157,6 +177,15 @@ export async function POST(req: NextRequest) {
         });
 
         console.log(`[Jellystat Import] Terminé: ${importedSess} sessions importées, ${skipped} valeurs ignorées, ${errors} erreurs.`);
+
+        // Cleanup: fix ghost users from previous imports
+        const cleaned = await prisma.user.updateMany({
+            where: { username: { in: ["Unknown User", "Unknown", "unknown"] } },
+            data: { username: "Utilisateur Supprimé" }
+        });
+        if (cleaned.count > 0) {
+            console.log(`[Jellystat Import] Nettoyage: ${cleaned.count} utilisateurs fantômes corrigés.`);
+        }
 
         return NextResponse.json({
             success: true,

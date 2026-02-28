@@ -1,5 +1,7 @@
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import WrappedClient from "./WrappedClient";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +21,7 @@ interface CategoryBreakdown {
 export default async function WrappedPage({ params }: WrappedPageProps) {
     const { userId } = await params;
 
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
         where: { jellyfinUserId: userId },
         include: {
             playbackHistory: {
@@ -34,6 +36,33 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
             }
         }
     });
+
+    // Auto-create the user in Prisma if they authenticated via Jellyfin but
+    // were never synced/imported. Use session data to populate the record.
+    if (!user) {
+        const session = await getServerSession(authOptions);
+        const sessionUserId = (session?.user as any)?.jellyfinUserId;
+
+        // Only auto-create if the requested userId matches the logged-in user
+        if (session?.user && sessionUserId === userId) {
+            user = await prisma.user.create({
+                data: {
+                    jellyfinUserId: userId,
+                    username: session.user.name || "Utilisateur Supprimé",
+                },
+            }) as any;
+            // Re-fetch with relations (newly created user has 0 history)
+            user = await prisma.user.findUnique({
+                where: { jellyfinUserId: userId },
+                include: {
+                    playbackHistory: {
+                        where: { startedAt: { gte: new Date(new Date().getFullYear(), 0, 1) } },
+                        include: { media: true }
+                    }
+                }
+            });
+        }
+    }
 
     if (!user) notFound();
 
@@ -111,7 +140,7 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
     };
 
     const wrappedData = {
-        username: user.username,
+        username: user.username || "Utilisateur Supprimé",
         year: currentYear,
         totalHours,
         topMedia,

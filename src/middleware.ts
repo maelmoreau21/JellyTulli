@@ -1,10 +1,12 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
-// Admin-only routes: everything EXCEPT /wrapped/* and /api/auth/*
-const PUBLIC_USER_PATHS = ["/wrapped", "/api/auth"];
-// API routes that non-admins must NOT access
+// Routes accessibles par TOUS les utilisateurs authentifiés (admins + non-admins)
+const PUBLIC_USER_PATHS = ["/wrapped", "/api/auth", "/api/jellyfin"];
+// Routes réservées strictement aux administrateurs
 const ADMIN_API_PATHS = ["/api/sync", "/api/backup", "/api/hardware", "/api/settings", "/api/admin"];
+// Pages admin-only (non-admins redirigés vers leur Wrapped)
+const ADMIN_PAGE_PATHS = ["/", "/logs", "/users", "/media", "/newsletter", "/admin", "/settings"];
 
 export default withAuth(
     function middleware(req) {
@@ -16,7 +18,7 @@ export default withAuth(
             return NextResponse.next();
         }
 
-        // Non-admin users: allow /wrapped/* routes only
+        // Non-admin users: allow public user paths
         const isAllowed = PUBLIC_USER_PATHS.some(p => pathname.startsWith(p));
         if (isAllowed) {
             return NextResponse.next();
@@ -28,14 +30,18 @@ export default withAuth(
             return NextResponse.json({ error: "Accès réservé aux administrateurs." }, { status: 403 });
         }
 
-        // Non-admin trying to access admin routes → redirect to their Wrapped page
-        const jellyfinUserId = token?.jellyfinUserId as string;
-        if (jellyfinUserId) {
-            return NextResponse.redirect(new URL(`/wrapped/${jellyfinUserId}`, req.url));
+        // Non-admin hitting admin pages → redirect to their Wrapped page
+        const isAdminPage = ADMIN_PAGE_PATHS.some(p => pathname === p || (p !== "/" && pathname.startsWith(p)));
+        if (isAdminPage) {
+            const jellyfinUserId = token?.jellyfinUserId as string;
+            if (jellyfinUserId) {
+                return NextResponse.redirect(new URL(`/wrapped/${jellyfinUserId}`, req.url));
+            }
+            return NextResponse.redirect(new URL("/login", req.url));
         }
 
-        // Fallback: redirect to login
-        return NextResponse.redirect(new URL("/login", req.url));
+        // All other routes: allow for any authenticated user
+        return NextResponse.next();
     },
     {
         callbacks: {
