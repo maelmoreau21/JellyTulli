@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Settings as SettingsIcon, RefreshCw, CheckCircle2, AlertCircle, Save, Download, UploadCloud } from "lucide-react";
+import { Settings as SettingsIcon, RefreshCw, CheckCircle2, AlertCircle, Save, Download, UploadCloud, Clock, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,13 @@ export default function SettingsPage() {
     const [discordAlertCondition, setDiscordAlertCondition] = useState("ALL");
     const [excludedLibraries, setExcludedLibraries] = useState("");
 
+    // Auto-backup state
+    const [autoBackups, setAutoBackups] = useState<{name: string, sizeMb: string, date: string}[]>([]);
+    const [isRestoringAuto, setIsRestoringAuto] = useState<string | null>(null);
+    const [autoBackupMsg, setAutoBackupMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    // Upload progress state
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
     // Load initial settings
     useEffect(() => {
         const fetchSettings = async () => {
@@ -48,6 +55,22 @@ export default function SettingsPage() {
             }
         };
         fetchSettings();
+    }, []);
+
+    // Load auto-backups list
+    useEffect(() => {
+        const fetchAutoBackups = async () => {
+            try {
+                const res = await fetch("/api/backup/auto");
+                if (res.ok) {
+                    const data = await res.json();
+                    setAutoBackups(data.backups || []);
+                }
+            } catch (err) {
+                console.error("Failed to load auto-backups");
+            }
+        };
+        fetchAutoBackups();
     }, []);
 
     const handleSync = async () => {
@@ -153,31 +176,67 @@ export default function SettingsPage() {
         if (!file) return;
 
         setIsImportingJellystat(true);
-        setMigrationMsg({ type: "info", text: `Envoi et analyse du fichier JSON Jellystat (${(file.size / 1024 / 1024).toFixed(0)} Mo)...` });
+        const sizeMb = (file.size / 1024 / 1024).toFixed(0);
+        setMigrationMsg({ type: "info", text: `Découpage et envoi du fichier JSON Jellystat (${sizeMb} Mo)...` });
+        setUploadProgress(0);
 
         try {
-            // Send raw file body via fetch to Route Handler — bypasses Server Action 10MB limit
-            // The Route Handler streams req.body directly into stream-json (no buffering)
-            const res = await fetch("/api/backup/import/jellystat", {
+            // Client-side chunking: split file into 5MB chunks
+            const CHUNK_SIZE = 5 * 1024 * 1024; // 5 Mo
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+            const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+            // Send each chunk sequentially
+            for (let i = 0; i < totalChunks; i++) {
+                const start = i * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, file.size);
+                const chunk = file.slice(start, end);
+
+                const res = await fetch("/api/backup/import/jellystat/chunk", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/octet-stream",
+                        "X-Upload-Id": uploadId,
+                        "X-Chunk-Index": String(i),
+                        "X-Total-Chunks": String(totalChunks),
+                        "X-File-Name": file.name,
+                    },
+                    body: chunk,
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || `Chunk ${i + 1} failed`);
+                }
+
+                const pct = Math.round(((i + 1) / totalChunks) * 50); // 0-50% for upload
+                setUploadProgress(pct);
+                setMigrationMsg({ type: "info", text: `Upload: ${i + 1}/${totalChunks} chunks envoyés (${pct}%)...` });
+            }
+
+            // Finalize: tell server to merge and process
+            setMigrationMsg({ type: "info", text: "Fusion et analyse du fichier sur le serveur..." });
+            setUploadProgress(55);
+
+            const finalRes = await fetch("/api/backup/import/jellystat/finalize", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/octet-stream",
-                    "X-File-Name": file.name,
-                    "X-File-Size": String(file.size),
-                },
-                body: file,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ uploadId, totalChunks, fileName: file.name }),
             });
 
-            const data = await res.json();
-            if (res.ok) {
+            const data = await finalRes.json();
+            setUploadProgress(100);
+
+            if (finalRes.ok) {
                 setMigrationMsg({ type: "success", text: data.message || "Importation depuis Jellystat réussie." });
             } else {
                 setMigrationMsg({ type: "error", text: data.error || "Erreur lors de l'import Jellystat." });
             }
-        } catch {
-            setMigrationMsg({ type: "error", text: "Erreur réseau lors de la communication du fichier." });
+        } catch (e: any) {
+            setMigrationMsg({ type: "error", text: e.message || "Erreur réseau lors de la communication du fichier." });
         } finally {
             setIsImportingJellystat(false);
+            setUploadProgress(null);
             if (jellystatFileInputRef.current) {
                 jellystatFileInputRef.current.value = "";
             }
@@ -442,6 +501,14 @@ export default function SettingsPage() {
                                 <UploadCloud className={`w-4 h-4 ${isImportingJellystat ? 'animate-bounce' : ''}`} />
                                 {isImportingJellystat ? 'Analyse du fichier JSON en cours...' : 'Uploader le JSON Jellystat'}
                             </button>
+                            {uploadProgress !== null && (
+                                <div className="w-full bg-zinc-800 rounded-full h-2 mt-2">
+                                    <div
+                                        className="bg-primary h-2 rounded-full transition-all duration-300"
+                                        style={{ width: `${uploadProgress}%` }}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-4 border p-4 rounded-lg bg-black/20">
@@ -465,6 +532,83 @@ export default function SettingsPage() {
                                 {isImportingPR ? 'Analyse du fichier TSV en cours...' : 'Uploader le TSV Playback Reporting'}
                             </button>
                         </div>
+                    </CardContent>
+                </Card>
+
+                {/* AUTO-BACKUPS CARD */}
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Clock className="w-5 h-5" />
+                            Sauvegardes Automatiques
+                        </CardTitle>
+                        <CardDescription>
+                            JellyTulli effectue une sauvegarde automatique chaque nuit à 3h30. Les 5 sauvegardes les plus récentes sont conservées (rotation automatique).
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {autoBackupMsg && (
+                            <div className={`p-4 rounded-md flex items-center gap-3 text-sm ${autoBackupMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                                {autoBackupMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                                {autoBackupMsg.text}
+                            </div>
+                        )}
+
+                        {autoBackups.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground text-sm">
+                                <Clock className="w-8 h-8 mx-auto mb-3 opacity-50" />
+                                <p>Aucune sauvegarde automatique disponible.</p>
+                                <p className="text-xs mt-1">La première sera créée cette nuit à 3h30.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {autoBackups.map((backup) => (
+                                    <div key={backup.name} className="flex items-center justify-between p-3 border border-zinc-800/50 rounded-lg bg-black/20 hover:bg-zinc-800/30 transition-colors">
+                                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                            <span className="text-sm font-medium truncate">{backup.name}</span>
+                                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                <span>{new Date(backup.date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span>{backup.sizeMb} Mo</span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                if (!confirm(`Restaurer la sauvegarde ${backup.name} ? Cela écrasera toutes les données actuelles.`)) return;
+                                                setIsRestoringAuto(backup.name);
+                                                setAutoBackupMsg(null);
+                                                try {
+                                                    const res = await fetch("/api/backup/auto/restore", {
+                                                        method: "POST",
+                                                        headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify({ fileName: backup.name }),
+                                                    });
+                                                    const data = await res.json();
+                                                    if (res.ok) {
+                                                        setAutoBackupMsg({ type: "success", text: data.message || "Restauration réussie ! Rechargement..." });
+                                                        setTimeout(() => window.location.reload(), 3000);
+                                                    } else {
+                                                        setAutoBackupMsg({ type: "error", text: data.error || "Erreur lors de la restauration." });
+                                                    }
+                                                } catch {
+                                                    setAutoBackupMsg({ type: "error", text: "Erreur réseau." });
+                                                } finally {
+                                                    setIsRestoringAuto(null);
+                                                }
+                                            }}
+                                            disabled={isRestoringAuto !== null}
+                                            className={`ml-3 shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                                                isRestoringAuto === backup.name
+                                                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                                                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                            }`}
+                                        >
+                                            <UploadCloud className={`w-3 h-3 ${isRestoringAuto === backup.name ? 'animate-bounce' : ''}`} />
+                                            {isRestoringAuto === backup.name ? 'Restauration...' : 'Restaurer'}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

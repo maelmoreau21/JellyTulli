@@ -4,6 +4,7 @@ export async function register() {
         const cron = (await import('node-cron')).default;
         const { syncJellyfinLibrary } = await import('@/lib/sync');
         const { startMonitoring } = await import('@/server/monitor');
+        const { performAutoBackup } = await import('@/lib/autoBackup');
 
         console.log("[Instrumentation] Démarrage des tâches de fond...");
 
@@ -14,6 +15,16 @@ export async function register() {
         cron.schedule('0 3 * * *', async () => {
             console.log("[Cron] Déclenchement automatique de la synchronisation (3:00 AM)");
             await syncJellyfinLibrary();
+        });
+
+        // Cron Job: Auto-backup tous les jours à 3h30 du matin (30 3 * * *)
+        cron.schedule('30 3 * * *', async () => {
+            console.log("[Cron] Déclenchement de la sauvegarde automatique (3:30 AM)");
+            try {
+                await performAutoBackup();
+            } catch (err) {
+                console.error("[Cron] Auto-backup failed:", err);
+            }
         });
     }
 }

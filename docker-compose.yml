@@ -12,6 +12,8 @@ services:
       - ADMIN_PASSWORD=supersecretadmin
       - NEXTAUTH_SECRET=your-generated-random-secret
       - NEXTAUTH_URL=http://localhost:3000
+    volumes:
+      - jellytulli_backups:/data/backups
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,3 +63,4 @@ networks:
 volumes:
   jellytulli_pgdata:
   jellytulli_redisdata:
+  jellytulli_backups:

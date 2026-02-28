@@ -51,6 +51,16 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Le fichier TSV est vide ou invalide. Vérifiez le format du fichier." }, { status: 400 });
         }
 
+        // Normalize UUID: Playback Reporting exports IDs without dashes (32 hex chars)
+        // but Jellyfin stores them as standard UUID format (8-4-4-4-12)
+        const normalizeUuid = (id: string): string => {
+            const clean = id.trim();
+            if (clean.length === 32 && !clean.includes('-')) {
+                return clean.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
+            }
+            return clean;
+        };
+
         let importedSess = 0;
         let errors = 0;
 
@@ -65,8 +75,8 @@ export async function POST(req: NextRequest) {
                     // [0]: Date  [1]: UserId  [2]: ItemId  [3]: ItemType  [4]: ItemName
                     // [5]: PlayMethod  [6]: ClientName  [7]: DeviceName  [8]: PlayDuration (seconds)
                     const dateStr = row[0];
-                    const jellyfinUserId = String(row[1] || "").trim();
-                    const jellyfinMediaId = String(row[2] || "").trim();
+                    const jellyfinUserId = normalizeUuid(String(row[1] || ""));
+                    const jellyfinMediaId = normalizeUuid(String(row[2] || ""));
                     const mediaType = String(row[3] || "Movie").trim();
                     const mediaTitle = String(row[4] || "Unknown Media").trim();
                     const playMethod = String(row[5] || "DirectPlay").trim();

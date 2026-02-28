@@ -103,8 +103,8 @@ export default async function LogsPage({
                                                     </TableCell>
 
                                                     {/* Média */}
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-3 w-[250px]">
+                                                    <TableCell className="max-w-[150px] md:max-w-[250px]">
+                                                        <div className="flex items-center gap-3 w-full">
                                                             <div className="relative w-12 aspect-[2/3] bg-muted rounded-md shrink-0 overflow-hidden ring-1 ring-white/10">
                                                                 <FallbackImage
                                                                     src={`/api/jellyfin/image?itemId=${log.media.jellyfinMediaId}&type=Primary`}
