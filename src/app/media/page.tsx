@@ -216,7 +216,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
                                 {displayMedia.map((media: any) => (
-                                    <div key={media.id} className="group flex flex-col space-y-2 relative">
+                                    <Link href={`/media/${media.jellyfinMediaId}`} key={media.id} className="group flex flex-col space-y-2 relative">
                                         <div className="relative w-full aspect-[2/3] bg-zinc-900 rounded-md overflow-hidden ring-1 ring-white/10 shadow-lg">
                                             <Image
                                                 src={getJellyfinImageUrl(media.jellyfinMediaId, 'Primary')}
@@ -254,7 +254,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                                 {media.durationHours > 0 && <span className="font-medium">{media.durationHours}h</span>}
                                             </div>
                                         </div>
-                                    </div>
+                                    </Link>
                                 ))}
                             </div>
                         )}

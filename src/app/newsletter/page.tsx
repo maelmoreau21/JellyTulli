@@ -55,7 +55,7 @@ export default async function NewsletterPage() {
     if (topUserAgg.length > 0 && topUserAgg[0].userId) {
         const u = await prisma.user.findUnique({ where: { id: topUserAgg[0].userId } });
         topUser = {
-            name: u?.username || "Inconnu",
+            name: u?.username || "Utilisateur Supprimé",
             hours: ((topUserAgg[0]._sum.durationWatched || 0) / 3600).toFixed(0)
         };
     }

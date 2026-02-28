@@ -1,37 +1,28 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
-// Routes accessibles par TOUS les utilisateurs authentifiés (admins + non-admins)
-const PUBLIC_USER_PATHS = ["/wrapped", "/api/auth", "/api/jellyfin"];
 // Routes réservées strictement aux administrateurs
-const ADMIN_API_PATHS = ["/api/sync", "/api/backup", "/api/hardware", "/api/settings", "/api/admin"];
-// Pages admin-only (non-admins redirigés vers leur Wrapped)
-const ADMIN_PAGE_PATHS = ["/", "/logs", "/users", "/media", "/newsletter", "/admin", "/settings"];
+const ADMIN_API_PATHS = ["/api/admin"];
+const ADMIN_PAGE_PATHS = ["/admin", "/settings"];
 
 export default withAuth(
     function middleware(req) {
         const token = req.nextauth.token;
         const pathname = req.nextUrl.pathname;
 
-        // Allow admin users everywhere
+        // Admin: accès total
         if (token?.isAdmin) {
             return NextResponse.next();
         }
 
-        // Non-admin users: allow public user paths
-        const isAllowed = PUBLIC_USER_PATHS.some(p => pathname.startsWith(p));
-        if (isAllowed) {
-            return NextResponse.next();
-        }
-
-        // Non-admin hitting admin API routes → 403 JSON response
+        // Non-admin → API admin bloquées (403)
         const isAdminApi = ADMIN_API_PATHS.some(p => pathname.startsWith(p));
         if (isAdminApi) {
             return NextResponse.json({ error: "Accès réservé aux administrateurs." }, { status: 403 });
         }
 
-        // Non-admin hitting admin pages → redirect to their Wrapped page
-        const isAdminPage = ADMIN_PAGE_PATHS.some(p => pathname === p || (p !== "/" && pathname.startsWith(p)));
+        // Non-admin → Pages admin redirigées vers Wrapped
+        const isAdminPage = ADMIN_PAGE_PATHS.some(p => pathname === p || pathname.startsWith(p + "/"));
         if (isAdminPage) {
             const jellyfinUserId = token?.jellyfinUserId as string;
             if (jellyfinUserId) {
@@ -40,7 +31,7 @@ export default withAuth(
             return NextResponse.redirect(new URL("/login", req.url));
         }
 
-        // All other routes: allow for any authenticated user
+        // Tout le reste : accessible à tous les utilisateurs authentifiés
         return NextResponse.next();
     },
     {

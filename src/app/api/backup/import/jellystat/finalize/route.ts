@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
-import { createReadStream, existsSync, readdirSync, unlinkSync, rmdirSync } from "fs";
+import { existsSync, readdirSync, readFileSync, unlinkSync, rmdirSync } from "fs";
 import path from "path";
-const JSONStream = require("JSONStream");
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,26 +11,22 @@ export const maxDuration = 300;
 
 const UPLOAD_DIR = "/tmp/jellytulli-uploads";
 
-/**
- * Normalise toutes les clés d'un objet en minuscules.
- */
-function toLowerKeys(obj: any): Record<string, any> {
-    return Object.keys(obj).reduce((acc: Record<string, any>, key) => {
-        acc[key.toLowerCase()] = obj[key];
-        return acc;
-    }, {});
+/** Extraction brute-force Regex : extrait un champ string depuis un segment de texte JSON brut. */
+function extractStr(segment: string, ...fields: string[]): string | null {
+    for (const f of fields) {
+        const m = segment.match(new RegExp(`"${f}"\\s*:\\s*"([^"]*)"`, "i"));
+        if (m) return m[1];
+    }
+    return null;
 }
 
-/**
- * Duck-Typing case-insensitive RELAXÉ : détecte si un objet JSON ressemble à une session Jellystat.
- * Critère simplifié : possède userid ET (nowplayingitemid|itemid|mediaid).
- */
-function isSessionObject(obj: any): boolean {
-    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
-    const lk = toLowerKeys(obj);
-    const hasUserId = !!(lk.userid || lk.user_id);
-    const hasItemId = !!(lk.nowplayingitemid || lk.itemid || lk.item_id || lk.mediaid || lk.media_id);
-    return hasUserId && hasItemId;
+/** Extraction brute-force Regex : extrait un champ numérique depuis un segment de texte JSON brut. */
+function extractNum(segment: string, ...fields: string[]): number {
+    for (const f of fields) {
+        const m = segment.match(new RegExp(`"${f}"\\s*:\\s*(\\d+)`, "i"));
+        if (m) return parseInt(m[1]);
+    }
+    return 0;
 }
 
 export async function POST(req: NextRequest) {
@@ -80,134 +75,93 @@ export async function POST(req: NextRequest) {
             writeStream.on("error", reject);
         });
 
-        console.log(`[Jellystat Finalize] Merged file created, starting JSONStream deep-scan import...`);
+        console.log(`[Jellystat Finalize] Merged file created, starting brute-force regex import...`);
 
+        // Lecture brute-force du fichier mergé
+        const rawText = readFileSync(mergedPath, "utf-8");
+        console.log(`[Jellystat Finalize] Fichier mergé: ${(rawText.length / 1024 / 1024).toFixed(2)} Mo`);
+
+        const uidRegex = /"(?:UserId|userid|user_id)"\s*:\s*"([^"]+)"/gi;
+        let uidMatch: RegExpExecArray | null;
         let importedSess = 0;
         let skipped = 0;
         let errors = 0;
-        let processedCount = 0;
-        let firstObjLogged = false;
-        const CHUNK_SIZE = 200;
-        let currentChunk: any[] = [];
+        let totalFound = 0;
+        const BATCH = 200;
+        let batch: any[] = [];
 
-        const fileStream = createReadStream(mergedPath);
-        const jsonStream = fileStream.pipe(JSONStream.parse('..'));
-
-        const processChunk = async (chunk: any[]) => {
-            for (const row of chunk) {
+        const processBatch = async (items: any[]) => {
+            for (const s of items) {
                 try {
-                    const lk = toLowerKeys(row);
-                    const jellyfinUserId = lk.userid || lk.user_id;
-                    const username = lk.username || lk.user_name || "Utilisateur Supprimé";
-
-                    const jellyfinMediaId = lk.nowplayingitemid || lk.itemid || lk.item_id || lk.mediaid || lk.media_id;
-                    const mediaTitle = lk.itemname || lk.item_name || lk.title || "Unknown Media";
-                    const mediaType = lk.itemtype || lk.item_type || lk.type || "Movie";
-
-                    if (!jellyfinUserId || !jellyfinMediaId) {
-                        continue;
-                    }
-
                     const user = await prisma.user.upsert({
-                        where: { jellyfinUserId },
+                        where: { jellyfinUserId: s.userId },
                         update: {},
-                        create: { jellyfinUserId, username }
+                        create: { jellyfinUserId: s.userId, username: s.username },
                     });
-
                     const media = await prisma.media.upsert({
-                        where: { jellyfinMediaId },
+                        where: { jellyfinMediaId: s.itemId },
                         update: {},
-                        create: { jellyfinMediaId, title: mediaTitle, type: mediaType }
+                        create: { jellyfinMediaId: s.itemId, title: s.title, type: s.type },
                     });
-
-                    const playMethod = lk.playmethod || lk.play_method || "DirectPlay";
-                    const clientName = lk.client || lk.clientname || lk.client_name || "Jellystat Import";
-                    const deviceName = lk.devicename || lk.device_name || "Unknown Device";
-                    let durationWatched = parseInt(lk.playduration || lk.play_duration) || 0;
-                    if (durationWatched > 10000000) durationWatched = Math.floor(durationWatched / 10000000);
-                    if (isNaN(durationWatched)) durationWatched = 0;
-
-                    const startedAtStr = lk.datecreated || lk.date_created || lk.startedat || lk.started_at || new Date().toISOString();
-                    const startedAt = new Date(startedAtStr);
-
-                    const existingHistory = await prisma.playbackHistory.findFirst({
-                        where: { userId: user.id, mediaId: media.id, startedAt }
+                    const existing = await prisma.playbackHistory.findFirst({
+                        where: { userId: user.id, mediaId: media.id, startedAt: s.startedAt },
                     });
-
-                    if (existingHistory) {
+                    if (existing) {
                         await prisma.playbackHistory.update({
-                            where: { id: existingHistory.id },
-                            data: { durationWatched, playMethod, clientName, deviceName }
+                            where: { id: existing.id },
+                            data: { durationWatched: s.duration, playMethod: s.playMethod, clientName: s.client, deviceName: s.device },
                         });
                     } else {
                         await prisma.playbackHistory.create({
-                            data: { userId: user.id, mediaId: media.id, playMethod, clientName, deviceName, durationWatched, startedAt }
+                            data: { userId: user.id, mediaId: media.id, playMethod: s.playMethod, clientName: s.client, deviceName: s.device, durationWatched: s.duration, startedAt: s.startedAt },
                         });
                     }
-
                     importedSess++;
                 } catch (err) {
                     errors++;
-                    console.error("[Jellystat Finalize] Line error:", err);
+                    if (errors <= 3) console.error("[Jellystat Finalize] Erreur ligne:", err);
                 }
             }
         };
 
-        await new Promise<void>((resolve, reject) => {
-            jsonStream.on("data", async (obj: any) => {
-                processedCount++;
+        while ((uidMatch = uidRegex.exec(rawText)) !== null) {
+            const userId = uidMatch[1];
+            const pos = uidMatch.index;
 
-                if (!firstObjLogged && obj && typeof obj === "object" && !Array.isArray(obj)) {
-                    console.log(`[Jellystat Finalize] Premier objet scanné — clés:`, Object.keys(obj));
-                    firstObjLogged = true;
-                }
+            let open = pos;
+            while (open > 0 && rawText[open] !== "{") open--;
+            let close = pos;
+            while (close < rawText.length && rawText[close] !== "}") close++;
+            const window = rawText.substring(open, close + 1);
 
-                if (isSessionObject(obj)) {
-                    currentChunk.push(obj);
-                    if (currentChunk.length === 1 && importedSess === 0) {
-                        console.log(`[Jellystat Finalize] Session trouvée :`, JSON.stringify(obj).substring(0, 500));
-                    }
-                } else {
-                    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
-                        const lk = toLowerKeys(obj);
-                        if ((lk.userid || lk.user_id) && skipped < 3) {
-                            console.log(`[Jellystat Finalize] Objet avec userId ignoré (pas d'ItemId) — clés:`, Object.keys(obj));
-                        }
-                    }
-                    skipped++;
-                }
+            const itemId = extractStr(window, "NowPlayingItemId", "ItemId", "itemid", "item_id", "MediaId", "mediaid", "media_id");
+            if (!itemId) { skipped++; continue; }
 
-                if (currentChunk.length >= CHUNK_SIZE) {
-                    jsonStream.pause();
-                    try {
-                        await processChunk(currentChunk);
-                        currentChunk = [];
-                        if (processedCount % 1000 === 0) {
-                            console.log(`[Jellystat Finalize] Progress: ${processedCount} valeurs lues, ${importedSess} sessions importées...`);
-                        }
-                    } catch (err) {
-                        reject(err);
-                        return;
-                    }
-                    jsonStream.resume();
-                }
-            });
+            totalFound++;
+            if (totalFound === 1) console.log(`[Jellystat Finalize] 1re session:`, window.substring(0, 500));
 
-            jsonStream.on("end", async () => {
-                try {
-                    if (currentChunk.length > 0) {
-                        await processChunk(currentChunk);
-                    }
-                    resolve();
-                } catch (err) {
-                    reject(err);
-                }
-            });
+            const username = extractStr(window, "UserName", "username", "user_name") || "Utilisateur Supprimé";
+            const title = extractStr(window, "NowPlayingItemName", "ItemName", "itemname", "item_name", "Title", "title") || "Unknown Media";
+            const type = extractStr(window, "ItemType", "itemtype", "item_type", "Type", "type") || "Movie";
+            let duration = extractNum(window, "PlayDuration", "play_duration", "playduration");
+            if (duration > 10_000_000) duration = Math.floor(duration / 10_000_000);
+            const dateStr = extractStr(window, "DateCreated", "date_created", "datecreated", "StartedAt", "started_at", "startedat") || new Date().toISOString();
+            const playMethod = extractStr(window, "PlayMethod", "play_method", "playmethod") || "DirectPlay";
+            const client = extractStr(window, "Client", "ClientName", "client_name", "clientname") || "Jellystat Import";
+            const device = extractStr(window, "DeviceName", "device_name", "devicename") || "Unknown Device";
 
-            jsonStream.on("error", reject);
-        });
+            batch.push({ userId, itemId, username, title, type, duration, startedAt: new Date(dateStr), playMethod, client, device });
 
-        console.log(`[Jellystat Finalize] Terminé: ${importedSess} sessions importées, ${skipped} valeurs ignorées, ${errors} erreurs.`);
+            if (batch.length >= BATCH) {
+                await processBatch(batch);
+                batch = [];
+                if (totalFound % 1000 === 0) console.log(`[Jellystat Finalize] Progress: ${totalFound} trouvées, ${importedSess} importées...`);
+            }
+        }
+
+        if (batch.length > 0) await processBatch(batch);
+
+        console.log(`[Jellystat Finalize] Terminé: ${importedSess} sessions, ${skipped} ignorés, ${errors} erreurs (${totalFound} regex).`);
 
         // Cleanup: fix ghost users from previous imports
         const cleaned = await prisma.user.updateMany({
@@ -230,7 +184,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            message: `Importation terminée. ${importedSess} sessions traitées (${skipped} valeurs ignorées, ${errors} erreurs).`
+            message: `Import brute-force terminé. ${importedSess} sessions (${skipped} ignorés, ${errors} erreurs).`,
         });
 
     } catch (e: any) {
