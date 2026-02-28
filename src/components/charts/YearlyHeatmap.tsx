@@ -70,7 +70,6 @@ export function YearlyHeatmap({ data }: YearlyHeatmapProps) {
                         blockRadius={3}
                         blockMargin={4}
                         fontSize={12}
-                        hideColorLegend={false}
                         labels={{
                             months: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'],
                             weekdays: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'],

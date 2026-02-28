@@ -31,6 +31,8 @@ export async function POST(req: NextRequest) {
         // First, check if connection works by calling a basic endpoint
         const testRes = await fetch(`${baseUrl}/api/getUsers`, { headers });
         if (!testRes.ok) {
+            const errText = await testRes.text();
+            console.error("[Jellystat] API /getUsers error:", testRes.status, errText);
             return NextResponse.json({ error: "Impossible de se connecter à Jellystat. Vérifiez l'URL ou la clé API." }, { status: 400 });
         }
 
@@ -50,6 +52,8 @@ export async function POST(req: NextRequest) {
             const historyRes = await fetch(`${baseUrl}/api/getPlays?skip=${skip}&take=${take}`, { headers });
 
             if (!historyRes.ok) {
+                const errText = await historyRes.text();
+                console.error("[Jellystat] API /getPlays error:", historyRes.status, errText);
                 if (historyRes.status === 404) {
                     throw new Error("L'endpoint /api/getPlays n'existe pas ou la structure API de Jellystat a changé.");
                 }

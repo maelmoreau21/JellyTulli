@@ -104,6 +104,7 @@ model GlobalSettings {
   jellyfinUrl         String?  // Nouveauté: URL du serveur pour l'auth et l'API
   jellyfinApiKey      String?  // Nouveauté: Clé API du serveur
   discordWebhookUrl   String?
+  discordAlertCondition String @default("ALL") // Nouveauté: Filtre d'envoi ('ALL', 'TRANSCODE_ONLY', 'NEW_IP_ONLY')
   discordAlertsEnabled Boolean @default(false)
   excludedLibraries   String[] @default([]) // Nouveauté : Filtre les types de collection (ex: Photo, HomeVideos)
   updatedAt           DateTime @updatedAt

@@ -26,6 +26,7 @@ export default function SettingsPage() {
 
     const [discordEnabled, setDiscordEnabled] = useState(false);
     const [discordUrl, setDiscordUrl] = useState("");
+    const [discordAlertCondition, setDiscordAlertCondition] = useState("ALL");
     const [excludedLibraries, setExcludedLibraries] = useState("");
 
     // Load initial settings
@@ -37,6 +38,7 @@ export default function SettingsPage() {
                     const data = await res.json();
                     setDiscordEnabled(data.discordAlertsEnabled || false);
                     setDiscordUrl(data.discordWebhookUrl || "");
+                    setDiscordAlertCondition(data.discordAlertCondition || "ALL");
                     setExcludedLibraries((data.excludedLibraries || []).join(", "));
                 }
             } catch (err) {
@@ -76,6 +78,7 @@ export default function SettingsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     discordWebhookUrl: discordUrl,
+                    discordAlertCondition: discordAlertCondition,
                     discordAlertsEnabled: discordEnabled,
                     excludedLibraries: excludedLibraries.split(',').map(s => s.trim()).filter(s => s)
                 })
@@ -271,19 +274,38 @@ export default function SettingsPage() {
                         </div>
 
                         {discordEnabled && (
-                            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <Label htmlFor="discord-url">URL du Webhook Discord</Label>
-                                <Input
-                                    id="discord-url"
-                                    type="url"
-                                    placeholder="https://discord.com/api/webhooks/..."
-                                    value={discordUrl}
-                                    onChange={(e) => setDiscordUrl(e.target.value)}
-                                    className="font-mono text-sm"
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    Assurez-vous que l'URL soit valide et fonctionnelle. Vous pouvez écraser la variable d'environnement avec ce champ.
-                                </p>
+                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="space-y-2">
+                                    <Label htmlFor="discord-url">URL du Webhook Discord</Label>
+                                    <Input
+                                        id="discord-url"
+                                        type="url"
+                                        placeholder="https://discord.com/api/webhooks/..."
+                                        value={discordUrl}
+                                        onChange={(e) => setDiscordUrl(e.target.value)}
+                                        className="font-mono text-sm"
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        Assurez-vous que l'URL soit valide et fonctionnelle. Vous pouvez écraser la variable d'environnement avec ce champ.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="discord-condition">Conditions de notification</Label>
+                                    <select
+                                        id="discord-condition"
+                                        value={discordAlertCondition}
+                                        onChange={(e) => setDiscordAlertCondition(e.target.value)}
+                                        className="flex h-9 w-full rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    >
+                                        <option value="ALL">Toutes les lectures</option>
+                                        <option value="TRANSCODE_ONLY">Uniquement les transcodages</option>
+                                        <option value="NEW_IP_ONLY">Uniquement les nouvelles adresses IP</option>
+                                    </select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Filtrez le type d'événements qui déclencheront le webhook.
+                                    </p>
+                                </div>
                             </div>
                         )}
 

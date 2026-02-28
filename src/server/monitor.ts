@@ -167,6 +167,11 @@ async function pollJellyfinSessions() {
 
         // Handle PlaybackStart Logic
         if (isNew && UserId && ItemId) {
+            const pastIpCount = await prisma.playbackHistory.count({
+                where: { user: { jellyfinUserId: UserId }, ipAddress: IpAddress }
+            });
+            const isNewIp = pastIpCount === 0;
+
             // New Session! Add to PlaybackHistory
             await prisma.playbackHistory.create({
                 data: {
@@ -186,8 +191,16 @@ async function pollJellyfinSessions() {
                 const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
                 const webhookUrl = settings?.discordWebhookUrl;
                 const isEnabled = settings?.discordAlertsEnabled;
+                const condition = settings?.discordAlertCondition || "ALL";
 
-                if (isEnabled && webhookUrl) {
+                let shouldSend = true;
+                if (condition === "TRANSCODE_ONLY") {
+                    shouldSend = PlayMethod === "Transcode";
+                } else if (condition === "NEW_IP_ONLY") {
+                    shouldSend = isNewIp;
+                }
+
+                if (isEnabled && webhookUrl && shouldSend) {
                     const posterUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/jellyfin/image?itemId=${ItemId}`;
 
                     const discordPayload = {

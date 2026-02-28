@@ -54,33 +54,47 @@ export async function POST(req: Request) {
                 const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
 
                 if (settings?.discordAlertsEnabled && settings?.discordWebhookUrl) {
-                    // Utilisation de notre API proxy interne pour sécuriser l'URL de l'image
-                    // Note: on utilise des requêtes absolues si NEXTAUTH_URL est défini, sinon un fallback minimal
-                    const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-                    const posterUrl = `${appUrl}/api/jellyfin/image?itemId=${jellyfinMediaId}&type=Primary`;
+                    const condition = settings.discordAlertCondition || "ALL";
+                    let shouldSend = true;
 
-                    const discordPayload = {
-                        embeds: [
-                            {
-                                title: `🎬 Nouvelle lecture : ${title}`,
-                                color: 10181046, // Jellyfin Purple
-                                fields: [
-                                    { name: "👤 Utilisateur", value: username, inline: true },
-                                    { name: "📱 Appareil", value: `${clientName} (${deviceName})`, inline: true },
-                                    { name: "🌍 Localisation", value: geoData.country !== "Unknown" ? `${geoData.city}, ${geoData.country}` : "Inconnue", inline: true }
-                                ],
-                                thumbnail: { url: posterUrl },
-                                timestamp: new Date().toISOString()
-                            }
-                        ]
-                    };
+                    if (condition === "TRANSCODE_ONLY") {
+                        shouldSend = payload.PlayMethod === "Transcode" || payload.IsTranscoding || false;
+                    } else if (condition === "NEW_IP_ONLY") {
+                        const pastIpCount = await prisma.playbackHistory.count({
+                            where: { user: { jellyfinUserId: jellyfinUserId }, ipAddress: ipAddress }
+                        });
+                        shouldSend = pastIpCount === 0;
+                    }
 
-                    await fetch(settings.discordWebhookUrl, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(discordPayload)
-                    });
-                    console.log(`[Webhook] Alerte Discord envoyée pour ${title}.`);
+                    if (shouldSend) {
+                        // Utilisation de notre API proxy interne pour sécuriser l'URL de l'image
+                        // Note: on utilise des requêtes absolues si NEXTAUTH_URL est défini, sinon un fallback minimal
+                        const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+                        const posterUrl = `${appUrl}/api/jellyfin/image?itemId=${jellyfinMediaId}&type=Primary`;
+
+                        const discordPayload = {
+                            embeds: [
+                                {
+                                    title: `🎬 Nouvelle lecture : ${title}`,
+                                    color: 10181046, // Jellyfin Purple
+                                    fields: [
+                                        { name: "👤 Utilisateur", value: username, inline: true },
+                                        { name: "📱 Appareil", value: `${clientName} (${deviceName})`, inline: true },
+                                        { name: "🌍 Localisation", value: geoData.country !== "Unknown" ? `${geoData.city}, ${geoData.country}` : "Inconnue", inline: true }
+                                    ],
+                                    thumbnail: { url: posterUrl },
+                                    timestamp: new Date().toISOString()
+                                }
+                            ]
+                        };
+
+                        await fetch(settings.discordWebhookUrl, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(discordPayload)
+                        });
+                        console.log(`[Webhook] Alerte Discord envoyée pour ${title}.`);
+                    }
                 }
             } catch (err) {
                 console.error("[Webhook] Erreur lors de l'envoi Discord:", err);

@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
                 data: {
                     id: "global",
                     discordWebhookUrl: null,
+                    discordAlertCondition: "ALL",
                     discordAlertsEnabled: false,
                     excludedLibraries: [],
                 }
@@ -33,18 +34,20 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { discordWebhookUrl, discordAlertsEnabled, excludedLibraries } = body;
+        const { discordWebhookUrl, discordAlertCondition, discordAlertsEnabled, excludedLibraries } = body;
 
         const updated = await prisma.globalSettings.upsert({
             where: { id: "global" },
             update: {
                 discordWebhookUrl: discordWebhookUrl !== undefined ? discordWebhookUrl : undefined,
+                discordAlertCondition: discordAlertCondition !== undefined ? discordAlertCondition : undefined,
                 discordAlertsEnabled: discordAlertsEnabled !== undefined ? discordAlertsEnabled : undefined,
                 excludedLibraries: excludedLibraries !== undefined ? excludedLibraries : undefined,
             },
             create: {
                 id: "global",
                 discordWebhookUrl: discordWebhookUrl || null,
+                discordAlertCondition: discordAlertCondition || "ALL",
                 discordAlertsEnabled: discordAlertsEnabled || false,
                 excludedLibraries: excludedLibraries || [],
             }
