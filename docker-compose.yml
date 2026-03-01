@@ -5,6 +5,8 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - PUID=1000
+      - PGID=1000
       - DATABASE_URL=postgresql://jellytulli:jellytulli_password@postgres:5432/jellytulli?schema=public&connection_limit=5
       - REDIS_URL=redis://redis:6379
       - JELLYFIN_URL=http://jellyfin:8096

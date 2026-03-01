@@ -42,6 +42,10 @@ export async function GET() {
                         city: payload.City || "Unknown",
                         progressPercent,
                         isPaused: payload.IsPaused === true,
+                        audioLanguage: payload.AudioLanguage || null,
+                        audioCodec: payload.AudioCodec || null,
+                        subtitleLanguage: payload.SubtitleLanguage || null,
+                        subtitleCodec: payload.SubtitleCodec || null,
                     };
                 });
         }

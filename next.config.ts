@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '500mb',
     },
   },
-  serverExternalPackages: [],
+  serverExternalPackages: ['node-cron', 'geoip-country'],
 };
 
 export default nextConfig;

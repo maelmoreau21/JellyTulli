@@ -19,6 +19,10 @@ interface LiveStream {
     city: string;
     progressPercent: number;
     isPaused: boolean;
+    audioLanguage: string | null;
+    audioCodec: string | null;
+    subtitleLanguage: string | null;
+    subtitleCodec: string | null;
 }
 
 function getImageUrl(itemId: string, type: string = 'Primary', fallbackId?: string) {
@@ -93,6 +97,14 @@ export function LiveStreamsPanel({ initialStreams, initialBandwidth }: { initial
                                     )}
                                     <p className="text-xs text-muted-foreground flex flex-col gap-0.5">
                                         <span className="truncate">{stream.user} • {stream.device}</span>
+                                        {(stream.audioLanguage || stream.subtitleLanguage) && (
+                                            <span className="text-[10px] opacity-70 truncate">
+                                                {stream.audioLanguage ? `🔊 ${stream.audioLanguage.toUpperCase()}` : ''}
+                                                {stream.audioCodec ? ` (${stream.audioCodec})` : ''}
+                                                {stream.subtitleLanguage ? ` • 💬 ${stream.subtitleLanguage.toUpperCase()}` : ''}
+                                                {stream.subtitleCodec ? ` (${stream.subtitleCodec})` : ''}
+                                            </span>
+                                        )}
                                         {(stream.city !== "Unknown" || stream.country !== "Unknown") && (
                                             <span className="text-[10px] opacity-70 truncate">
                                                 📍 {stream.city !== "Unknown" ? `${stream.city}, ` : ''}{stream.country}

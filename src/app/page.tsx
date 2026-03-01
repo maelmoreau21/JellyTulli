@@ -54,6 +54,7 @@ type WebhookPayload = {
 type LiveStream = {
   sessionId: string;
   itemId: string | null;
+  parentItemId: string | null;
   user: string;
   mediaTitle: string;
   mediaSubtitle: string | null;
@@ -63,6 +64,10 @@ type LiveStream = {
   city: string;
   progressPercent: number;
   isPaused: boolean;
+  audioLanguage: string | null;
+  audioCodec: string | null;
+  subtitleLanguage: string | null;
+  subtitleCodec: string | null;
 };
 
 export const dynamic = "force-dynamic";
@@ -495,6 +500,10 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
           progressPercent,
           isPaused: payload.IsPaused === true,
           parentItemId: payload.AlbumId || payload.SeriesId || payload.SeasonId || null,
+          audioLanguage: payload.AudioLanguage || null,
+          audioCodec: payload.AudioCodec || null,
+          subtitleLanguage: payload.SubtitleLanguage || null,
+          subtitleCodec: payload.SubtitleCodec || null,
         };
       });
   }

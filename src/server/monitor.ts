@@ -134,36 +134,42 @@ async function pollJellyfinSessions(): Promise<boolean> {
         const PlaybackPositionTicks = PlayState?.PositionTicks;
 
         const TranscodingInfo = session.TranscodingInfo;
-        const VideoCodec = TranscodingInfo ? TranscodingInfo.VideoCodec : null;
-        const AudioCodec = TranscodingInfo ? TranscodingInfo.AudioCodec : null;
+        const TranscodeVideoCodec = TranscodingInfo ? TranscodingInfo.VideoCodec : null;
+        const TranscodeAudioCodec = TranscodingInfo ? TranscodingInfo.AudioCodec : null;
         const TranscodeFps = TranscodingInfo ? TranscodingInfo.Framerate : null;
         const Bitrate = TranscodingInfo ? TranscodingInfo.Bitrate : null;
 
         // Telemetry: Audio & Subtitles Extraction + Resolution
         let AudioLanguage: string | null = null;
+        let AudioCodecFromStream: string | null = null;
         let SubtitleLanguage: string | null = null;
         let SubtitleCodec: string | null = null;
         let DetectedResolution: string | null = null;
 
         if (session.NowPlayingItem && session.NowPlayingItem.MediaStreams) {
             const streams: any[] = session.NowPlayingItem.MediaStreams;
-            // Native active streams are usually denoted by IsActive usually index matching PlayState.SubtitleStreamIndex/AudioStreamIndex
             const audioStreamIndex = PlayState?.AudioStreamIndex;
             const subtitleStreamIndex = PlayState?.SubtitleStreamIndex;
 
             if (audioStreamIndex !== undefined && audioStreamIndex !== null) {
                 const audioStream = streams.find(s => s.Index === audioStreamIndex && s.Type === "Audio");
-                if (audioStream) AudioLanguage = audioStream.Language || "Unknown";
+                if (audioStream) {
+                    AudioLanguage = audioStream.Language || audioStream.DisplayTitle || "Unknown";
+                    AudioCodecFromStream = audioStream.Codec || null;
+                }
             } else {
-                // Fallback to first active audio
-                const audioStream = streams.find(s => s.Type === "Audio" /* && s.IsDefault */);
-                if (audioStream) AudioLanguage = audioStream.Language || "Unknown";
+                // Fallback to first/default audio stream
+                const audioStream = streams.find(s => s.Type === "Audio" && s.IsDefault) || streams.find(s => s.Type === "Audio");
+                if (audioStream) {
+                    AudioLanguage = audioStream.Language || audioStream.DisplayTitle || "Unknown";
+                    AudioCodecFromStream = audioStream.Codec || null;
+                }
             }
 
             if (subtitleStreamIndex !== undefined && subtitleStreamIndex !== null && subtitleStreamIndex >= 0) {
                 const subStream = streams.find(s => s.Index === subtitleStreamIndex && s.Type === "Subtitle");
                 if (subStream) {
-                    SubtitleLanguage = subStream.Language || "Unknown";
+                    SubtitleLanguage = subStream.Language || subStream.DisplayTitle || "Unknown";
                     SubtitleCodec = subStream.Codec || "Unknown";
                 }
             }
@@ -178,6 +184,10 @@ async function pollJellyfinSessions(): Promise<boolean> {
                 else DetectedResolution = "SD";
             }
         }
+
+        // Combined codecs: prefer MediaStreams (works for DirectPlay), fallback to TranscodingInfo
+        const VideoCodec = TranscodeVideoCodec;
+        const AudioCodec = AudioCodecFromStream || TranscodeAudioCodec;
 
         const isNew = !previousSessionIds.has(SessionId);
 
@@ -266,6 +276,10 @@ async function pollJellyfinSessions(): Promise<boolean> {
             AlbumId,
             SeriesId,
             SeasonId,
+            AudioLanguage,
+            AudioCodec,
+            SubtitleLanguage,
+            SubtitleCodec,
             Country: geoData.country,
             City: geoData.city,
         };
@@ -362,6 +376,33 @@ async function pollJellyfinSessions(): Promise<boolean> {
                         await prisma.playbackHistory.update({
                             where: { id: openPlayback.id },
                             data: updates,
+                        });
+                    }
+
+                    // Always update audio/subtitle info if available (fills in data that was
+                    // missing on initial create — MediaStreams may not be in first poll response)
+                    const mediaUpdates: any = {};
+                    if (AudioLanguage && !openPlayback.audioLanguage) mediaUpdates.audioLanguage = AudioLanguage;
+                    if (AudioCodec && !openPlayback.audioCodec) mediaUpdates.audioCodec = AudioCodec;
+                    if (SubtitleLanguage && !openPlayback.subtitleLanguage) mediaUpdates.subtitleLanguage = SubtitleLanguage;
+                    if (SubtitleCodec && !openPlayback.subtitleCodec) mediaUpdates.subtitleCodec = SubtitleCodec;
+                    // Also update if the stream changed (user switched audio/sub track)
+                    if (AudioLanguage && openPlayback.audioLanguage && openPlayback.audioLanguage !== AudioLanguage) {
+                        mediaUpdates.audioLanguage = AudioLanguage;
+                    }
+                    if (AudioCodec && openPlayback.audioCodec && openPlayback.audioCodec !== AudioCodec) {
+                        mediaUpdates.audioCodec = AudioCodec;
+                    }
+                    if (SubtitleLanguage && openPlayback.subtitleLanguage && openPlayback.subtitleLanguage !== SubtitleLanguage) {
+                        mediaUpdates.subtitleLanguage = SubtitleLanguage;
+                    }
+                    if (SubtitleCodec && openPlayback.subtitleCodec && openPlayback.subtitleCodec !== SubtitleCodec) {
+                        mediaUpdates.subtitleCodec = SubtitleCodec;
+                    }
+                    if (Object.keys(mediaUpdates).length > 0) {
+                        await prisma.playbackHistory.update({
+                            where: { id: openPlayback.id },
+                            data: mediaUpdates,
                         });
                     }
                 }

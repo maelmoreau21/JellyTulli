@@ -33,7 +33,7 @@ RUN npm run build
 
 # 3. Production image, copy all the files and run next
 FROM base AS runner
-RUN apk add --no-cache openssl dos2unix
+RUN apk add --no-cache openssl dos2unix su-exec shadow
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -41,11 +41,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm install -g prisma@5
 
+# Default user/group (overridden at runtime via PUID/PGID)
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Create backup directory with correct permissions
-RUN mkdir -p /data/backups && chown nextjs:nodejs /data/backups
+# Create backup directory
+RUN mkdir -p /data/backups
 
 COPY --from=builder /app/public ./public
 
@@ -70,10 +71,8 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Copy the entrypoint script
-COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
+# Copy the entrypoint script (runs as root initially, then drops to PUID/PGID)
+COPY docker-entrypoint.sh ./
 RUN dos2unix ./docker-entrypoint.sh && chmod +x ./docker-entrypoint.sh
-
-USER nextjs
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
