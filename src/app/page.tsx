@@ -2,8 +2,8 @@ import prisma from "@/lib/prisma";
 import redis from "@/lib/redis";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Activity, ActivitySquare, MonitorPlay, Clock, PlayCircle, TrendingUp, TrendingDown, Award, Film, Tv, Music, BookOpen } from "lucide-react";
-import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
+import { FallbackImage } from "@/components/FallbackImage";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { unstable_cache } from "next/cache";
@@ -653,11 +653,10 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                             {/* Section Affiche du média */}
                             {stream.itemId ? (
                               <div className="relative w-12 aspect-[2/3] bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10">
-                                <Image
+                                <FallbackImage
                                   src={getJellyfinImageUrl(stream.itemId, 'Primary')}
                                   alt={stream.mediaTitle}
                                   fill
-                                  unoptimized
                                   className="object-cover"
                                 />
                               </div>

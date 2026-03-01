@@ -23,8 +23,8 @@ function extractStr(segment: string, ...fields: string[]): string | null {
 /** Extraction brute-force Regex : extrait un champ numérique depuis un segment de texte JSON brut. */
 function extractNum(segment: string, ...fields: string[]): number {
     for (const f of fields) {
-        const m = segment.match(new RegExp(`"${f}"\\s*:\\s*(\\d+)`, "i"));
-        if (m) return parseInt(m[1]);
+        const m = segment.match(new RegExp(`"${f}"\\s*:\\s*([\\d.]+)`, "i"));
+        if (m) return Math.floor(parseFloat(m[1]));
     }
     return 0;
 }
@@ -143,9 +143,9 @@ export async function POST(req: NextRequest) {
             const username = extractStr(window, "UserName", "username", "user_name") || "Utilisateur Supprimé";
             const title = extractStr(window, "NowPlayingItemName", "ItemName", "itemname", "item_name", "Title", "title") || "Unknown Media";
             const type = extractStr(window, "ItemType", "itemtype", "item_type", "Type", "type") || "Movie";
-            const rawTicks = extractNum(window, "PlayDuration", "play_duration", "playduration", "RunTimeTicks", "runtimeticks", "run_time_ticks");
-            // Jellyfin ticks: 1 second = 10,000,000 ticks
-            const durationSeconds = rawTicks > 0 ? Math.floor(rawTicks / 10_000_000) : 0;
+            const rawDuration = extractNum(window, "PlayDuration", "play_duration", "playduration", "RunTimeTicks", "runtimeticks", "run_time_ticks");
+            // Smart detection: if value > 10M it's ticks (÷10M), otherwise already seconds
+            const durationSeconds = rawDuration > 10_000_000 ? Math.floor(rawDuration / 10_000_000) : rawDuration;
             const dateStr = extractStr(window, "DateCreated", "date_created", "datecreated", "StartedAt", "started_at", "startedat", "PlayDate", "play_date", "playdate", "time_played") || new Date().toISOString();
             const playMethod = extractStr(window, "PlayMethod", "play_method", "playmethod") || "DirectPlay";
             const client = extractStr(window, "Client", "ClientName", "client_name", "clientname") || "Jellystat Import";

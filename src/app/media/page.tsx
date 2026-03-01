@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import Image from "next/image";
+import { FallbackImage } from "@/components/FallbackImage";
 import Link from "next/link";
 import { PlayCircle, Film, ArrowDownUp } from "lucide-react";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
@@ -30,7 +30,11 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
         let AND: any[] = [];
         if (type === 'movie') AND.push({ type: "Movie" });
         else if (type === 'series') AND.push({ type: { in: ["Series", "Episode"] } });
-        else if (type === 'music') AND.push({ type: { in: ["Audio", "Track"] } });
+        else if (type === 'music') AND.push({ type: { in: ["Audio", "Track", "MusicAlbum"] } });
+        else {
+            // Default "Tous": exclude music/audio to avoid mixing libraries
+            AND.push({ type: { notIn: ["Audio", "Track", "MusicAlbum"] } });
+        }
 
         if (excludedLibraries.length > 0) {
             AND.push({
@@ -218,12 +222,11 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                 {displayMedia.map((media: any) => (
                                     <Link href={`/media/${media.jellyfinMediaId}`} key={media.id} className="group flex flex-col space-y-2 relative">
                                         <div className="relative w-full aspect-[2/3] bg-zinc-900 rounded-md overflow-hidden ring-1 ring-white/10 shadow-lg">
-                                            <Image
+                                            <FallbackImage
                                                 src={getJellyfinImageUrl(media.jellyfinMediaId, 'Primary')}
                                                 alt={media.title}
                                                 width={400}
                                                 height={600}
-                                                unoptimized
                                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50"
                                             />
                                             {/* Top Overlay logic (Quality) */}

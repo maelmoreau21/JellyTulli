@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
+import { FallbackImage } from "@/components/FallbackImage";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -136,11 +136,10 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                 {/* En-tête du Média */}
                 <div className="flex flex-col md:flex-row gap-8">
                     <div className="relative w-48 aspect-[2/3] bg-zinc-900 rounded-lg overflow-hidden ring-1 ring-white/10 shadow-xl shrink-0">
-                        <Image
+                        <FallbackImage
                             src={getJellyfinImageUrl(media.jellyfinMediaId, "Primary")}
                             alt={media.title}
                             fill
-                            unoptimized
                             className="object-cover"
                         />
                     </div>

@@ -2,8 +2,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import prisma from "@/lib/prisma";
-import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
+import { FallbackImage } from "@/components/FallbackImage";
 
 export default async function UserRecentMedia({ userId }: { userId: string }) {
     const user = await prisma.user.findUnique({
@@ -47,6 +47,7 @@ export default async function UserRecentMedia({ userId }: { userId: string }) {
                 existing.playMethod = session.playMethod;
                 existing.deviceName = session.deviceName;
                 existing.clientName = session.clientName;
+                existing.ipAddress = session.ipAddress;
             }
         }
     });
@@ -69,7 +70,9 @@ export default async function UserRecentMedia({ userId }: { userId: string }) {
                                 <TableHead>Média</TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead>Durée</TableHead>
+                                <TableHead>Client</TableHead>
                                 <TableHead>Appareil</TableHead>
+                                <TableHead>IP</TableHead>
                                 <TableHead>Méthode</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -96,11 +99,10 @@ export default async function UserRecentMedia({ userId }: { userId: string }) {
                                         <TableCell className="font-medium">
                                             <div className="flex items-center gap-3">
                                                 <div className="relative w-12 aspect-[2/3] bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10">
-                                                    <Image
+                                                    <FallbackImage
                                                         src={getJellyfinImageUrl(session.media.jellyfinMediaId, 'Primary')}
                                                         alt={session.media.title}
                                                         fill
-                                                        unoptimized
                                                         className="object-cover"
                                                     />
                                                 </div>
@@ -124,9 +126,19 @@ export default async function UserRecentMedia({ userId }: { userId: string }) {
                                             </div>
                                         </TableCell>
                                         <TableCell className="border-l border-zinc-900/50">{minutes} min</TableCell>
-                                        <TableCell className="text-sm">
-                                            <span className="truncate max-w-[150px] inline-block">
-                                                {session.deviceName || session.clientName || "N/A"}
+                                        <TableCell className="text-sm border-l border-zinc-900/50">
+                                            <span className="truncate max-w-[120px] inline-block">
+                                                {session.clientName || "N/A"}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="text-sm border-l border-zinc-900/50">
+                                            <span className="truncate max-w-[120px] inline-block">
+                                                {session.deviceName || "N/A"}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="text-sm border-l border-zinc-900/50">
+                                            <span className="truncate max-w-[130px] inline-block font-mono text-xs text-zinc-400">
+                                                {session.ipAddress || "—"}
                                             </span>
                                         </TableCell>
                                         <TableCell>
