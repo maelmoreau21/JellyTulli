@@ -457,18 +457,17 @@ const getDashboardMetrics = unstable_cache(
 );
 
 async function HeatmapWrapper() {
-  const today = new Date();
-  const jan1 = new Date(today.getFullYear(), 0, 1);
-
+  // Fetch ALL playback history (not just current year) for year navigation
   const rawData = await prisma.playbackHistory.findMany({
-    where: { startedAt: { gte: jan1 } },
     select: { startedAt: true }
   });
 
   const countsByDate = new Map<string, number>();
+  const yearsSet = new Set<number>();
   rawData.forEach(r => {
     const d = r.startedAt.toISOString().split('T')[0];
     countsByDate.set(d, (countsByDate.get(d) || 0) + 1);
+    yearsSet.add(r.startedAt.getFullYear());
   });
 
   const counts = Array.from(countsByDate.values());
@@ -489,7 +488,9 @@ async function HeatmapWrapper() {
     level: getLevel(count)
   }));
 
-  return <YearlyHeatmap data={heatmapData} />;
+  const availableYears = Array.from(yearsSet).sort((a, b) => b - a);
+
+  return <YearlyHeatmap data={heatmapData} availableYears={availableYears} />;
 }
 
 export default async function DashboardPage(props: { searchParams: Promise<{ type?: string; timeRange?: string; from?: string; to?: string }> }) {

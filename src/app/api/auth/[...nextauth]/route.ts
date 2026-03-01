@@ -1,5 +1,7 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { checkLoginRateLimit, recordFailedLogin, resetLoginRateLimit } from "@/lib/rateLimit";
+import { headers } from "next/headers";
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -9,8 +11,18 @@ export const authOptions: NextAuthOptions = {
                 username: { label: "Nom d'utilisateur", type: "text", placeholder: "Admin" },
                 password: { label: "Mot de passe Administrateur", type: "password", placeholder: "********" }
             },
-            async authorize(credentials) {
+            async authorize(credentials, req) {
                 if (!credentials?.username || !credentials?.password) return null;
+
+                // SECURITY: Rate-limit login attempts by IP
+                const headersList = await headers();
+                const forwarded = headersList.get("x-forwarded-for");
+                const clientIp = forwarded?.split(",")[0]?.trim() || headersList.get("x-real-ip") || "unknown";
+                
+                const { allowed, retryAfterSeconds } = await checkLoginRateLimit(clientIp);
+                if (!allowed) {
+                    throw new Error(`Trop de tentatives de connexion. Réessayez dans ${Math.ceil((retryAfterSeconds || 900) / 60)} minutes.`);
+                }
 
                 const jellyfinUrl = process.env.JELLYFIN_URL;
                 if (!jellyfinUrl) {
@@ -31,11 +43,15 @@ export const authOptions: NextAuthOptions = {
                     });
 
                     if (!res.ok) {
+                        await recordFailedLogin(clientIp);
                         throw new Error("Identifiants Jellyfin incorrects.");
                     }
 
                     const data = await res.json();
                     const isAdmin = !!data.User?.Policy?.IsAdministrator;
+
+                    // Successful login — reset rate limit counter
+                    await resetLoginRateLimit(clientIp);
 
                     return {
                         id: data.User.Id,
@@ -44,6 +60,10 @@ export const authOptions: NextAuthOptions = {
                         jellyfinUserId: data.User.Id,
                     };
                 } catch (error: any) {
+                    // Record as failed attempt if it's not already a rate limit error
+                    if (!error.message?.includes("Trop de tentatives")) {
+                        await recordFailedLogin(clientIp);
+                    }
                     throw new Error(error.message || "Erreur de connexion à Jellyfin.");
                 }
             }
@@ -69,7 +89,7 @@ export const authOptions: NextAuthOptions = {
     },
     session: {
         strategy: "jwt",
-        maxAge: 30 * 24 * 60 * 60, // 30 jours
+        maxAge: 7 * 24 * 60 * 60, // 7 jours (réduit depuis 30 pour limiter l'exploitation d'un JWT compromis)
     },
     pages: {
         signIn: '/login', // Redirection vers notre page custom

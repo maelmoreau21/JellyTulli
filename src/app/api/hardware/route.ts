@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import si from "systeminformation";
+import { requireAdmin, isAuthError } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+    const auth = await requireAdmin();
+    if (isAuthError(auth)) return auth;
     try {
         const [cpuLoad, mem, temp] = await Promise.all([
             si.currentLoad(),

@@ -116,18 +116,18 @@ export default async function LogsPage({
         if (log.media?.parentId) parentIds.add(log.media.parentId);
     });
     const parentMedia = parentIds.size > 0
-        ? await prisma.media.findMany({ where: { jellyfinMediaId: { in: Array.from(parentIds) } }, select: { jellyfinMediaId: true, title: true, type: true, parentId: true } })
+        ? await prisma.media.findMany({ where: { jellyfinMediaId: { in: Array.from(parentIds) } }, select: { jellyfinMediaId: true, title: true, type: true, parentId: true, artist: true } })
         : [];
     // Also fetch grandparent IDs (Season → Series)
     const grandparentIds = new Set<string>();
     parentMedia.forEach(pm => { if (pm.parentId) grandparentIds.add(pm.parentId); });
     const grandparentMedia = grandparentIds.size > 0
-        ? await prisma.media.findMany({ where: { jellyfinMediaId: { in: Array.from(grandparentIds) } }, select: { jellyfinMediaId: true, title: true, type: true } })
+        ? await prisma.media.findMany({ where: { jellyfinMediaId: { in: Array.from(grandparentIds) } }, select: { jellyfinMediaId: true, title: true, type: true, artist: true } })
         : [];
-    const parentMap = new Map<string, { title: string; type: string; parentId: string | null }>();
-    parentMedia.forEach(pm => parentMap.set(pm.jellyfinMediaId, { title: pm.title, type: pm.type, parentId: pm.parentId }));
-    const grandparentMap = new Map<string, { title: string; type: string }>();
-    grandparentMedia.forEach(gp => grandparentMap.set(gp.jellyfinMediaId, { title: gp.title, type: gp.type }));
+    const parentMap = new Map<string, { title: string; type: string; parentId: string | null; artist: string | null }>();
+    parentMedia.forEach(pm => parentMap.set(pm.jellyfinMediaId, { title: pm.title, type: pm.type, parentId: pm.parentId, artist: pm.artist }));
+    const grandparentMap = new Map<string, { title: string; type: string; artist: string | null }>();
+    grandparentMedia.forEach(gp => grandparentMap.set(gp.jellyfinMediaId, { title: gp.title, type: gp.type, artist: gp.artist }));
 
     // Helper: build subtitle line for a media (e.g., "Série — Saison" or "Artist — Album")
     function getMediaSubtitle(media: any): string | null {
@@ -143,7 +143,9 @@ export default async function LogsPage({
             return parent.title; // Season → Series
         }
         if (media.type === 'Audio') {
-            // Audio → parent=Album, also look for artist in album title or grandparent
+            // Audio → parent=Album. Show "Artist — Album" if artist is available
+            const artistName = media.artist || parent.artist || null;
+            if (artistName) return `${artistName} — ${parent.title}`;
             return parent.title;
         }
         return parent.title;

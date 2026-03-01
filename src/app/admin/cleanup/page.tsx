@@ -8,10 +8,12 @@ export const dynamic = "force-dynamic";
 async function getCleanupData() {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    // 1. Ghost Media (Added > 30 days ago, 0 plays)
-    const ghostMedia = await prisma.media.findMany({
+    // 1. Ghost Media: parent-level items (Movie, Series, MusicAlbum) with 0 plays on themselves or children
+    // First, get all parent-level items added > 30 days ago
+    const parentGhostCandidates = await prisma.media.findMany({
         where: {
             createdAt: { lt: thirtyDaysAgo },
+            type: { in: ['Movie', 'Series', 'MusicAlbum'] },
             playbackHistory: { none: {} }
         },
         select: {
@@ -20,23 +22,54 @@ async function getCleanupData() {
             title: true,
             type: true,
             createdAt: true,
+            dateAdded: true,
             durationMs: true,
         },
         orderBy: { createdAt: 'asc' }
     });
 
+    // For Series/MusicAlbum: check if any child (episode/season/track) has plays
+    const ghostMedia = [];
+    for (const media of parentGhostCandidates) {
+        if (media.type === 'Movie') {
+            // Movies have direct playback — already filtered by `none: {}`
+            ghostMedia.push(media);
+        } else {
+            // Series/MusicAlbum: check children (episodes via Season chain, or direct tracks)
+            const childrenWithPlays = await prisma.playbackHistory.count({
+                where: {
+                    media: {
+                        OR: [
+                            { parentId: media.jellyfinMediaId },
+                            // Also check grandchildren (episodes via Season)
+                            { parentId: { in: (await prisma.media.findMany({
+                                where: { parentId: media.jellyfinMediaId },
+                                select: { jellyfinMediaId: true }
+                            })).map(c => c.jellyfinMediaId) } }
+                        ]
+                    }
+                }
+            });
+            if (childrenWithPlays === 0) {
+                ghostMedia.push(media);
+            }
+        }
+    }
+
     // 2. Abandoned Media (Never finished > 80% by any user)
-    // We only fetch media that have some history and a duration > 0 to calculate completion
+    // For Movies and individual playable items (Episode, Audio)
     const mediaWithHistory = await prisma.media.findMany({
         where: {
             playbackHistory: { some: {} },
-            durationMs: { not: null }
+            durationMs: { not: null },
+            type: { in: ['Movie', 'Episode', 'Audio'] }
         },
         select: {
             id: true,
             jellyfinMediaId: true,
             title: true,
             type: true,
+            parentId: true,
             durationMs: true,
             playbackHistory: {
                 select: {
@@ -47,13 +80,40 @@ async function getCleanupData() {
         }
     });
 
+    // Preload parent info for enriched titles (Episode → Season → Series, Audio → Album)
+    const parentIds = new Set<string>();
+    mediaWithHistory.forEach(m => { if (m.parentId) parentIds.add(m.parentId); });
+    const parents = parentIds.size > 0
+        ? await prisma.media.findMany({ where: { jellyfinMediaId: { in: Array.from(parentIds) } }, select: { jellyfinMediaId: true, title: true, parentId: true } })
+        : [];
+    const parentMap = new Map(parents.map(p => [p.jellyfinMediaId, p]));
+    const gpIds = new Set<string>();
+    parents.forEach(p => { if (p.parentId) gpIds.add(p.parentId); });
+    const grandparents = gpIds.size > 0
+        ? await prisma.media.findMany({ where: { jellyfinMediaId: { in: Array.from(gpIds) } }, select: { jellyfinMediaId: true, title: true } })
+        : [];
+    const gpMap = new Map(grandparents.map(g => [g.jellyfinMediaId, g.title]));
+
+    function getEnrichedTitle(media: { title: string; type: string; parentId: string | null }): string {
+        if (!media.parentId) return media.title;
+        const parent = parentMap.get(media.parentId);
+        if (media.type === 'Episode' && parent) {
+            const gp = parent.parentId ? gpMap.get(parent.parentId) : null;
+            return gp ? `${gp} — ${parent.title} — ${media.title}` : `${parent.title} — ${media.title}`;
+        }
+        if (media.type === 'Audio' && parent) {
+            return `${parent.title} — ${media.title}`;
+        }
+        return media.title;
+    }
+
     const abandonedMedia = [];
 
     for (const media of mediaWithHistory) {
         if (!media.durationMs || Number(media.durationMs) === 0) continue;
 
-        // Convert Ticks to Seconds
-        const maxDurationSecs = Number(media.durationMs) / 10000000;
+        // durationMs is in milliseconds (RunTimeTicks / 10000) — convert to seconds
+        const maxDurationSecs = Number(media.durationMs) / 1000;
 
         let maxCompletionPercentage = 0;
         let lastPlayed = new Date(0);
@@ -68,14 +128,15 @@ async function getCleanupData() {
         if (maxCompletionPercentage > 0 && maxCompletionPercentage < 80) {
             abandonedMedia.push({
                 ...media,
+                title: getEnrichedTitle(media),
                 maxCompletion: maxCompletionPercentage,
                 lastPlayed
             });
         }
     }
 
-    // Sort abandoned by least recently played
-    abandonedMedia.sort((a, b) => a.lastPlayed.getTime() - b.lastPlayed.getTime());
+    // Sort abandoned by lowest completion first
+    abandonedMedia.sort((a, b) => a.maxCompletion - b.maxCompletion);
 
     return {
         ghostMedia: ghostMedia.map(item => ({

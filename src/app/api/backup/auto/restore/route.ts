@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
+import { requireAdmin, isAuthError } from "@/lib/auth";
 import { readFileSync, existsSync } from "fs";
 import path from "path";
 
@@ -10,10 +9,8 @@ export const dynamic = "force-dynamic";
 const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (isAuthError(auth)) return auth;
 
     try {
         const { fileName } = await req.json();
@@ -24,6 +21,12 @@ export async function POST(req: NextRequest) {
 
         // Security: prevent path traversal
         const sanitized = path.basename(fileName);
+
+        // Security: only allow restoring auto-backup files
+        if (!sanitized.startsWith("jellytulli-auto-") || !sanitized.endsWith(".json")) {
+            return NextResponse.json({ error: "Fichier invalide — seuls les fichiers de sauvegarde automatiques sont autorisés." }, { status: 400 });
+        }
+
         const filePath = path.join(BACKUP_DIR, sanitized);
 
         if (!existsSync(filePath)) {
@@ -74,6 +77,8 @@ export async function POST(req: NextRequest) {
                             resolution: m.resolution || null,
                             durationMs: m.durationMs != null ? BigInt(m.durationMs) : null,
                             parentId: m.parentId || null,
+                            artist: m.artist || null,
+                            dateAdded: m.dateAdded ? new Date(m.dateAdded) : null,
                             createdAt: new Date(m.createdAt),
                         }
                     });

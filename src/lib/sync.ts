@@ -63,7 +63,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         }
 
         // 3. Sync Media (Movies, Series, Episodes, Audio, MusicAlbum) with Genres and MediaSources
-        let itemsUrl = `${baseUrl}/Items?api_key=${apiKey}&IncludeItemTypes=Movie,Series,Season,Episode,Audio,MusicAlbum&Recursive=true&Fields=ProviderIds,PremiereDate,Genres,MediaSources,ParentId`;
+        let itemsUrl = `${baseUrl}/Items?api_key=${apiKey}&IncludeItemTypes=Movie,Series,Season,Episode,Audio,MusicAlbum&Recursive=true&Fields=ProviderIds,PremiereDate,DateCreated,Genres,MediaSources,ParentId`;
         if (options?.recentOnly) {
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -111,11 +111,13 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
 
             const durationMs = item.RunTimeTicks ? BigInt(Math.floor(item.RunTimeTicks / 10000)) : null;
             const parentId = item.AlbumId || item.SeasonId || item.SeriesId || item.ParentId || null;
+            const artist = item.AlbumArtist || item.AlbumArtists?.[0]?.Name || item.Artists?.[0] || null;
+            const dateAdded = item.DateCreated ? new Date(item.DateCreated) : null;
 
             await prisma.media.upsert({
                 where: { jellyfinMediaId: item.Id },
-                update: { title: item.Name, type: item.Type, genres, resolution, collectionType, durationMs, parentId },
-                create: { jellyfinMediaId: item.Id, title: item.Name, type: item.Type, genres, resolution, collectionType, durationMs, parentId },
+                update: { title: item.Name, type: item.Type, genres, resolution, collectionType, durationMs, parentId, artist, dateAdded },
+                create: { jellyfinMediaId: item.Id, title: item.Name, type: item.Type, genres, resolution, collectionType, durationMs, parentId, artist, dateAdded },
             });
             mediaCount++;
         }

@@ -12,10 +12,14 @@ export async function fetchJellyfinImage(itemId: string, type: string) {
         throw new Error("JELLYFIN_URL ou JELLYFIN_API_KEY non configurées dans les variables d'environnement.");
     }
 
-    const url = `${baseUrl}/Items/${itemId}/Images/${type}?api_key=${apiKey}&fillWidth=300&quality=80`;
+    // SECURITY: Pass API key via header instead of URL query parameter
+    const url = `${baseUrl}/Items/${encodeURIComponent(itemId)}/Images/${encodeURIComponent(type)}?fillWidth=300&quality=80`;
 
     const response = await fetch(url, {
         method: 'GET',
+        headers: {
+            'X-Emby-Token': apiKey,
+        },
         next: { revalidate: 86400 }
     });
 

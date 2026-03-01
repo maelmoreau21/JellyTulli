@@ -72,7 +72,7 @@ export default async function RecentPage({ searchParams }: { searchParams: Promi
 
   const recentMedia = await prisma.media.findMany({
     where: mediaWhere,
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ dateAdded: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
     take: ITEMS_PER_PAGE,
     skip: (page - 1) * ITEMS_PER_PAGE,
     select: {
@@ -83,6 +83,7 @@ export default async function RecentPage({ searchParams }: { searchParams: Promi
       genres: true,
       resolution: true,
       parentId: true,
+      dateAdded: true,
       createdAt: true,
       _count: { select: { playbackHistory: true } },
     },
@@ -122,7 +123,7 @@ export default async function RecentPage({ searchParams }: { searchParams: Promi
           {recentMedia.map((media) => {
             const badge = getTypeBadge(media.type);
             const Icon = badge.icon;
-            const dateAdded = new Date(media.createdAt);
+            const dateAdded = new Date(media.dateAdded || media.createdAt);
             const isRecent = isNew(dateAdded);
             const plays = media._count.playbackHistory;
 

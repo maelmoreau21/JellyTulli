@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import redis from "@/lib/redis";
+import { requireAdmin, isAuthError } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+    const auth = await requireAdmin();
+    if (isAuthError(auth)) return auth;
     try {
         const keys = await redis.keys("stream:*");
         let liveStreams: any[] = [];

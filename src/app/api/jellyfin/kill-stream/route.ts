@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { requireAdmin, isAuthError } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
-    // Only allow authenticated users to kill a stream
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Only administrators can kill streams
+    const auth = await requireAdmin();
+    if (isAuthError(auth)) return auth;
 
     try {
         const { sessionId } = await req.json();
@@ -22,12 +19,13 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "JELLYFIN_URL ou JELLYFIN_API_KEY non configurées." }, { status: 500 });
         }
 
-        // POST /Sessions/{sessionId}/Playing/Stop
-        const jellyfinUrl = `${baseUrl}/Sessions/${sessionId}/Playing/Stop?api_key=${apiKey}`;
+        // SECURITY: Pass API key via header instead of URL query param (avoids proxy/log leaks)
+        const jellyfinUrl = `${baseUrl}/Sessions/${encodeURIComponent(sessionId)}/Playing/Stop`;
         const res = await fetch(jellyfinUrl, {
             method: "POST",
             headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "X-Emby-Token": apiKey,
             }
         });
 

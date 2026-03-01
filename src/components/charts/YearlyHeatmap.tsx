@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ActivityCalendar, ThemeInput } from "react-activity-calendar";
 import { format, eachDayOfInterval, startOfYear, endOfYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export interface HeatmapData {
     date: string; // YYYY-MM-DD
@@ -15,62 +16,108 @@ export interface HeatmapData {
 
 interface YearlyHeatmapProps {
     data: HeatmapData[];
+    availableYears: number[];
 }
 
 const customTheme: ThemeInput = {
     light: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'],
-    dark: ['#18181b', '#312e81', '#4338ca', '#4f46e5', '#6366f1'], // Zinc-900 to Indigo-500
+    dark: ['#18181b', '#312e81', '#4338ca', '#4f46e5', '#6366f1'],
 };
 
-export function YearlyHeatmap({ data }: YearlyHeatmapProps) {
-    // Fill in the blanks (ActivityCalendar needs continuous dates from Jan 1 to Dec 31)
-    const processedData = useMemo(() => {
-        const today = new Date();
-        const jan1 = startOfYear(today);
-        const dec31 = endOfYear(today);
-        const yearData: HeatmapData[] = [];
+export function YearlyHeatmap({ data, availableYears }: YearlyHeatmapProps) {
+    const currentYear = new Date().getFullYear();
+    const [selectedYear, setSelectedYear] = useState(currentYear);
 
-        // Loop from January 1st to December 31st of the current year
+    const sortedYears = useMemo(() => {
+        const years = [...new Set([...availableYears, currentYear])].sort((a, b) => b - a);
+        return years;
+    }, [availableYears, currentYear]);
+
+    const canGoPrev = sortedYears.indexOf(selectedYear) < sortedYears.length - 1;
+    const canGoNext = sortedYears.indexOf(selectedYear) > 0;
+
+    const processedData = useMemo(() => {
+        const jan1 = startOfYear(new Date(selectedYear, 0, 1));
+        const dec31 = endOfYear(new Date(selectedYear, 0, 1));
+
+        // Filter data for the selected year
+        const yearEntries = data.filter(d => d.date.startsWith(String(selectedYear)));
+        const dataMap = new Map(yearEntries.map(d => [d.date, d]));
+
+        // Recompute levels based on this year's max
+        const counts = yearEntries.map(d => d.count);
+        const maxCount = counts.length > 0 ? Math.max(...counts) : 1;
+        const getLevel = (count: number): 0 | 1 | 2 | 3 | 4 => {
+            if (count === 0) return 0;
+            const ratio = count / maxCount;
+            if (ratio < 0.25) return 1;
+            if (ratio < 0.5) return 2;
+            if (ratio < 0.75) return 3;
+            return 4;
+        };
+
+        const yearData: HeatmapData[] = [];
         const allDays = eachDayOfInterval({ start: jan1, end: dec31 });
         for (const date of allDays) {
             const dateStr = format(date, "yyyy-MM-dd");
-            const existing = data.find(d => d.date === dateStr);
-
-            if (existing) {
-                yearData.push(existing);
-            } else {
-                yearData.push({
-                    date: dateStr,
-                    count: 0,
-                    level: 0
-                });
-            }
+            const existing = dataMap.get(dateStr);
+            yearData.push({
+                date: dateStr,
+                count: existing?.count || 0,
+                level: existing ? getLevel(existing.count) : 0,
+            });
         }
         return yearData;
-    }, [data]);
+    }, [data, selectedYear]);
+
+    const totalPlays = processedData.reduce((sum, d) => sum + d.count, 0);
 
     return (
-        <Card className="bg-zinc-900/50 border-zinc-800 backdrop-blur-sm overflow-hidden flex flex-col items-center">
+        <Card className="bg-zinc-900/50 border-zinc-800 backdrop-blur-sm overflow-hidden flex flex-col">
             <CardHeader className="w-full pb-2">
                 <CardTitle className="text-zinc-100 flex items-center justify-between">
                     <span>Activité Annuelle</span>
-                    <span className="text-xs font-normal text-zinc-500 bg-zinc-800/50 px-2 py-1 rounded-md">
-                        {new Date().getFullYear()}
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => {
+                                const idx = sortedYears.indexOf(selectedYear);
+                                if (idx < sortedYears.length - 1) setSelectedYear(sortedYears[idx + 1]);
+                            }}
+                            disabled={!canGoPrev}
+                            className="p-1 rounded-md hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            title="Année précédente"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <span className="text-sm font-medium text-zinc-300 bg-zinc-800/50 px-3 py-1 rounded-md min-w-[60px] text-center">
+                            {selectedYear}
+                        </span>
+                        <button
+                            onClick={() => {
+                                const idx = sortedYears.indexOf(selectedYear);
+                                if (idx > 0) setSelectedYear(sortedYears[idx - 1]);
+                            }}
+                            disabled={!canGoNext}
+                            className="p-1 rounded-md hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                            title="Année suivante"
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
                 </CardTitle>
                 <CardDescription className="text-zinc-400">
-                    Volume de lectures quotidien depuis le 1er janvier
+                    {totalPlays} lecture{totalPlays !== 1 ? 's' : ''} en {selectedYear}
                 </CardDescription>
             </CardHeader>
-            <CardContent className="w-full overflow-x-auto pb-6 pt-4 px-6 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-                <div className="min-w-max">
+            <CardContent className="w-full overflow-x-auto pb-6 pt-4 px-4 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                <div className="w-full">
                     <ActivityCalendar
                         data={processedData}
                         theme={customTheme}
                         colorScheme="dark"
-                        blockSize={12}
+                        blockSize={14}
                         blockRadius={3}
-                        blockMargin={4}
+                        blockMargin={3}
                         fontSize={12}
                         labels={{
                             months: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'],

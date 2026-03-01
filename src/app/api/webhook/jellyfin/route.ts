@@ -3,7 +3,45 @@ import prisma from "@/lib/prisma";
 import redis from "@/lib/redis";
 import { getGeoLocation } from "@/lib/geoip";
 
+/**
+ * SECURITY: Webhook authentication via shared secret.
+ * Set JELLYFIN_WEBHOOK_SECRET in your .env and configure the same token
+ * in the Jellyfin Webhook plugin as a header: "Authorization: Bearer <secret>"
+ * or as a query parameter: ?token=<secret>
+ */
+function verifyWebhookAuth(req: Request): boolean {
+    const secret = process.env.JELLYFIN_WEBHOOK_SECRET;
+    // If no secret is configured, allow all requests (backward compat / dev mode)
+    // In production, this MUST be set.
+    if (!secret) {
+        console.warn("[Webhook] JELLYFIN_WEBHOOK_SECRET non configuré — webhook non authentifié !");
+        return true;
+    }
+
+    // Check Authorization header: "Bearer <secret>"
+    const authHeader = req.headers.get("authorization");
+    if (authHeader) {
+        const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+        if (token === secret) return true;
+    }
+
+    // Check query parameter: ?token=<secret>
+    try {
+        const url = new URL(req.url);
+        const queryToken = url.searchParams.get("token");
+        if (queryToken === secret) return true;
+    } catch { /* invalid URL, ignore */ }
+
+    return false;
+}
+
 export async function POST(req: Request) {
+    // Authenticate the webhook request
+    if (!verifyWebhookAuth(req)) {
+        console.warn("[Webhook] Requête rejetée — token invalide.");
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     try {
         const payload = await req.json();
 

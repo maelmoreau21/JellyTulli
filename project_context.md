@@ -285,3 +285,75 @@ A massive analytical refactoring was introduced focusing on Data Context and Res
    - **Recherche Globale**: New API route `/api/search?q=...` searching `Media.title` (parent-level: Movie, Series, MusicAlbum) and `User.username` (admin only). `SearchBar` client component in Sidebar with 300ms debounce, dropdown results grouped by Médias/Utilisateurs, type icons, close-on-click-outside. Non-admins see only media results.
    - **Refonte En Direct — Timeline View (LiveStreamsPanel.tsx)**: Dual display mode: card view for ≤2 streams, Gantt-style timeline for ≥3 streams. Timeline shows user avatar (initial), username, media title, play method badge (TC/DP), progress percentage, and colored horizontal progress bar. 8 distinct colors cycle across streams. Toggle button allows switching between views. Extracted `StreamCard` and `StreamTimeline` sub-components.
 
+---
+
+## Phase Sécurité — Audit DevSecOps Complet
+
+Audit de sécurité réalisé par un agent IA (rôle Ingénieur Cybersécurité Sénior) couvrant l'ensemble de la base de code. Toutes les vulnérabilités identifiées ont été corrigées.
+
+### Fichiers créés
+- **`src/lib/auth.ts`** — Helpers centralisés `requireAuth()` et `requireAdmin()` utilisant `getServerSession`. Fournit une couche defense-in-depth systématique pour toutes les routes API au-delà du middleware.
+- **`src/lib/rateLimit.ts`** — Rate limiter Redis pour les tentatives de connexion. Bloque une IP après 5 échecs dans une fenêtre de 15 minutes. Fail-open si Redis est indisponible.
+
+### 1. RBAC & Middleware (`middleware.ts`)
+- **Avant** : Seul `/api/admin` était bloqué pour les non-admins côté middleware.
+- **Après** : `ADMIN_API_PATHS` étendu pour bloquer `/api/settings`, `/api/sync`, `/api/backup`, `/api/streams`, `/api/hardware`, `/api/jellyfin/kill-stream` au niveau middleware.
+- Double protection : middleware + checks explicites dans chaque route (defense-in-depth).
+
+### 2. Admin Checks sur toutes les routes API
+Routes ayant reçu un `requireAdmin()` explicite (9 routes) :
+- `/api/settings` (GET + POST) — était ouvert à tous les utilisateurs authentifiés
+- `/api/sync` (POST) — permettait à n'importe qui de déclencher une sync lourde (DoS)
+- `/api/streams` (GET) — exposait les sessions de tous les utilisateurs (vie privée)
+- `/api/hardware` (GET) — divulguait les métriques serveur
+- `/api/backup/export` (GET) — **CRITIQUE** : permettait le téléchargement de toute la BDD (IPs, activités)
+- `/api/backup/import` (POST) — **CRITIQUE** : permettait l'écrasement complet de la BDD
+- `/api/backup/auto` (GET), `/auto/trigger` (POST), `/auto/restore` (POST), `/auto/delete` (POST)
+- `/api/jellyfin/kill-stream` (POST) — IDOR : n'importe quel utilisateur pouvait tuer le stream de n'importe qui
+
+### 3. Webhook Jellyfin — Authentification
+- **Avant** : Endpoint `/api/webhook/jellyfin` totalement ouvert. N'importe qui pouvait injecter des utilisateurs, médias et historiques factices.
+- **Après** : Authentification via `JELLYFIN_WEBHOOK_SECRET` (variable d'environnement). Supporte Bearer token (header `Authorization`) ou query param `?token=`. Rétro-compatible (log warning si non configuré). A configurer dans le plugin Webhook de Jellyfin.
+
+### 4. IDOR Corrigé
+- **`/api/jellyfin/kill-stream`** : Désormais admin-only (était accessible à tous les utilisateurs authentifiés).
+- **`/wrapped/[userId]`** : Un non-admin ne peut plus voir le Wrapped d'un autre utilisateur. Vérification `sessionUserId !== userId` ajoutée.
+
+### 5. SSRF & Validation d'entrées (`/api/settings`)
+- **Discord Webhook URL** : Validée strictement — doit être HTTPS et pointer vers `discord.com` ou `discordapp.com` uniquement. Empêche l'injection d'URLs internes (SSRF vers `localhost`, `169.254.169.254`, etc.).
+- **`discordAlertCondition`** : Validée contre une liste blanche (`ALL`, `TRANSCODE_ONLY`, `NEW_IP_ONLY`).
+- **`monitorIntervalActive`** : Borné entre 500ms et 60000ms (empêche DoS par polling rapide).
+- **`monitorIntervalIdle`** : Borné entre 1000ms et 300000ms.
+
+### 6. Path Traversal (`/api/jellyfin/image`)
+- **Avant** : Les paramètres `type`, `itemId`, `fallbackId` étaient injectés directement dans l'URL Jellyfin. `type=../../admin` = path traversal.
+- **Après** : `type` validé contre une allowlist (`Primary`, `Thumb`, `Backdrop`, `Banner`, `Logo`, `Art`). `itemId` et `fallbackId` validés par regex UUID hex 32 chars. `encodeURIComponent` appliqué en plus.
+
+### 7. Fuite de clé API Jellyfin
+- **Avant** : `JELLYFIN_API_KEY` passée en query param (`?api_key=...`) dans les appels à l'API Jellyfin (`fetchJellyfinImage`, `kill-stream`). Risque de log par reverse proxies.
+- **Après** : Clé transmise via le header `X-Emby-Token` (standard Jellyfin).
+
+### 8. Rate Limiting Login (Brute Force Protection)
+- **Avant** : Aucune protection contre le brute force. Tentatives illimitées à pleine vitesse.
+- **Après** : Rate limiter Redis dans NextAuth `authorize()`. 5 tentatives max par IP dans une fenêtre de 15 minutes. Compteur réinitialisé après login réussi. IP extraite de `x-forwarded-for` / `x-real-ip`.
+
+### 9. Session JWT
+- **Avant** : `maxAge` = 30 jours. Un JWT compromis restait exploitable pendant 1 mois.
+- **Après** : `maxAge` = 7 jours.
+
+### 10. Validation fichiers backup
+- `/api/backup/auto/restore` : Ajout de la validation du préfixe `jellytulli-auto-` et de l'extension `.json` (aligne avec `/auto/delete`).
+
+### Résultats de l'audit (aucune action nécessaire)
+- **Injections SQL** : Aucun `$queryRaw` / `$executeRaw` dans le code. Toutes les requêtes Prisma sont paramétrées ✅
+- **XSS** : Aucun `dangerouslySetInnerHTML` dans aucun composant ✅
+- **Data Leakage (schéma)** : Le modèle `User` Prisma ne contient pas de champs sensibles (pas de token/password stocké) ✅
+- **Variables d'env** : Aucun `NEXT_PUBLIC_` contenant des secrets. Aucun secret exposé côté client ✅
+- **Setup page** : Redirige vers `/`, aucune faille ✅
+
+### Variable d'environnement à ajouter
+```env
+# Secret partagé pour authentifier les webhooks Jellyfin
+# À configurer aussi dans le plugin Webhook de Jellyfin (header Authorization: Bearer <secret>)
+JELLYFIN_WEBHOOK_SECRET=un-secret-long-et-aleatoire
+```

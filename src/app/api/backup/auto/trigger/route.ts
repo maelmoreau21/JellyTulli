@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { requireAdmin, isAuthError } from "@/lib/auth";
 import { performAutoBackup } from "@/lib/autoBackup";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (isAuthError(auth)) return auth;
 
     try {
         const fileName = await performAutoBackup();

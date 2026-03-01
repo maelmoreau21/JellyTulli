@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAdmin, isAuthError } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-// Endpoint to fetch global settings
+// Endpoint to fetch global settings (admin only)
 export async function GET(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (isAuthError(auth)) return auth;
+
     try {
         let settings = await prisma.globalSettings.findUnique({
             where: { id: "global" }
@@ -32,11 +36,49 @@ export async function GET(req: NextRequest) {
     }
 }
 
-// Endpoint to update global settings
+// Endpoint to update global settings (admin only)
 export async function POST(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (isAuthError(auth)) return auth;
+
     try {
         const body = await req.json();
         const { discordWebhookUrl, discordAlertCondition, discordAlertsEnabled, excludedLibraries, monitorIntervalActive, monitorIntervalIdle } = body;
+
+        // Input validation — Discord webhook URL must be a valid Discord URL or null
+        if (discordWebhookUrl !== undefined && discordWebhookUrl !== null && discordWebhookUrl !== "") {
+            try {
+                const parsed = new URL(discordWebhookUrl);
+                if (!parsed.hostname.endsWith("discord.com") && !parsed.hostname.endsWith("discordapp.com")) {
+                    return NextResponse.json({ error: "L'URL du webhook Discord doit pointer vers discord.com" }, { status: 400 });
+                }
+                if (parsed.protocol !== "https:") {
+                    return NextResponse.json({ error: "L'URL du webhook doit utiliser HTTPS" }, { status: 400 });
+                }
+            } catch {
+                return NextResponse.json({ error: "URL du webhook invalide." }, { status: 400 });
+            }
+        }
+
+        // Input validation — alert condition must be a known value
+        const VALID_CONDITIONS = ["ALL", "TRANSCODE_ONLY", "NEW_IP_ONLY"];
+        if (discordAlertCondition !== undefined && !VALID_CONDITIONS.includes(discordAlertCondition)) {
+            return NextResponse.json({ error: "Condition d'alerte invalide." }, { status: 400 });
+        }
+
+        // Input validation — intervals must be positive numbers within sane bounds
+        if (monitorIntervalActive !== undefined) {
+            const val = Number(monitorIntervalActive);
+            if (isNaN(val) || val < 500 || val > 60000) {
+                return NextResponse.json({ error: "monitorIntervalActive doit être entre 500ms et 60000ms." }, { status: 400 });
+            }
+        }
+        if (monitorIntervalIdle !== undefined) {
+            const val = Number(monitorIntervalIdle);
+            if (isNaN(val) || val < 1000 || val > 300000) {
+                return NextResponse.json({ error: "monitorIntervalIdle doit être entre 1000ms et 300000ms." }, { status: 400 });
+            }
+        }
 
         const updated = await prisma.globalSettings.upsert({
             where: { id: "global" },

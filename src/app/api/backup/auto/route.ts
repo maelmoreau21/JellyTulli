@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { readdirSync, statSync, readFileSync } from "fs";
+import { requireAdmin, isAuthError } from "@/lib/auth";
+import { readdirSync, statSync } from "fs";
 import path from "path";
 
 export const dynamic = "force-dynamic";
@@ -9,10 +8,8 @@ export const dynamic = "force-dynamic";
 const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
 
 export async function GET(req: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (isAuthError(auth)) return auth;
 
     try {
         const files = readdirSync(BACKUP_DIR)

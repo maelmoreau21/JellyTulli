@@ -29,6 +29,8 @@ model Media {
   resolution      String?           // Ex: "4K", "1080p", "SD" (via sync)
   durationMs      BigInt?           // Durée totale du média
   parentId        String?           // Jellyfin ParentId (AlbumId, SeasonId, etc.) for image fallback
+  artist          String?           // AlbumArtist (for Audio/MusicAlbum items)
+  dateAdded       DateTime?         // Jellyfin DateCreated (real date added to library)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 

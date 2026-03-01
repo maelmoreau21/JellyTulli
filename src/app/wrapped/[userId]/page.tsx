@@ -21,6 +21,16 @@ interface CategoryBreakdown {
 export default async function WrappedPage({ params }: WrappedPageProps) {
     const { userId } = await params;
 
+    // SECURITY: Verify the requesting user can access this Wrapped page
+    const session = await getServerSession(authOptions);
+    const sessionUserId = (session?.user as any)?.jellyfinUserId;
+    const isAdmin = (session?.user as any)?.isAdmin === true;
+
+    // Non-admins can only view their own Wrapped
+    if (!isAdmin && sessionUserId !== userId) {
+        notFound();
+    }
+
     let user = await prisma.user.findUnique({
         where: { jellyfinUserId: userId },
         include: {

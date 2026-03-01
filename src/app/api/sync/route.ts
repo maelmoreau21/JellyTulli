@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncJellyfinLibrary } from "@/lib/sync";
+import { requireAdmin, isAuthError } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
+    const auth = await requireAdmin();
+    if (isAuthError(auth)) return auth;
     try {
         const body = await req.json().catch(() => ({}));
         const recentOnly = body?.mode === 'recent';

@@ -434,8 +434,8 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                 {/* Drop-off Chart */}
                 {mediaDurationSeconds && mediaDurationSeconds > 0 && (
                     <Card className="bg-zinc-900/50 border-zinc-800/50">
-                        <CardHeader><CardTitle>Chute (Drop-off)</CardTitle><CardDescription>Pourcentage de complétion par session.</CardDescription></CardHeader>
-                        <CardContent><div className="h-[300px] w-full"><MediaDropoffChart data={dropoffBuckets} /></div></CardContent>
+                        <CardHeader><CardTitle>Distribution de Complétion</CardTitle><CardDescription>Où les spectateurs arrêtent-ils la lecture ? Chaque barre indique le nombre de sessions arrêtées à ce stade.</CardDescription></CardHeader>
+                        <CardContent><div className="h-[350px] w-full"><MediaDropoffChart data={dropoffBuckets} /></div></CardContent>
                     </Card>
                 )}
 

@@ -21,7 +21,7 @@ const getDeepInsights = unstable_cache(
             select: { id: true, title: true, type: true, parentId: true, jellyfinMediaId: true, genres: true }
         });
 
-        // === Preload ALL Seasons and Series for robust parent chain resolution ===
+        // === Preload ALL Seasons, Series, and Albums for robust parent chain resolution ===
         const allSeasons = await prisma.media.findMany({
             where: { type: 'Season' },
             select: { jellyfinMediaId: true, parentId: true, title: true }
@@ -32,23 +32,23 @@ const getDeepInsights = unstable_cache(
         });
         const allAlbums = await prisma.media.findMany({
             where: { type: 'MusicAlbum' },
-            select: { jellyfinMediaId: true, title: true }
+            select: { jellyfinMediaId: true, title: true, artist: true }
         });
 
         const seasonMap = new Map(allSeasons.map(s => [s.jellyfinMediaId, s]));
         const seriesMap = new Map(allSeries.map(s => [s.jellyfinMediaId, s.title]));
         const albumMap = new Map(allAlbums.map(a => [a.jellyfinMediaId, a.title]));
 
-        function getSeriesTitle(media: { type: string; parentId: string | null }): string | null {
-            if (media.type !== 'Episode' || !media.parentId) return null;
-            // Try direct: parentId is a Season → Season.parentId is a Series
-            const season = seasonMap.get(media.parentId);
+        function resolveSeriesTitle(parentId: string | null): string | null {
+            if (!parentId) return null;
+            // Try: parentId is a Season → Season.parentId is a Series
+            const season = seasonMap.get(parentId);
             if (season?.parentId) {
                 const seriesTitle = seriesMap.get(season.parentId);
                 if (seriesTitle) return seriesTitle;
             }
             // Fallback: parentId might directly be a Series
-            const directSeries = seriesMap.get(media.parentId);
+            const directSeries = seriesMap.get(parentId);
             if (directSeries) return directSeries;
             return null;
         }
@@ -58,10 +58,64 @@ const getDeepInsights = unstable_cache(
             return albumMap.get(media.parentId) || null;
         }
 
-        // Group by category — aggregate episodes into series, tracks into albums
-        const categorized = { movie: [] as any[], series: [] as any[], album: [] as any[], book: [] as any[] };
+        // === DEDICATED SERIES AGGREGATION ===
+        // Query ALL episode playback (not just top 200) to ensure accurate series ranking
+        const allEpisodeHistory = await prisma.playbackHistory.groupBy({
+            by: ['mediaId'],
+            _count: { id: true },
+            _sum: { durationWatched: true },
+            where: { media: { type: 'Episode' } }
+        });
+        const episodeMediaIds = allEpisodeHistory.map(e => e.mediaId);
+        const allEpisodes = episodeMediaIds.length > 0
+            ? await prisma.media.findMany({
+                where: { id: { in: episodeMediaIds } },
+                select: { id: true, parentId: true, type: true }
+            })
+            : [];
+        const episodeMap = new Map(allEpisodes.map(e => [e.id, e]));
+
         const seriesAgg = new Map<string, { plays: number; duration: number }>();
+        allEpisodeHistory.forEach(h => {
+            const episode = episodeMap.get(h.mediaId);
+            if (!episode?.parentId) return;
+            const seriesTitle = resolveSeriesTitle(episode.parentId);
+            if (!seriesTitle) return;
+            const existing = seriesAgg.get(seriesTitle) || { plays: 0, duration: 0 };
+            existing.plays += h._count.id;
+            existing.duration += (h._sum.durationWatched || 0) / 3600;
+            seriesAgg.set(seriesTitle, existing);
+        });
+
+        // === DEDICATED ALBUM AGGREGATION ===
+        const allAudioHistory = await prisma.playbackHistory.groupBy({
+            by: ['mediaId'],
+            _count: { id: true },
+            _sum: { durationWatched: true },
+            where: { media: { type: 'Audio' } }
+        });
+        const audioMediaIds = allAudioHistory.map(a => a.mediaId);
+        const allAudioMedia = audioMediaIds.length > 0
+            ? await prisma.media.findMany({
+                where: { id: { in: audioMediaIds } },
+                select: { id: true, parentId: true, type: true, title: true }
+            })
+            : [];
+        const audioMediaMap = new Map(allAudioMedia.map(a => [a.id, a]));
+
         const albumAgg = new Map<string, { plays: number; duration: number }>();
+        allAudioHistory.forEach(h => {
+            const audio = audioMediaMap.get(h.mediaId);
+            if (!audio) return;
+            const albumTitle = audio.parentId ? (albumMap.get(audio.parentId) || audio.title) : audio.title;
+            const existing = albumAgg.get(albumTitle) || { plays: 0, duration: 0 };
+            existing.plays += h._count.id;
+            existing.duration += (h._sum.durationWatched || 0) / 3600;
+            albumAgg.set(albumTitle, existing);
+        });
+
+        // Group movies, books, genres from the top 200
+        const categorized = { movie: [] as any[], series: [] as any[], album: [] as any[], book: [] as any[] };
         const genreAgg = new Map<string, { plays: number; duration: number }>();
 
         topMedia.forEach(m => {
@@ -86,40 +140,13 @@ const getDeepInsights = unstable_cache(
                     title: media.title, type: media.type,
                     plays, duration
                 });
-            } else if (lowerType === 'episode') {
-                const seriesTitle = getSeriesTitle(media);
-                if (seriesTitle) {
-                    const existing = seriesAgg.get(seriesTitle) || { plays: 0, duration: 0 };
-                    existing.plays += plays;
-                    existing.duration += duration;
-                    seriesAgg.set(seriesTitle, existing);
-                }
-                // Skip episodes with no resolved series — don't show episode names
-            } else if (lowerType === 'series') {
-                const existing = seriesAgg.get(media.title) || { plays: 0, duration: 0 };
-                existing.plays += plays;
-                existing.duration += duration;
-                seriesAgg.set(media.title, existing);
-            } else if (lowerType.includes('audio') || lowerType.includes('track')) {
-                const albumTitle = getAlbumTitle(media);
-                if (albumTitle) {
-                    const existing = albumAgg.get(albumTitle) || { plays: 0, duration: 0 };
-                    existing.plays += plays;
-                    existing.duration += duration;
-                    albumAgg.set(albumTitle, existing);
-                } else {
-                    // Fallback: use track title directly if no album found
-                    const existing = albumAgg.get(media.title) || { plays: 0, duration: 0 };
-                    existing.plays += plays;
-                    existing.duration += duration;
-                    albumAgg.set(media.title, existing);
-                }
             } else if (lowerType.includes('book')) {
                 categorized.book.push({
                     title: media.title, type: media.type,
                     plays, duration
                 });
             }
+            // Episodes and Audio handled by dedicated queries above
         });
 
         // Convert aggregations to sorted arrays

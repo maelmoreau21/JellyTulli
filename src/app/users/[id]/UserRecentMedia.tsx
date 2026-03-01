@@ -88,7 +88,7 @@ export default async function UserRecentMedia({ userId }: { userId: string }) {
 
                                 let progress = 0;
                                 if (session.media?.durationMs) {
-                                    const mediaSec = Number(session.media.durationMs) / 10000000;
+                                    const mediaSec = Number(session.media.durationMs) / 1000;
                                     if (mediaSec > 0) {
                                         progress = Math.min(100, Math.round((session.totalDurationWatched / mediaSec) * 100));
                                     }

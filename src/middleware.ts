@@ -1,8 +1,16 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
-// Routes réservées strictement aux administrateurs
-const ADMIN_API_PATHS = ["/api/admin"];
+// Routes API réservées strictement aux administrateurs (defense-in-depth, les routes ont aussi leurs propres checks)
+const ADMIN_API_PATHS = [
+    "/api/admin",
+    "/api/settings",
+    "/api/sync",
+    "/api/backup",
+    "/api/streams",
+    "/api/hardware",
+    "/api/jellyfin/kill-stream",
+];
 const ADMIN_PAGE_PATHS = ["/admin", "/settings"];
 // Pages liste (non-admins redirigés vers leur profil au lieu de voir tous les utilisateurs)
 const ADMIN_LIST_PATHS = ["/users", "/logs", "/media", "/newsletter", "/recent"];
