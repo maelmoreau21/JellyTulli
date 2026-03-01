@@ -1,4 +1,4 @@
-name: Build & Push Docker Image (ARM64)
+name: Build & Push Docker Image (Multi-Arch)
 
 on:
   push:
@@ -23,11 +23,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Setup QEMU pour l'émulation ARM64 sur le runner x86
+      # 2. Setup QEMU pour la cross-compilation multi-architecture
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
-          platforms: linux/arm64
+          platforms: linux/amd64,linux/arm64
 
       # 3. Setup Docker Buildx (builder multi-plateforme)
       - name: Set up Docker Buildx
@@ -51,12 +51,12 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=,format=short
 
-      # 6. Build & Push — ARM64 uniquement (Raspberry Pi)
+      # 6. Build & Push — Multi-arch (amd64 pour PC/serveurs + arm64 pour Raspberry Pi)
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/arm64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
