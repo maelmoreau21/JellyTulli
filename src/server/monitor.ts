@@ -4,8 +4,22 @@ import { getGeoLocation } from "@/lib/geoip";
 
 let isMonitoringStarted = false;
 let monitorTimeoutId: ReturnType<typeof setTimeout> | null = null;
-const POLL_INTERVAL_ACTIVE = 1000;   // 1s when sessions are active
-const POLL_INTERVAL_IDLE   = 5000;   // 5s when idle
+let pollIntervalActive = 1000;   // 1s when sessions are active (mutable, configurable via settings)
+let pollIntervalIdle   = 5000;   // 5s when idle (mutable, configurable via settings)
+const POLL_INTERVAL_ERROR  = 30000;  // 30s backoff when Jellyfin is unreachable
+let consecutiveErrors = 0;
+
+/** Update monitor polling intervals at runtime (called from settings API) */
+export function updateMonitorIntervals(active: number, idle: number) {
+    pollIntervalActive = Math.max(500, active);
+    pollIntervalIdle = Math.max(1000, idle);
+    console.log(`[Monitor] Intervalles mis à jour: actif=${pollIntervalActive}ms, veille=${pollIntervalIdle}ms`);
+}
+
+/** Get current monitor intervals */
+export function getMonitorIntervals() {
+    return { active: pollIntervalActive, idle: pollIntervalIdle };
+}
 
 // Format IP Address (Jellyfin returns IPv6 or with port like "192.168.1.1:8096")
 // We keep the raw IP (no more masking local IPs) for full visibility.
@@ -23,7 +37,18 @@ export async function startMonitoring() {
     if (isMonitoringStarted) return;
     isMonitoringStarted = true;
 
-    console.log("[Monitor] Démarrage du polling autonome Jellyfin (adaptatif: 1s actif / 5s veille)...");
+    // Load configured intervals from DB
+    try {
+        const settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
+        if (settings) {
+            pollIntervalActive = Math.max(500, settings.monitorIntervalActive);
+            pollIntervalIdle = Math.max(1000, settings.monitorIntervalIdle);
+        }
+    } catch { /* Use defaults on first run */ }
+
+    const jellyfinUrl = process.env.JELLYFIN_URL || '(not set)';
+    console.log(`[Monitor] Démarrage du polling autonome Jellyfin (adaptatif: ${pollIntervalActive}ms actif / ${pollIntervalIdle}ms veille)...`);
+    console.log(`[Monitor] JELLYFIN_URL = ${jellyfinUrl}`);
 
     // Startup cleanup: close all orphan ActiveStreams and their open PlaybackHistory entries
     // This handles app restarts where Redis state was lost but DB ActiveStreams persist
@@ -63,15 +88,27 @@ export async function startMonitoring() {
         clearTimeout(monitorTimeoutId);
     }
 
-    // Adaptive polling loop: 1s with active sessions, 5s when idle
+    // Adaptive polling loop: 1s active / 5s idle / 30s on persistent errors
     async function scheduleNextPoll() {
         try {
             const hasActive = await pollJellyfinSessions();
-            const interval = hasActive ? POLL_INTERVAL_ACTIVE : POLL_INTERVAL_IDLE;
+            if (consecutiveErrors > 0) {
+                console.log(`[Monitor] Connexion à Jellyfin rétablie après ${consecutiveErrors} erreur(s).`);
+                consecutiveErrors = 0;
+            }
+            const interval = hasActive ? pollIntervalActive : pollIntervalIdle;
             monitorTimeoutId = setTimeout(scheduleNextPoll, interval);
         } catch (error) {
-            console.error("[Monitor] Erreur lors du polling:", error);
-            monitorTimeoutId = setTimeout(scheduleNextPoll, POLL_INTERVAL_IDLE);
+            consecutiveErrors++;
+            if (consecutiveErrors === 1) {
+                // First error: log full detail
+                const msg = error instanceof Error ? error.message : String(error);
+                console.error(`[Monitor] Jellyfin injoignable (${process.env.JELLYFIN_URL}): ${msg}`);
+            } else if (consecutiveErrors % 60 === 0) {
+                // Reminder every ~30 min (60 × 30s)
+                console.warn(`[Monitor] Jellyfin toujours injoignable après ${consecutiveErrors} tentatives.`);
+            }
+            monitorTimeoutId = setTimeout(scheduleNextPoll, POLL_INTERVAL_ERROR);
         }
     }
     scheduleNextPoll();

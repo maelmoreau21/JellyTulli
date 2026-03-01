@@ -6,39 +6,97 @@ import { StandardPieChart } from "@/components/charts/StandardMetricsCharts";
 
 const getDeepInsights = unstable_cache(
     async (type: string | undefined, timeRange: string, excludedLibraries: string[]) => {
-        // Find most watched media overall
+        // Find most watched media overall (take more for series aggregation)
         const topMedia = await prisma.playbackHistory.groupBy({
             by: ['mediaId'],
             _count: { id: true },
             _sum: { durationWatched: true },
             orderBy: { _count: { id: 'desc' } },
-            take: 30
+            take: 100
         });
 
         const popMediaId = topMedia.map(m => m.mediaId);
         const resolvedMedia = await prisma.media.findMany({
             where: { id: { in: popMediaId } },
-            select: { id: true, title: true, type: true }
+            select: { id: true, title: true, type: true, parentId: true, jellyfinMediaId: true }
         });
 
-        // Group by category
+        // === Series Resolution: Episode → Season → Series (2-hop parent chain) ===
+        const episodeParentIds = [...new Set(
+            resolvedMedia
+                .filter(m => m.type === 'Episode')
+                .map(m => m.parentId)
+                .filter((id): id is string => !!id)
+        )];
+
+        const seasons = episodeParentIds.length > 0
+            ? await prisma.media.findMany({
+                where: { jellyfinMediaId: { in: episodeParentIds } },
+                select: { jellyfinMediaId: true, parentId: true, title: true }
+            })
+            : [];
+
+        const seasonParentIds = [...new Set(seasons.map(s => s.parentId).filter((id): id is string => !!id))];
+
+        const seriesItems = seasonParentIds.length > 0
+            ? await prisma.media.findMany({
+                where: { jellyfinMediaId: { in: seasonParentIds } },
+                select: { jellyfinMediaId: true, title: true }
+            })
+            : [];
+
+        const seasonMap = new Map(seasons.map(s => [s.jellyfinMediaId, s]));
+        const seriesMap = new Map(seriesItems.map(s => [s.jellyfinMediaId, s.title]));
+
+        function getSeriesTitle(media: { type: string; parentId: string | null }): string | null {
+            if (media.type !== 'Episode' || !media.parentId) return null;
+            const season = seasonMap.get(media.parentId);
+            if (!season?.parentId) return null;
+            return seriesMap.get(season.parentId) || null;
+        }
+
+        // Group by category — aggregate episodes into series
         const categorized = { movie: [] as any[], series: [] as any[], music: [] as any[], book: [] as any[] };
+        const seriesAgg = new Map<string, { plays: number; duration: number }>();
+
         topMedia.forEach(m => {
             const media = resolvedMedia.find(r => r.id === m.mediaId);
             if (!media) return;
-            const item = {
-                title: media.title,
-                type: media.type,
-                plays: m._count.id,
-                duration: (m._sum.durationWatched || 0) / 3600
-            };
-
             const lowerType = media.type.toLowerCase();
-            if (lowerType === 'movie') categorized.movie.push(item);
-            else if (lowerType.includes('series') || lowerType.includes('episode')) categorized.series.push(item);
-            else if (lowerType.includes('audio') || lowerType.includes('track')) categorized.music.push(item);
-            else if (lowerType.includes('book')) categorized.book.push(item);
+
+            if (lowerType === 'movie') {
+                categorized.movie.push({
+                    title: media.title, type: media.type,
+                    plays: m._count.id, duration: (m._sum.durationWatched || 0) / 3600
+                });
+            } else if (lowerType === 'episode') {
+                const seriesTitle = getSeriesTitle(media) || media.title;
+                const existing = seriesAgg.get(seriesTitle) || { plays: 0, duration: 0 };
+                existing.plays += m._count.id;
+                existing.duration += (m._sum.durationWatched || 0) / 3600;
+                seriesAgg.set(seriesTitle, existing);
+            } else if (lowerType === 'series') {
+                const existing = seriesAgg.get(media.title) || { plays: 0, duration: 0 };
+                existing.plays += m._count.id;
+                existing.duration += (m._sum.durationWatched || 0) / 3600;
+                seriesAgg.set(media.title, existing);
+            } else if (lowerType.includes('audio') || lowerType.includes('track')) {
+                categorized.music.push({
+                    title: media.title, type: media.type,
+                    plays: m._count.id, duration: (m._sum.durationWatched || 0) / 3600
+                });
+            } else if (lowerType.includes('book')) {
+                categorized.book.push({
+                    title: media.title, type: media.type,
+                    plays: m._count.id, duration: (m._sum.durationWatched || 0) / 3600
+                });
+            }
         });
+
+        // Convert series aggregation to sorted array
+        categorized.series = Array.from(seriesAgg.entries())
+            .map(([title, data]) => ({ title, type: 'Series', plays: data.plays, duration: data.duration }))
+            .sort((a, b) => b.plays - a.plays);
 
         // Slice to top 5 per category
         categorized.movie = categorized.movie.slice(0, 5);

@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
                     discordAlertCondition: "ALL",
                     discordAlertsEnabled: false,
                     excludedLibraries: [],
+                    monitorIntervalActive: 1000,
+                    monitorIntervalIdle: 5000,
                 }
             });
         }
@@ -34,7 +36,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { discordWebhookUrl, discordAlertCondition, discordAlertsEnabled, excludedLibraries } = body;
+        const { discordWebhookUrl, discordAlertCondition, discordAlertsEnabled, excludedLibraries, monitorIntervalActive, monitorIntervalIdle } = body;
 
         const updated = await prisma.globalSettings.upsert({
             where: { id: "global" },
@@ -43,6 +45,8 @@ export async function POST(req: NextRequest) {
                 discordAlertCondition: discordAlertCondition !== undefined ? discordAlertCondition : undefined,
                 discordAlertsEnabled: discordAlertsEnabled !== undefined ? discordAlertsEnabled : undefined,
                 excludedLibraries: excludedLibraries !== undefined ? excludedLibraries : undefined,
+                monitorIntervalActive: monitorIntervalActive !== undefined ? monitorIntervalActive : undefined,
+                monitorIntervalIdle: monitorIntervalIdle !== undefined ? monitorIntervalIdle : undefined,
             },
             create: {
                 id: "global",
@@ -50,8 +54,23 @@ export async function POST(req: NextRequest) {
                 discordAlertCondition: discordAlertCondition || "ALL",
                 discordAlertsEnabled: discordAlertsEnabled || false,
                 excludedLibraries: excludedLibraries || [],
+                monitorIntervalActive: monitorIntervalActive || 1000,
+                monitorIntervalIdle: monitorIntervalIdle || 5000,
             }
         });
+
+        // Update monitor intervals in real-time (same Node.js process)
+        if (monitorIntervalActive !== undefined || monitorIntervalIdle !== undefined) {
+            try {
+                const { updateMonitorIntervals } = await import("@/server/monitor");
+                updateMonitorIntervals(
+                    updated.monitorIntervalActive,
+                    updated.monitorIntervalIdle
+                );
+            } catch (err) {
+                console.warn("[Settings] Could not update monitor intervals:", err);
+            }
+        }
 
         return NextResponse.json(updated, { status: 200 });
     } catch (error) {

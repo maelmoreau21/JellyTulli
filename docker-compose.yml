@@ -34,7 +34,7 @@ services:
       POSTGRES_PASSWORD: jellytulli_password
       POSTGRES_DB: jellytulli
     volumes:
-      - jellytulli_pgdata:/var/lib/postgresql/data
+      - jellytulli_pgdata:/var/lib/postgresql
     networks:
       - jellytulli_net
     healthcheck:

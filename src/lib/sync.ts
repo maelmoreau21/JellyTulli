@@ -5,8 +5,10 @@ import prisma from "./prisma";
  * Interroge l'API Jellyfin pour récupérer les Utilisateurs et les Médias (Films, Séries, Épisodes),
  * et effectue un Upsert massif dans la base PostgreSQL via Prisma.
  */
-export async function syncJellyfinLibrary() {
-    console.log("[Sync] Démarrage de la synchronisation de la librairie Jellyfin...");
+export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
+    const mode = options?.recentOnly ? 'récente (7 derniers jours)' : 'complète';
+    console.log(`[Sync] Démarrage de la synchronisation ${mode} de la librairie Jellyfin...`);
+    console.log(`[Sync] JELLYFIN_URL = ${process.env.JELLYFIN_URL || '(not set)'}`);
 
     const baseUrl = process.env.JELLYFIN_URL;
     const apiKey = process.env.JELLYFIN_API_KEY;
@@ -61,8 +63,14 @@ export async function syncJellyfinLibrary() {
         }
 
         // 3. Sync Media (Movies, Series, Episodes, Audio, MusicAlbum) with Genres and MediaSources
-        console.log("[Sync] Fetching Media Items...");
-        const itemsRes = await fetch(`${baseUrl}/Items?api_key=${apiKey}&IncludeItemTypes=Movie,Series,Season,Episode,Audio,MusicAlbum&Recursive=true&Fields=ProviderIds,PremiereDate,Genres,MediaSources,ParentId`);
+        let itemsUrl = `${baseUrl}/Items?api_key=${apiKey}&IncludeItemTypes=Movie,Series,Season,Episode,Audio,MusicAlbum&Recursive=true&Fields=ProviderIds,PremiereDate,Genres,MediaSources,ParentId`;
+        if (options?.recentOnly) {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            itemsUrl += `&MinDateCreated=${sevenDaysAgo.toISOString()}&SortBy=DateCreated&SortOrder=Descending`;
+        }
+        console.log(`[Sync] Fetching Media Items${options?.recentOnly ? ' (recent only)' : ''}...`);
+        const itemsRes = await fetch(itemsUrl);
         if (!itemsRes.ok) throw new Error("Erreur de récupération des médias");
         const itemsData = await itemsRes.json();
         const items = itemsData.Items || [];
@@ -116,7 +124,12 @@ export async function syncJellyfinLibrary() {
         console.log("[Sync] Terminée avec succès.");
         return { success: true, users: usersCount, media: mediaCount };
     } catch (e: any) {
-        console.error("[Sync Error]", e.message);
+        const isConnectionError = e.message === 'fetch failed' || e.cause?.code === 'ECONNREFUSED';
+        if (isConnectionError) {
+            console.error(`[Sync Error] Jellyfin injoignable (${baseUrl}). Vérifiez JELLYFIN_URL — dans Docker, utilisez l'IP réelle du serveur (pas localhost/127.0.0.1).`);
+        } else {
+            console.error("[Sync Error]", e.message);
+        }
         return { success: false, error: e.message };
     }
 }

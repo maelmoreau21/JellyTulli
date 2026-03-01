@@ -244,3 +244,22 @@ A massive analytical refactoring was introduced focusing on Data Context and Res
    - **Dockerfile `node-cron` manquant**: `node-cron` était listé dans `serverExternalPackages` (Next.js ne le bundle pas dans standalone) mais n'était jamais copié dans l'image Docker. Résultat : l'`instrumentation.ts` crashait silencieusement au runtime, le moniteur et les tâches cron ne démarraient jamais. Ajouté : `COPY --from=builder /app/node_modules/node-cron ./node_modules/node-cron`.
    - **OCI Labels**: Ajout de `org.opencontainers.image.source`, `org.opencontainers.image.description`, `org.opencontainers.image.licenses` au Dockerfile. Ces labels permettent à GHCR de lier automatiquement le package Docker au dépôt GitHub source, rendant la gestion des permissions et la visibilité plus simple.
    - **GHCR Package Public Automatique**: Nouvelle étape 7 dans `.github/workflows/docker-publish.yml` — après le push de l'image, un appel `curl` à l'API GitHub Packages (`PATCH /user/packages/container/{name}`) met automatiquement la visibilité du package sur `public`. Utilise `GITHUB_TOKEN` natif, pas de secret supplémentaire requis. Avec un message fallback si l'API échoue (première publication nécessite une action manuelle dans les paramètres GitHub).
+
+35. **Top Séries Fix, Surveillance d'Activité, Planificateur de Tâches & Error Suppression (Phase 35)**:
+   - **Top Séries Aggregation Fix**: `DeepInsights.tsx` showed individual episode names in "Top Séries" instead of series names. Rewrote the series categorization with a 2-hop parent chain resolution: Episode → Season (via `parentId`) → Series. Episodes are now aggregated by their parent Series title. The query fetches top 100 media (was 30) for better aggregation, resolves `parentId` and `jellyfinMediaId`, builds `seasonMap` and `seriesMap` lookup tables, then aggregates play counts and durations per series. Result: "Top Séries" now correctly shows "Game of Thrones" instead of "S01E05 - The Battle".
+   - **Surveillance d'Activité (Activity Monitoring)**: New settings card in `/settings` page allowing real-time configuration of monitor polling intervals:
+     - `monitorIntervalActive` (ms): polling frequency when sessions are active (default: 1000ms, min: 500ms)
+     - `monitorIntervalIdle` (ms): polling frequency when idle (default: 5000ms, min: 1000ms)
+     - Changes applied in real-time without server restart via `updateMonitorIntervals()` export from `monitor.ts`
+     - Prisma schema: Added `monitorIntervalActive Int @default(1000)` and `monitorIntervalIdle Int @default(5000)` to `GlobalSettings`
+     - Monitor loads initial values from DB on startup in `startMonitoring()`
+     - Settings API (`/api/settings`) reads/writes the new fields and calls `updateMonitorIntervals()` on save
+   - **Planificateur de Tâches (Task Scheduler)**: New settings card replacing the old "Synchronisation Jellyfin" card with 3 manually-triggerable tasks:
+     - **Synchronisation du contenu récent**: Calls `/api/sync` with `mode: 'recent'` — syncs only media added in the last 7 days (uses Jellyfin `MinDateCreated` filter). Quick partial sync.
+     - **Synchronisation complète avec Jellyfin**: Calls `/api/sync` with `mode: 'full'` — full sync of all users + media. Automatic via cron at 3:00 AM daily.
+     - **Sauvegarde de JellyTulli**: Calls `/api/backup/auto/trigger` — full database backup. Automatic via cron at 3:30 AM daily.
+     - Each task shows colored icon, description, schedule info, status feedback, and a "Lancer" trigger button.
+   - **Sync Recent Mode**: `syncJellyfinLibrary()` in `src/lib/sync.ts` accepts optional `{ recentOnly: boolean }` parameter. When `recentOnly`, appends `&MinDateCreated={7daysAgo}&SortBy=DateCreated&SortOrder=Descending` to the Jellyfin Items query. `POST /api/sync` now reads `{ mode: 'recent' | 'full' }` from body.
+   - **Monitor Error Suppression**: `scheduleNextPoll()` in `monitor.ts` now uses `POLL_INTERVAL_ERROR = 30s` backoff when Jellyfin is unreachable. Only first error logged with detail, then reminder every ~30 min. Recovery message logged when connection restored. Startup logs `JELLYFIN_URL` for debug visibility.
+   - **Sync Error Clarity**: `sync.ts` catch block detects `ECONNREFUSED`/`fetch failed` and logs a clear French message: "Jellyfin injoignable — vérifiez JELLYFIN_URL" with Docker networking guidance.
+   - **docker-compose.yml Comments**: Added inline comments explaining `JELLYFIN_URL` must be the real server IP (not localhost/127.0.0.1) when running in Docker.

@@ -1,18 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { RefreshCw, CheckCircle2, AlertCircle, Save, Download, UploadCloud, Clock, Trash2 } from "lucide-react";
+import { RefreshCw, CheckCircle2, AlertCircle, Save, Download, UploadCloud, Clock, Trash2, Activity, Zap, Database, Play } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
 export default function SettingsPage() {
-    const [isLoading, setIsLoading] = useState(false);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
     const [isRestoring, setIsRestoring] = useState(false);
 
-    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [settingsMsg, setSettingsMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [backupMsg, setBackupMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -22,6 +20,19 @@ export default function SettingsPage() {
     const [discordUrl, setDiscordUrl] = useState("");
     const [discordAlertCondition, setDiscordAlertCondition] = useState("ALL");
     const [excludedLibraries, setExcludedLibraries] = useState("");
+
+    // Monitor settings
+    const [monitorActive, setMonitorActive] = useState(1000);
+    const [monitorIdle, setMonitorIdle] = useState(5000);
+    const [isSavingMonitor, setIsSavingMonitor] = useState(false);
+    const [monitorMsg, setMonitorMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    // Task scheduler state
+    const [taskStatus, setTaskStatus] = useState<Record<string, { loading: boolean; msg: { type: 'success' | 'error', text: string } | null }>>({
+        recentSync: { loading: false, msg: null },
+        fullSync: { loading: false, msg: null },
+        backup: { loading: false, msg: null },
+    });
 
     // Auto-backup state
     const [autoBackups, setAutoBackups] = useState<{name: string, sizeMb: string, date: string}[]>([]);
@@ -40,6 +51,8 @@ export default function SettingsPage() {
                     setDiscordUrl(data.discordWebhookUrl || "");
                     setDiscordAlertCondition(data.discordAlertCondition || "ALL");
                     setExcludedLibraries((data.excludedLibraries || []).join(", "));
+                    setMonitorActive(data.monitorIntervalActive ?? 1000);
+                    setMonitorIdle(data.monitorIntervalIdle ?? 5000);
                 }
             } catch (err) {
                 console.error("Failed to load settings");
@@ -62,24 +75,6 @@ export default function SettingsPage() {
         };
         fetchAutoBackups();
     }, []);
-
-    const handleSync = async () => {
-        setIsLoading(true);
-        setMessage(null);
-        try {
-            const res = await fetch("/api/sync", { method: "POST" });
-            const data = await res.json();
-            if (res.ok) {
-                setMessage({ type: "success", text: data.message });
-            } else {
-                setMessage({ type: "error", text: data.message || "Une erreur est survenue." });
-            }
-        } catch (error) {
-            setMessage({ type: "error", text: "Erreur réseau lors de la synchronisation." });
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     const handleSaveSettings = async () => {
         setIsSavingSettings(true);
@@ -104,6 +99,54 @@ export default function SettingsPage() {
             setSettingsMsg({ type: "error", text: "Erreur réseau." });
         } finally {
             setIsSavingSettings(false);
+        }
+    };
+
+    const handleSaveMonitor = async () => {
+        setIsSavingMonitor(true);
+        setMonitorMsg(null);
+        try {
+            const res = await fetch("/api/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    monitorIntervalActive: monitorActive,
+                    monitorIntervalIdle: monitorIdle,
+                })
+            });
+            if (res.ok) {
+                setMonitorMsg({ type: "success", text: "Intervalles mis à jour en temps réel." });
+            } else {
+                setMonitorMsg({ type: "error", text: "Erreur lors de la sauvegarde." });
+            }
+        } catch {
+            setMonitorMsg({ type: "error", text: "Erreur réseau." });
+        } finally {
+            setIsSavingMonitor(false);
+        }
+    };
+
+    const runTask = async (taskKey: string, url: string, body?: object) => {
+        setTaskStatus(prev => ({ ...prev, [taskKey]: { loading: true, msg: null } }));
+        try {
+            const res = await fetch(url, {
+                method: "POST",
+                headers: body ? { "Content-Type": "application/json" } : undefined,
+                body: body ? JSON.stringify(body) : undefined,
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setTaskStatus(prev => ({ ...prev, [taskKey]: { loading: false, msg: { type: "success", text: data.message || "Terminé." } } }));
+                // Refresh backup list after backup task
+                if (taskKey === 'backup') {
+                    const listRes = await fetch("/api/backup/auto");
+                    if (listRes.ok) { const listData = await listRes.json(); setAutoBackups(listData.backups || []); }
+                }
+            } else {
+                setTaskStatus(prev => ({ ...prev, [taskKey]: { loading: false, msg: { type: "error", text: data.error || data.message || "Erreur." } } }));
+            }
+        } catch {
+            setTaskStatus(prev => ({ ...prev, [taskKey]: { loading: false, msg: { type: "error", text: "Erreur réseau." } } }));
         }
     };
 
@@ -156,32 +199,139 @@ export default function SettingsPage() {
                     <h2 className="text-3xl font-bold tracking-tight">Configuration</h2>
                 </div>
 
-                {/* SYNC CARD */}
+                {/* ACTIVITY MONITORING CARD */}
                 <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
-                        <CardTitle>Synchronisation Jellyfin</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><Activity className="w-5 h-5" /> Surveillance d&apos;activité</CardTitle>
                         <CardDescription>
-                            Forcez la mise à jour immédiate de votre base de données locale (Séries, Films, Utilisateurs) avec votre instance Jellyfin.
-                            Une tâche de fond tourne déjà automatiquement chaque nuit à 3h00 du matin.
+                            Configurez la fréquence de vérification des sessions Jellyfin. Les modifications sont appliquées en temps réel sans redémarrage du serveur.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {message && (
-                            <div className={`p-4 rounded-md flex items-center gap-3 text-sm ${message.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                                {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                                {message.text}
+                        {monitorMsg && (
+                            <div className={`p-4 rounded-md flex items-center gap-3 text-sm ${monitorMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                                {monitorMsg.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                                {monitorMsg.text}
                             </div>
                         )}
-                        <p className="text-sm text-muted-foreground">
-                            Attention: Selon la taille de votre bibliothèque, cette opération peut prendre quelques secondes.
-                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="monitor-active">Intervalle avec sessions actives (ms)</Label>
+                                <Input
+                                    id="monitor-active"
+                                    type="number"
+                                    min={500}
+                                    max={30000}
+                                    value={monitorActive}
+                                    onChange={(e) => setMonitorActive(parseInt(e.target.value) || 1000)}
+                                    className="font-mono text-sm"
+                                />
+                                <p className="text-xs text-muted-foreground">Fréquence de vérification quand des utilisateurs regardent du contenu (recommandé: 1000ms)</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="monitor-idle">Intervalle en veille (ms)</Label>
+                                <Input
+                                    id="monitor-idle"
+                                    type="number"
+                                    min={1000}
+                                    max={60000}
+                                    value={monitorIdle}
+                                    onChange={(e) => setMonitorIdle(parseInt(e.target.value) || 5000)}
+                                    className="font-mono text-sm"
+                                />
+                                <p className="text-xs text-muted-foreground">Fréquence de vérification quand aucune session active (recommandé: 5000ms)</p>
+                            </div>
+                        </div>
                     </CardContent>
                     <CardFooter>
-                        <button onClick={handleSync} disabled={isLoading} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${isLoading ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
-                            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                            {isLoading ? 'Synchronisation en cours...' : 'Forcer la synchronisation manuelle'}
+                        <button onClick={handleSaveMonitor} disabled={isSavingMonitor} className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${isSavingMonitor ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
+                            <Save className={`w-4 h-4 ${isSavingMonitor ? 'animate-pulse' : ''}`} />
+                            {isSavingMonitor ? 'Enregistrement...' : 'Appliquer'}
                         </button>
                     </CardFooter>
+                </Card>
+
+                {/* TASK SCHEDULER CARD */}
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Zap className="w-5 h-5" /> Planificateur de tâches</CardTitle>
+                        <CardDescription>
+                            Lancez manuellement les tâches de maintenance ou attendez leur exécution automatique programmée.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        {/* Task 1: Recent Sync */}
+                        <div className="flex items-center justify-between p-4 border border-zinc-800/50 rounded-lg bg-black/20">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <RefreshCw className="w-4 h-4 text-sky-400 shrink-0" />
+                                    <span className="font-medium text-sm">Synchronisation du contenu récent</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1 ml-6">Synchronise les médias ajoutés dans les 7 derniers jours.</p>
+                                {taskStatus.recentSync.msg && (
+                                    <div className={`mt-2 ml-6 text-xs ${taskStatus.recentSync.msg.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {taskStatus.recentSync.msg.text}
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => runTask('recentSync', '/api/sync', { mode: 'recent' })}
+                                disabled={taskStatus.recentSync.loading}
+                                className={`ml-3 shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${taskStatus.recentSync.loading ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-sky-600 text-white hover:bg-sky-500'}`}
+                            >
+                                <Play className={`w-3 h-3 ${taskStatus.recentSync.loading ? 'animate-spin' : ''}`} />
+                                {taskStatus.recentSync.loading ? 'En cours...' : 'Lancer'}
+                            </button>
+                        </div>
+
+                        {/* Task 2: Full Sync */}
+                        <div className="flex items-center justify-between p-4 border border-zinc-800/50 rounded-lg bg-black/20">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <Database className="w-4 h-4 text-violet-400 shrink-0" />
+                                    <span className="font-medium text-sm">Synchronisation complète avec Jellyfin</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1 ml-6">Synchronise tous les utilisateurs et médias. Automatique chaque nuit à 3h00.</p>
+                                {taskStatus.fullSync.msg && (
+                                    <div className={`mt-2 ml-6 text-xs ${taskStatus.fullSync.msg.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {taskStatus.fullSync.msg.text}
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => runTask('fullSync', '/api/sync', { mode: 'full' })}
+                                disabled={taskStatus.fullSync.loading}
+                                className={`ml-3 shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${taskStatus.fullSync.loading ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-violet-600 text-white hover:bg-violet-500'}`}
+                            >
+                                <Play className={`w-3 h-3 ${taskStatus.fullSync.loading ? 'animate-spin' : ''}`} />
+                                {taskStatus.fullSync.loading ? 'En cours...' : 'Lancer'}
+                            </button>
+                        </div>
+
+                        {/* Task 3: Backup */}
+                        <div className="flex items-center justify-between p-4 border border-zinc-800/50 rounded-lg bg-black/20">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <Save className="w-4 h-4 text-amber-400 shrink-0" />
+                                    <span className="font-medium text-sm">Sauvegarde de JellyTulli</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1 ml-6">Sauvegarde complète de la base de données. Automatique chaque nuit à 3h30.</p>
+                                {taskStatus.backup.msg && (
+                                    <div className={`mt-2 ml-6 text-xs ${taskStatus.backup.msg.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {taskStatus.backup.msg.text}
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => runTask('backup', '/api/backup/auto/trigger')}
+                                disabled={taskStatus.backup.loading}
+                                className={`ml-3 shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${taskStatus.backup.loading ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-amber-600 text-white hover:bg-amber-500'}`}
+                            >
+                                <Play className={`w-3 h-3 ${taskStatus.backup.loading ? 'animate-spin' : ''}`} />
+                                {taskStatus.backup.loading ? 'En cours...' : 'Lancer'}
+                            </button>
+                        </div>
+                    </CardContent>
                 </Card>
 
                 {/* DISCORD SETTINGS CARD */}

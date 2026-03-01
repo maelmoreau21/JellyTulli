@@ -117,11 +117,13 @@ model ActiveStream {
 }
 
 model GlobalSettings {
-  id                  String   @id @default("global") // Singleton pattern pour les settings
-  discordWebhookUrl   String?
-  discordAlertCondition String @default("ALL") // Filtre d'envoi ('ALL', 'TRANSCODE_ONLY', 'NEW_IP_ONLY')
-  discordAlertsEnabled Boolean @default(false)
-  excludedLibraries   String[] @default([]) // Filtre les types de collection (ex: Photo, HomeVideos)
-  updatedAt           DateTime @updatedAt
+  id                    String   @id @default("global") // Singleton pattern pour les settings
+  discordWebhookUrl     String?
+  discordAlertCondition String   @default("ALL") // Filtre d'envoi ('ALL', 'TRANSCODE_ONLY', 'NEW_IP_ONLY')
+  discordAlertsEnabled  Boolean  @default(false)
+  excludedLibraries     String[] @default([]) // Filtre les types de collection (ex: Photo, HomeVideos)
+  monitorIntervalActive Int      @default(1000)  // Polling interval when sessions active (ms)
+  monitorIntervalIdle   Int      @default(5000)  // Polling interval when idle (ms)
+  updatedAt             DateTime @updatedAt
 }
 

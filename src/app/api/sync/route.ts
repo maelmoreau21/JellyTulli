@@ -1,15 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { syncJellyfinLibrary } from "@/lib/sync";
 
-export async function POST() {
+export async function POST(req: NextRequest) {
     try {
-        // Déclenche la synchronisation manuellement
-        const result = await syncJellyfinLibrary();
+        const body = await req.json().catch(() => ({}));
+        const recentOnly = body?.mode === 'recent';
+
+        const result = await syncJellyfinLibrary({ recentOnly });
 
         if (result.success) {
+            const modeLabel = recentOnly ? 'récente' : 'complète';
             return NextResponse.json({
                 status: "success",
-                message: `Synchronisation terminée. ${result.users} utilisateurs et ${result.media} médias à jour.`
+                message: `Synchronisation ${modeLabel} terminée. ${result.users} utilisateurs et ${result.media} médias à jour.`
             }, { status: 200 });
         } else {
             return NextResponse.json({
