@@ -26,6 +26,9 @@ import { YearlyHeatmap, HeatmapData } from "@/components/charts/YearlyHeatmap";
 import { DraggableDashboard } from "@/components/dashboard/DraggableDashboard";
 import { HardwareMonitor } from "@/components/dashboard/HardwareMonitor";
 import { KillStreamButton } from "@/components/dashboard/KillStreamButton";
+import { MonthlyWatchTimeChart, MonthlyWatchData } from "@/components/charts/MonthlyWatchTimeChart";
+import { CompletionRatioChart, CompletionData } from "@/components/charts/CompletionRatioChart";
+import { ClientCategoryChart, ClientCategoryData, categorizeClient } from "@/components/charts/ClientCategoryChart";
 
 // Webhook / Redis types
 type WebhookPayload = {
@@ -298,6 +301,74 @@ const getDashboardMetrics = unstable_cache(
       peakStreams: serverLoadMap.get(v.time) || 0
     }));
 
+    // Monthly watch time (last 12 months)
+    const MONTH_NAMES = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+    const monthlyMap = new Map<string, number>();
+    const nowMonth = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(nowMonth.getFullYear(), nowMonth.getMonth() - i, 1);
+      const key = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear().toString().slice(-2)}`;
+      monthlyMap.set(key, 0);
+    }
+    histories.forEach((h: any) => {
+      const d = new Date(h.startedAt);
+      const key = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear().toString().slice(-2)}`;
+      if (monthlyMap.has(key)) {
+        monthlyMap.set(key, (monthlyMap.get(key) || 0) + h.durationWatched / 3600);
+      }
+    });
+    const monthlyWatchData: MonthlyWatchData[] = Array.from(monthlyMap.entries()).map(([month, hours]) => ({
+      month, hours: parseFloat(hours.toFixed(1))
+    }));
+
+    // Completion ratio (abandoned vs finished)
+    // "Terminé" = watched >= 80% of media duration, "Partiel" = 20-80%, "Abandonné" = < 20%
+    let completed = 0, partial = 0, abandoned = 0;
+    // We need media durations for this — load them
+    const mediaIds = [...new Set(histories.map((h: any) => h.media?.title).filter(Boolean))];
+    // Fetch media with durations
+    const mediaWithDuration = await prisma.media.findMany({
+      where: { durationMs: { not: null } },
+      select: { id: true, title: true, durationMs: true },
+    });
+    const mediaDurationMap = new Map<string, number>();
+    mediaWithDuration.forEach(m => {
+      if (m.durationMs) mediaDurationMap.set(m.title, Number(m.durationMs) / 1000);
+    });
+
+    // Also load full histories with mediaId for completion calc
+    const fullHistories = await prisma.playbackHistory.findMany({
+      where: { startedAt: dateFilter, media: mediaWhere },
+      select: { durationWatched: true, media: { select: { title: true, durationMs: true } } },
+    });
+    fullHistories.forEach((h: any) => {
+      const mediaDurS = h.media?.durationMs ? Number(h.media.durationMs) / 1000 : 0;
+      if (mediaDurS <= 0 || h.durationWatched <= 0) {
+        // No duration info: count as partial
+        partial++;
+        return;
+      }
+      const pct = h.durationWatched / mediaDurS;
+      if (pct >= 0.8) completed++;
+      else if (pct >= 0.2) partial++;
+      else abandoned++;
+    });
+    const completionData: CompletionData[] = [
+      { name: "Terminé", value: completed },
+      { name: "Partiel", value: partial },
+      { name: "Abandonné", value: abandoned },
+    ].filter(d => d.value > 0);
+
+    // Client categories
+    const clientCatMap = new Map<string, number>();
+    histories.forEach((h: any) => {
+      const cat = categorizeClient(h.clientName || "");
+      clientCatMap.set(cat, (clientCatMap.get(cat) || 0) + 1);
+    });
+    const clientCategoryData: ClientCategoryData[] = Array.from(clientCatMap.entries())
+      .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => b.count - a.count);
+
     return {
       totalUsers,
       hoursWatched,
@@ -311,6 +382,9 @@ const getDashboardMetrics = unstable_cache(
       platformChartData,
       serverLoadData,
       topUsers,
+      monthlyWatchData,
+      completionData,
+      clientCategoryData,
       breakdown: {
         movieViews, movieHours: parseFloat(movieHours.toFixed(1)),
         seriesViews, seriesHours: parseFloat(seriesHours.toFixed(1)),
@@ -325,11 +399,10 @@ const getDashboardMetrics = unstable_cache(
 
 async function HeatmapWrapper() {
   const today = new Date();
-  const lastYear = new Date();
-  lastYear.setDate(today.getDate() - 365);
+  const jan1 = new Date(today.getFullYear(), 0, 1);
 
   const rawData = await prisma.playbackHistory.findMany({
-    where: { startedAt: { gte: lastYear } },
+    where: { startedAt: { gte: jan1 } },
     select: { startedAt: true }
   });
 
@@ -708,6 +781,57 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                   <CardContent className="pl-0 pb-4">
                     <div className="h-[250px] min-h-[250px] w-full">
                       <ActivityByHourChart data={metrics.hourlyChartData} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>,
+
+              /* Monthly Watch Time + Completion Ratio + Client Categories */
+              <div key="new-stats" className="grid gap-4 md:grid-cols-3">
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                  <CardHeader>
+                    <CardTitle>Temps Mensuel</CardTitle>
+                    <CardDescription>Heures de visionnage par mois (12 derniers mois).</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pl-0 pb-4">
+                    <div className="h-[300px] w-full">
+                      {metrics.monthlyWatchData.length > 0 ? (
+                        <MonthlyWatchTimeChart data={metrics.monthlyWatchData} />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">Aucune donnée</div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                  <CardHeader>
+                    <CardTitle>Taux de Complétion</CardTitle>
+                    <CardDescription>Ratio sessions terminées vs abandonnées vs partielles.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[280px] w-full">
+                      {metrics.completionData.length > 0 ? (
+                        <CompletionRatioChart data={metrics.completionData} />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">Aucune donnée de durée</div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                  <CardHeader>
+                    <CardTitle>Familles de Clients</CardTitle>
+                    <CardDescription>TV, Web, Mobile, Desktop — catégorisation automatique.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[280px] w-full">
+                      {metrics.clientCategoryData.length > 0 ? (
+                        <ClientCategoryChart data={metrics.clientCategoryData} />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">Aucun client</div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

@@ -3,19 +3,17 @@ import redis from "@/lib/redis";
 import { getGeoLocation } from "@/lib/geoip";
 
 let isMonitoringStarted = false;
+let monitorIntervalId: ReturnType<typeof setInterval> | null = null;
 
 // Format IP Address (Jellyfin returns IPv6 or with port like "192.168.1.1:8096")
+// We keep the raw IP (no more masking local IPs) for full visibility.
 function cleanIpAddress(ip: string | undefined | null) {
-    if (!ip) return "Réseau Local (Docker/LAN)";
-    let cleaned = ip;
-    // Si format IPv6 local (::ffff:192.168.1.1)
+    if (!ip) return "Unknown";
+    let cleaned = ip.trim();
+    // Strip IPv6-mapped prefix (::ffff:192.168.1.1)
     if (cleaned.includes("::ffff:")) cleaned = cleaned.split("::ffff:")[1];
-    // Sinon on nettoie le port éventuel si c'est de l'IPv4
-    else cleaned = cleaned.split(":")[0];
-    // Detect local/Docker IPs
-    if (cleaned === "::1" || cleaned.startsWith("127.0.0") || cleaned.startsWith("172.") || cleaned.startsWith("10.") || cleaned.startsWith("192.168.")) {
-        return "Réseau Local (Docker/LAN)";
-    }
+    // Strip port for plain IPv4 (e.g. 192.168.1.1:8096)
+    else if (cleaned.includes(":") && !cleaned.includes("::")) cleaned = cleaned.split(":")[0];
     return cleaned;
 }
 
@@ -25,7 +23,45 @@ export async function startMonitoring() {
 
     console.log("[Monitor] Démarrage du polling autonome Jellyfin (5s)...");
 
-    setInterval(async () => {
+    // Startup cleanup: close all orphan ActiveStreams and their open PlaybackHistory entries
+    // This handles app restarts where Redis state was lost but DB ActiveStreams persist
+    try {
+        const orphanStreams = await prisma.activeStream.findMany();
+        if (orphanStreams.length > 0) {
+            console.log(`[Monitor] Nettoyage au démarrage: ${orphanStreams.length} session(s) orpheline(s) trouvée(s).`);
+            for (const orphan of orphanStreams) {
+                const openPlayback = await prisma.playbackHistory.findFirst({
+                    where: { userId: orphan.userId, mediaId: orphan.mediaId, endedAt: null },
+                    orderBy: { startedAt: 'desc' },
+                });
+                if (openPlayback) {
+                    const endedAt = new Date();
+                    let durationS: number;
+                    if (orphan.positionTicks && BigInt(orphan.positionTicks) > 0n) {
+                        durationS = Math.floor(Number(BigInt(orphan.positionTicks)) / 10_000_000);
+                    } else {
+                        durationS = Math.floor((endedAt.getTime() - openPlayback.startedAt.getTime()) / 1000);
+                    }
+                    await prisma.playbackHistory.update({
+                        where: { id: openPlayback.id },
+                        data: { endedAt, durationWatched: durationS },
+                    });
+                }
+                await prisma.activeStream.delete({ where: { id: orphan.id } });
+                await redis.del(`stream:${orphan.sessionId}`);
+            }
+            console.log(`[Monitor] Nettoyage au démarrage terminé.`);
+        }
+    } catch (err) {
+        console.error("[Monitor] Erreur nettoyage au démarrage:", err);
+    }
+
+    // Clear previous interval if any (HMR safety)
+    if (monitorIntervalId) {
+        clearInterval(monitorIntervalId);
+    }
+
+    monitorIntervalId = setInterval(async () => {
         try {
             await pollJellyfinSessions();
         } catch (error) {
@@ -306,7 +342,13 @@ async function pollJellyfinSessions() {
 
                 if (lastPlayback) {
                     const endedAt = new Date();
-                    const durationS = Math.floor((endedAt.getTime() - lastPlayback.startedAt.getTime()) / 1000);
+                    // Use positionTicks from the last known ActiveStream state if available
+                    let durationS: number;
+                    if (activeStream.positionTicks && BigInt(activeStream.positionTicks) > 0n) {
+                        durationS = Math.floor(Number(BigInt(activeStream.positionTicks)) / 10_000_000);
+                    } else {
+                        durationS = Math.floor((endedAt.getTime() - lastPlayback.startedAt.getTime()) / 1000);
+                    }
                     await prisma.playbackHistory.update({
                         where: { id: lastPlayback.id },
                         data: { endedAt, durationWatched: durationS },
@@ -314,5 +356,42 @@ async function pollJellyfinSessions() {
                 }
             }
         }
+    }
+
+    // Stale session cleanup: close ActiveStreams that haven't been updated in 2+ minutes
+    // This catches orphan sessions from app restarts, network issues, etc.
+    const staleThreshold = new Date(Date.now() - 2 * 60 * 1000); // 2 minutes ago
+    const staleSessions = await prisma.activeStream.findMany({
+        where: { lastPingAt: { lt: staleThreshold } }
+    });
+
+    for (const stale of staleSessions) {
+        console.log(`[Monitor] Nettoyage session orpheline: ${stale.sessionId} (dernier ping: ${stale.lastPingAt.toISOString()})`);
+
+        // Clean Redis key if it exists
+        await redis.del(`stream:${stale.sessionId}`);
+
+        // Close the open PlaybackHistory
+        const openPlayback = await prisma.playbackHistory.findFirst({
+            where: { userId: stale.userId, mediaId: stale.mediaId, endedAt: null },
+            orderBy: { startedAt: 'desc' },
+        });
+
+        if (openPlayback) {
+            const endedAt = new Date();
+            let durationS: number;
+            if (stale.positionTicks && BigInt(stale.positionTicks) > 0n) {
+                durationS = Math.floor(Number(BigInt(stale.positionTicks)) / 10_000_000);
+            } else {
+                durationS = Math.floor((endedAt.getTime() - openPlayback.startedAt.getTime()) / 1000);
+            }
+            await prisma.playbackHistory.update({
+                where: { id: openPlayback.id },
+                data: { endedAt, durationWatched: durationS },
+            });
+        }
+
+        // Delete the stale ActiveStream
+        await prisma.activeStream.delete({ where: { id: stale.id } });
     }
 }

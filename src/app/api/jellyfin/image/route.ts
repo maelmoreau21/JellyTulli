@@ -5,13 +5,19 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const itemId = searchParams.get("itemId");
     const type = searchParams.get("type") || "Primary";
+    const fallbackId = searchParams.get("fallbackId"); // e.g. AlbumId for music tracks
 
     if (!itemId) {
         return new NextResponse("Item ID is required", { status: 400 });
     }
 
     try {
-        const response = await fetchJellyfinImage(itemId, type);
+        let response = await fetchJellyfinImage(itemId, type);
+
+        // If the item has no image, try the fallback (e.g. parent album)
+        if (!response.ok && fallbackId) {
+            response = await fetchJellyfinImage(fallbackId, type);
+        }
 
         if (!response.ok) {
             return new NextResponse("Image not found on Jellyfin Server", { status: response.status });

@@ -1,6 +1,7 @@
-export function getJellyfinImageUrl(itemId: string, type: 'Primary' | 'Thumb' = 'Primary'): string {
-    // Redirige toujours vers l'API interne pour masquer l'URL et la clé de l'utilisateur final
-    return `/api/jellyfin/image?itemId=${itemId}&type=${type}`;
+export function getJellyfinImageUrl(itemId: string, type: 'Primary' | 'Thumb' = 'Primary', fallbackId?: string): string {
+    let url = `/api/jellyfin/image?itemId=${itemId}&type=${type}`;
+    if (fallbackId) url += `&fallbackId=${fallbackId}`;
+    return url;
 }
 
 export async function fetchJellyfinImage(itemId: string, type: string) {

@@ -6,7 +6,7 @@ import path from "path";
 
 export const dynamic = "force-dynamic";
 
-const BACKUP_DIR = process.env.BACKUP_DIR || "/data/backups";
+const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
 
 export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions);

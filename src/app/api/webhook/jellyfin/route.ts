@@ -20,14 +20,11 @@ export async function POST(req: Request) {
         const forwardedFor = req.headers.get('x-forwarded-for');
         const realIpHeader = forwardedFor?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || null;
 
-        // Helper: clean and label local IPs
+        // Helper: clean IPs — keep raw value, just strip IPv6-mapped prefix
         const resolveIp = (ip: string | null | undefined): string => {
-            if (!ip) return "Réseau Local (Docker/LAN)";
+            if (!ip) return "Unknown";
             let cleaned = ip.trim();
             if (cleaned.includes("::ffff:")) cleaned = cleaned.split("::ffff:")[1];
-            if (cleaned === "::1" || cleaned.startsWith("127.0.0") || cleaned.startsWith("172.") || cleaned.startsWith("10.") || cleaned.startsWith("192.168.")) {
-                return "Réseau Local (Docker/LAN)";
-            }
             return cleaned;
         };
 
@@ -117,8 +114,98 @@ export async function POST(req: Request) {
 
         else if (eventType === "PlaybackStop") {
             console.log(`[Webhook] Fin de lecture interceptée.`);
-            // JellyTulli gère traditionnellement la fin de lecture via Monitor / Playback Reporting.
-            // Le webhook pourrait insérer directement dans PlaybackHistory s'il est configuré pour remonter la durée.
+            const jellyfinUserId = payload.UserId || payload.User_Id;
+            const jellyfinMediaId = payload.ItemId || payload.Item_Id || payload.MediaId;
+            const positionTicks = payload.PlaybackPositionTicks || payload.PositionTicks || 0;
+
+            if (jellyfinUserId && jellyfinMediaId) {
+                // Find the user and media internal IDs
+                const user = await prisma.user.findUnique({ where: { jellyfinUserId } });
+                const media = await prisma.media.findUnique({ where: { jellyfinMediaId } });
+
+                if (user && media) {
+                    const lastPlayback = await prisma.playbackHistory.findFirst({
+                        where: { userId: user.id, mediaId: media.id, endedAt: null },
+                        orderBy: { startedAt: 'desc' },
+                    });
+
+                    if (lastPlayback) {
+                        const endedAt = new Date();
+                        // Use position ticks if available (1 sec = 10M ticks)
+                        let durationS: number;
+                        if (positionTicks > 0) {
+                            durationS = Math.floor(positionTicks / 10_000_000);
+                        } else {
+                            durationS = Math.floor((endedAt.getTime() - lastPlayback.startedAt.getTime()) / 1000);
+                        }
+                        await prisma.playbackHistory.update({
+                            where: { id: lastPlayback.id },
+                            data: { endedAt, durationWatched: durationS },
+                        });
+                        console.log(`[Webhook] PlaybackStop: Session ${lastPlayback.id} closed, duration=${durationS}s`);
+                    }
+                }
+            }
+        }
+
+        else if (eventType === "PlaybackProgress") {
+            const jellyfinUserId = payload.UserId || payload.User_Id;
+            const jellyfinMediaId = payload.ItemId || payload.Item_Id || payload.MediaId;
+            const isPaused = payload.IsPaused === true || payload.PlayState?.IsPaused === true;
+            const currentAudioIndex = payload.PlayState?.AudioStreamIndex ?? payload.AudioStreamIndex;
+            const currentSubIndex = payload.PlayState?.SubtitleStreamIndex ?? payload.SubtitleStreamIndex;
+
+            if (jellyfinUserId && jellyfinMediaId) {
+                const user = await prisma.user.findUnique({ where: { jellyfinUserId } });
+                const media = await prisma.media.findUnique({ where: { jellyfinMediaId } });
+
+                if (user && media) {
+                    const lastPlayback = await prisma.playbackHistory.findFirst({
+                        where: { userId: user.id, mediaId: media.id, endedAt: null },
+                        orderBy: { startedAt: 'desc' },
+                    });
+
+                    if (lastPlayback) {
+                        const updates: any = {};
+
+                        // Track pause events: if currently paused and we track transitions
+                        // We use a Redis key to store the previous pause state
+                        const pauseKey = `pause:${lastPlayback.id}`;
+                        const prevPauseState = await (await import("@/lib/redis")).default.get(pauseKey);
+                        if (isPaused && prevPauseState !== "paused") {
+                            updates.pauseCount = { increment: 1 };
+                            await (await import("@/lib/redis")).default.setex(pauseKey, 3600, "paused");
+                        } else if (!isPaused && prevPauseState === "paused") {
+                            await (await import("@/lib/redis")).default.setex(pauseKey, 3600, "playing");
+                        }
+
+                        // Track audio/subtitle changes via Redis
+                        const audioKey = `audio:${lastPlayback.id}`;
+                        const subKey = `sub:${lastPlayback.id}`;
+                        if (currentAudioIndex !== undefined && currentAudioIndex !== null) {
+                            const prevAudio = await (await import("@/lib/redis")).default.get(audioKey);
+                            if (prevAudio !== null && prevAudio !== String(currentAudioIndex)) {
+                                updates.audioChanges = { increment: 1 };
+                            }
+                            await (await import("@/lib/redis")).default.setex(audioKey, 3600, String(currentAudioIndex));
+                        }
+                        if (currentSubIndex !== undefined && currentSubIndex !== null) {
+                            const prevSub = await (await import("@/lib/redis")).default.get(subKey);
+                            if (prevSub !== null && prevSub !== String(currentSubIndex)) {
+                                updates.subtitleChanges = { increment: 1 };
+                            }
+                            await (await import("@/lib/redis")).default.setex(subKey, 3600, String(currentSubIndex));
+                        }
+
+                        if (Object.keys(updates).length > 0) {
+                            await prisma.playbackHistory.update({
+                                where: { id: lastPlayback.id },
+                                data: updates,
+                            });
+                        }
+                    }
+                }
+            }
         }
 
         return NextResponse.json({ success: true, message: `Événement ${eventType} traité.` });

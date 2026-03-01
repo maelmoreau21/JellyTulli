@@ -36,20 +36,59 @@ export async function syncJellyfinLibrary() {
         }
         console.log(`[Sync] ${usersCount} utilisateurs synchronisés.`);
 
-        // 2. Synchronisation des Médias (Films, Séries, Épisodes)
+        // 2. Fetch library views to map CollectionType per library
+        console.log("[Sync] Fetching Library Views...");
+        const viewsRes = await fetch(`${baseUrl}/Library/VirtualFolders?api_key=${apiKey}`);
+        const libraryCollectionMap = new Map<string, string>();
+        if (viewsRes.ok) {
+            const views = await viewsRes.json();
+            for (const view of views) {
+                if (view.ItemId && view.CollectionType) {
+                    libraryCollectionMap.set(view.ItemId, view.CollectionType);
+                }
+            }
+        }
+
+        // Also fetch user views for parent mapping
+        const userViewsRes = await fetch(`${baseUrl}/UserViews?api_key=${apiKey}`);
+        const parentCollectionMap = new Map<string, string>();
+        if (userViewsRes.ok) {
+            const userViews = await userViewsRes.json();
+            for (const v of (userViews.Items || [])) {
+                if (v.Id && v.CollectionType) {
+                    parentCollectionMap.set(v.Id, v.CollectionType);
+                }
+            }
+        }
+
+        // 3. Sync Media (Movies, Series, Episodes, Audio, MusicAlbum) with Genres and MediaSources
         console.log("[Sync] Fetching Media Items...");
-        // On récupère tout ce qui est vidéo (Movie, Series, Episode, etc.) - Ajout de Genres et MediaSources
-        const itemsRes = await fetch(`${baseUrl}/Items?api_key=${apiKey}&IncludeItemTypes=Movie,Series,Episode&Recursive=true&Fields=ProviderIds,PremiereDate,Genres,MediaSources`);
+        const itemsRes = await fetch(`${baseUrl}/Items?api_key=${apiKey}&IncludeItemTypes=Movie,Series,Episode,Audio,MusicAlbum&Recursive=true&Fields=ProviderIds,PremiereDate,Genres,MediaSources,ParentId`);
         if (!itemsRes.ok) throw new Error("Erreur de récupération des médias");
         const itemsData = await itemsRes.json();
         const items = itemsData.Items || [];
 
         let mediaCount = 0;
         for (const item of items) {
-            // Extraction des genres (limités pour éviter les overloads)
             const genres = item.Genres || [];
 
-            // Déduction de la résolution à partir du premier flux vidéo (MediaSources)
+            // Determine collectionType from library parent chain
+            let collectionType: string | null = null;
+            if (item.CollectionType) {
+                collectionType = item.CollectionType;
+            } else {
+                const parentId = item.ParentId || item.SeasonId || item.SeriesId;
+                if (parentId) {
+                    collectionType = parentCollectionMap.get(parentId) || libraryCollectionMap.get(parentId) || null;
+                }
+            }
+            // Infer from item type if still unknown
+            if (!collectionType) {
+                if (item.Type === 'Movie') collectionType = 'movies';
+                else if (['Series', 'Episode'].includes(item.Type)) collectionType = 'tvshows';
+                else if (['Audio', 'MusicAlbum'].includes(item.Type)) collectionType = 'music';
+            }
+
             let resolution = null;
             if (item.MediaSources && item.MediaSources.length > 0) {
                 const mediaSource = item.MediaSources[0];
@@ -63,21 +102,13 @@ export async function syncJellyfinLibrary() {
                 }
             }
 
+            const durationMs = item.RunTimeTicks ? BigInt(Math.floor(item.RunTimeTicks / 10000)) : null;
+            const parentId = item.AlbumId || item.SeasonId || item.SeriesId || item.ParentId || null;
+
             await prisma.media.upsert({
                 where: { jellyfinMediaId: item.Id },
-                update: {
-                    title: item.Name,
-                    type: item.Type,
-                    genres: genres,
-                    resolution: resolution
-                },
-                create: {
-                    jellyfinMediaId: item.Id,
-                    title: item.Name,
-                    type: item.Type,
-                    genres: genres,
-                    resolution: resolution
-                },
+                update: { title: item.Name, type: item.Type, genres, resolution, collectionType, durationMs, parentId },
+                create: { jellyfinMediaId: item.Id, title: item.Name, type: item.Type, genres, resolution, collectionType, durationMs, parentId },
             });
             mediaCount++;
         }

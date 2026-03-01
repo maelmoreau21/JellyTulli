@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { ActivityCalendar, ThemeInput } from "react-activity-calendar";
-import { format, subDays } from "date-fns";
+import { format, eachDayOfInterval, startOfYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -23,14 +23,15 @@ const customTheme: ThemeInput = {
 };
 
 export function YearlyHeatmap({ data }: YearlyHeatmapProps) {
-    // Fill in the blanks (ActivityCalendar needs continuous dates for the last 365 days)
+    // Fill in the blanks (ActivityCalendar needs continuous dates from Jan 1 to today)
     const processedData = useMemo(() => {
         const today = new Date();
+        const jan1 = startOfYear(today);
         const yearData: HeatmapData[] = [];
 
-        // Loop backwards from today to 365 days ago
-        for (let i = 364; i >= 0; i--) {
-            const date = subDays(today, i);
+        // Loop from January 1st of the current year to today
+        const allDays = eachDayOfInterval({ start: jan1, end: today });
+        for (const date of allDays) {
             const dateStr = format(date, "yyyy-MM-dd");
             const existing = data.find(d => d.date === dateStr);
 
@@ -53,11 +54,11 @@ export function YearlyHeatmap({ data }: YearlyHeatmapProps) {
                 <CardTitle className="text-zinc-100 flex items-center justify-between">
                     <span>Activité Annuelle</span>
                     <span className="text-xs font-normal text-zinc-500 bg-zinc-800/50 px-2 py-1 rounded-md">
-                        365 jours
+                        {new Date().getFullYear()}
                     </span>
                 </CardTitle>
                 <CardDescription className="text-zinc-400">
-                    Volume de lectures quotidien sur l'année écoulée
+                    Volume de lectures quotidien depuis le 1er janvier
                 </CardDescription>
             </CardHeader>
             <CardContent className="w-full overflow-x-auto pb-6 pt-4 px-6 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">

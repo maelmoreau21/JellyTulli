@@ -28,6 +28,7 @@ model Media {
   genres          String[]          // Tableau des genres (via sync)
   resolution      String?           // Ex: "4K", "1080p", "SD" (via sync)
   durationMs      BigInt?           // Durée totale du média
+  parentId        String?           // Jellyfin ParentId (AlbumId, SeasonId, etc.) for image fallback
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -63,6 +64,11 @@ model PlaybackHistory {
   audioCodec       String?   // ex: "aac", "ac3"
   subtitleLanguage String?   // ex: "fre", "eng"
   subtitleCodec    String?   // ex: "subrip", "ass"
+  
+  // Advanced Telemetry
+  pauseCount       Int       @default(0) // Number of times playback was paused
+  audioChanges     Int       @default(0) // Number of audio track switches
+  subtitleChanges  Int       @default(0) // Number of subtitle track switches
   
   user            User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   media           Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)

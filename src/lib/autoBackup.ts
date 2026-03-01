@@ -2,7 +2,7 @@ import prisma from "@/lib/prisma";
 import { writeFileSync, readdirSync, unlinkSync, existsSync, mkdirSync, statSync } from "fs";
 import path from "path";
 
-const BACKUP_DIR = process.env.BACKUP_DIR || "/data/backups";
+const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
 const MAX_BACKUPS = 5;
 
 /**

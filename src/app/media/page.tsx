@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { FallbackImage } from "@/components/FallbackImage";
 import Link from "next/link";
-import { PlayCircle, Film, ArrowDownUp } from "lucide-react";
+import { PlayCircle, Film, ArrowDownUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,13 +14,17 @@ interface MediaPageProps {
     searchParams: Promise<{
         sortBy?: string;
         type?: string;
+        page?: string;
     }>;
 }
+
+const ITEMS_PER_PAGE = 50;
 
 export default async function MediaPage({ searchParams }: MediaPageProps) {
     const sParams = await searchParams;
     const sortBy = sParams.sortBy || "plays"; // 'plays', 'duration', ou 'quality'
     const type = sParams.type;
+    const currentPage = Math.max(1, parseInt(sParams.page || "1", 10) || 1);
 
     // 0. Récupérer les Settings globaux
     const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
@@ -28,12 +32,11 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
 
     const buildMediaFilter = () => {
         let AND: any[] = [];
-        if (type === 'movie') AND.push({ type: "Movie" });
-        else if (type === 'series') AND.push({ type: { in: ["Series", "Episode"] } });
-        else if (type === 'music') AND.push({ type: { in: ["Audio", "Track", "MusicAlbum"] } });
+        if (type === 'movie') AND.push({ collectionType: "movies" });
+        else if (type === 'series') AND.push({ collectionType: "tvshows" });
+        else if (type === 'music') AND.push({ collectionType: "music" });
         else {
-            // Default "Tous": exclude music/audio to avoid mixing libraries
-            AND.push({ type: { notIn: ["Audio", "Track", "MusicAlbum"] } });
+            // Default "Tous": show all types
         }
 
         if (excludedLibraries.length > 0) {
@@ -118,8 +121,22 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
         processedMedia.sort((a: any, b: any) => b.plays - a.plays);
     }
 
-    // Limitons aux 100 premiers résultats pour ne pas surcharger le navigateur si la base est immense
-    const displayMedia = processedMedia.slice(0, 100);
+    // 5. Pagination
+    const totalItems = processedMedia.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+    const safePage = Math.min(currentPage, totalPages);
+    const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
+    const displayMedia = processedMedia.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    // Helper: build pagination URL preserving existing params
+    const buildPageUrl = (page: number) => {
+        const params = new URLSearchParams();
+        if (type) params.set("type", type);
+        if (sortBy !== "plays") params.set("sortBy", sortBy);
+        if (page > 1) params.set("page", String(page));
+        const qs = params.toString();
+        return `/media${qs ? `?${qs}` : ""}`;
+    };
 
     return (
         <div className="flex-col md:flex">
@@ -192,19 +209,19 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                             </span>
                             <div className="flex items-center bg-muted rounded-md p-1">
                                 <Link
-                                    href="?sortBy=plays"
+                                    href={`/media?sortBy=plays${type ? `&type=${type}` : ''}`}
                                     className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-colors ${sortBy === "plays" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/50"}`}
                                 >
                                     Popularité (Vues)
                                 </Link>
                                 <Link
-                                    href="?sortBy=duration"
+                                    href={`/media?sortBy=duration${type ? `&type=${type}` : ''}`}
                                     className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-colors ${sortBy === "duration" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/50"}`}
                                 >
                                     Temps Visionné
                                 </Link>
                                 <Link
-                                    href="?sortBy=quality"
+                                    href={`/media?sortBy=quality${type ? `&type=${type}` : ''}`}
                                     className={`px-3 py-1.5 text-xs font-medium rounded-sm transition-colors ${sortBy === "quality" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/50"}`}
                                 >
                                     Mode de lecture
@@ -223,7 +240,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                     <Link href={`/media/${media.jellyfinMediaId}`} key={media.id} className="group flex flex-col space-y-2 relative">
                                         <div className="relative w-full aspect-[2/3] bg-zinc-900 rounded-md overflow-hidden ring-1 ring-white/10 shadow-lg">
                                             <FallbackImage
-                                                src={getJellyfinImageUrl(media.jellyfinMediaId, 'Primary')}
+                                                src={getJellyfinImageUrl(media.jellyfinMediaId, 'Primary', media.parentId || undefined)}
                                                 alt={media.title}
                                                 width={400}
                                                 height={600}
@@ -261,10 +278,48 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                 ))}
                             </div>
                         )}
-                        {processedMedia.length > 100 && (
-                            <p className="text-xs text-muted-foreground text-center mt-4">
-                                Seuls les 100 premiers résultats (sur {processedMedia.length}) sont affichés pour optimiser les performances.
-                            </p>
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-center gap-2 mt-8 pt-4 border-t border-zinc-800/50">
+                                {safePage > 1 && (
+                                    <Link href={buildPageUrl(safePage - 1)} className="flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors border border-zinc-700 hover:bg-zinc-800">
+                                        <ChevronLeft className="w-4 h-4" /> Précédent
+                                    </Link>
+                                )}
+                                <div className="flex items-center gap-1">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 2)
+                                        .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                                            if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("...");
+                                            acc.push(p);
+                                            return acc;
+                                        }, [])
+                                        .map((item, idx) =>
+                                            item === "..." ? (
+                                                <span key={`ellipsis-${idx}`} className="px-2 text-zinc-500">…</span>
+                                            ) : (
+                                                <Link
+                                                    key={item}
+                                                    href={buildPageUrl(item as number)}
+                                                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                                        item === safePage
+                                                            ? "bg-primary text-primary-foreground"
+                                                            : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                                                    }`}
+                                                >
+                                                    {item}
+                                                </Link>
+                                            )
+                                        )}
+                                </div>
+                                {safePage < totalPages && (
+                                    <Link href={buildPageUrl(safePage + 1)} className="flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors border border-zinc-700 hover:bg-zinc-800">
+                                        Suivant <ChevronRight className="w-4 h-4" />
+                                    </Link>
+                                )}
+                                <span className="text-xs text-muted-foreground ml-4">
+                                    {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, totalItems)} sur {totalItems}
+                                </span>
+                            </div>
                         )}
                     </CardContent>
                 </Card>

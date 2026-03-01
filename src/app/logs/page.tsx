@@ -1,4 +1,5 @@
-import { PlayCircle, Search, ArrowUpDown, ChevronDown, Users } from "lucide-react";
+import { Fragment } from "react";
+import { PlayCircle, Search, ArrowUpDown, ChevronDown, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +7,11 @@ import { LogFilters } from "./LogFilters";
 import { FallbackImage } from "@/components/FallbackImage";
 import prisma from "@/lib/prisma";
 
+import Link from "next/link";
+
 export const dynamic = "force-dynamic"; // Bypass statis rendering for real-time logs
+
+const LOGS_PER_PAGE = 100;
 
 // --- Watch Party Detection Algorithm ---
 // Groups sessions of the same media started by different users within a 5-minute window
@@ -60,11 +65,12 @@ function detectWatchParties(logs: any[]): Map<string, string> {
 export default async function LogsPage({
     searchParams
 }: {
-    searchParams: Promise<{ query?: string, sort?: string }>
+    searchParams: Promise<{ query?: string, sort?: string, page?: string }>
 }) {
     const params = await searchParams;
     const query = params.query?.toLowerCase() || "";
     const sort = params.sort || "date_desc";
+    const currentPage = Math.max(1, parseInt(params.page || "1", 10) || 1);
 
     // Build the non-fuzzy exact search constraint
     const whereClause: any = query ? {
@@ -82,6 +88,10 @@ export default async function LogsPage({
     else if (sort === "duration_desc") orderBy = { durationWatched: "desc" };
     else if (sort === "duration_asc") orderBy = { durationWatched: "asc" };
 
+    const totalCount = await prisma.playbackHistory.count({ where: whereClause });
+    const totalPages = Math.max(1, Math.ceil(totalCount / LOGS_PER_PAGE));
+    const safePage = Math.min(currentPage, totalPages);
+
     const logs = await prisma.playbackHistory.findMany({
         where: whereClause,
         include: {
@@ -89,8 +99,19 @@ export default async function LogsPage({
             media: true,
         },
         orderBy: orderBy,
-        take: 500, // Limit to 500 rows to prevent overwhelming the browser
+        skip: (safePage - 1) * LOGS_PER_PAGE,
+        take: LOGS_PER_PAGE,
     });
+
+    // Build pagination URL helper
+    const buildPageUrl = (page: number) => {
+        const p = new URLSearchParams();
+        if (query) p.set("query", query);
+        if (sort !== "date_desc") p.set("sort", sort);
+        if (page > 1) p.set("page", String(page));
+        const qs = p.toString();
+        return `/logs${qs ? `?${qs}` : ""}`;
+    };
 
     // Detect Watch Parties
     const watchPartyMap = detectWatchParties(logs);
@@ -115,7 +136,8 @@ export default async function LogsPage({
                     <div>
                         <h2 className="text-3xl font-bold tracking-tight">Historique Brut (Logs)</h2>
                         <p className="text-muted-foreground mr-12 mt-2">
-                            Retrouvez la liste complète et technique des sessions. Idéal pour le débogage (Transcodage, Logs d'adresses IPv4/IPv6, Codecs utilisés). Limité aux 500 dernières entrées pour des raisons de performances.
+                            Retrouvez la liste complète et technique des sessions. Idéal pour le débogage (Transcodage, Logs d'adresses IPv4/IPv6, Codecs utilisés).
+                            {totalCount > 0 && <span className="text-zinc-500"> — {totalCount} entrées au total.</span>}
                         </p>
                     </div>
                 </div>
@@ -158,7 +180,7 @@ export default async function LogsPage({
                                             if (isFirstOfParty && partyId) shownPartyBanners.add(partyId);
 
                                             return (
-                                                <>
+                                                <Fragment key={log.id}>
                                                     {/* Watch Party Banner — first log of each party */}
                                                     {isFirstOfParty && party && (
                                                         <TableRow key={`party-banner-${partyId}`} className="border-none">
@@ -201,7 +223,9 @@ export default async function LogsPage({
 
                                                         {/* Utilisateur */}
                                                         <TableCell className="font-semibold text-primary">
-                                                            {log.user?.username || "Utilisateur Supprimé"}
+                                                            {log.user ? (
+                                                                <Link href={`/users/${log.user.jellyfinUserId}`} className="hover:underline">{log.user.username}</Link>
+                                                            ) : "Utilisateur Supprimé"}
                                                         </TableCell>
 
                                                         {/* Média */}
@@ -214,7 +238,7 @@ export default async function LogsPage({
                                                                     />
                                                                 </div>
                                                                 <div className="flex flex-col min-w-0 flex-1">
-                                                                    <span className="truncate font-medium text-zinc-100" title={log.media.title}>{log.media.title}</span>
+                                                                    <Link href={`/media/${log.media.jellyfinMediaId}`} className="truncate font-medium text-zinc-100 hover:underline" title={log.media.title}>{log.media.title}</Link>
                                                                     <span className="text-xs text-zinc-500">{log.media.type}</span>
                                                                 </div>
                                                             </div>
@@ -264,13 +288,58 @@ export default async function LogsPage({
                                                             }
                                                         </TableCell>
                                                     </TableRow>
-                                                </>
+                                                </Fragment>
                                             );
                                         })
                                     )}
                                 </TableBody>
                             </Table>
                         </div>
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t border-zinc-800/50">
+                                {safePage > 1 && (
+                                    <Link href={buildPageUrl(safePage - 1)} className="flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors border border-zinc-700 hover:bg-zinc-800">
+                                        <ChevronLeft className="w-4 h-4" /> Précédent
+                                    </Link>
+                                )}
+                                <div className="flex items-center gap-1">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 2)
+                                        .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                                            if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("...");
+                                            acc.push(p);
+                                            return acc;
+                                        }, [])
+                                        .map((item, idx) =>
+                                            item === "..." ? (
+                                                <span key={`ellipsis-${idx}`} className="px-2 text-zinc-500">…</span>
+                                            ) : (
+                                                <Link
+                                                    key={item}
+                                                    href={buildPageUrl(item as number)}
+                                                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                                        item === safePage
+                                                            ? "bg-primary text-primary-foreground"
+                                                            : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                                                    }`}
+                                                >
+                                                    {item}
+                                                </Link>
+                                            )
+                                        )}
+                                </div>
+                                {safePage < totalPages && (
+                                    <Link href={buildPageUrl(safePage + 1)} className="flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors border border-zinc-700 hover:bg-zinc-800">
+                                        Suivant <ChevronRight className="w-4 h-4" />
+                                    </Link>
+                                )}
+                                <span className="text-xs text-muted-foreground ml-4">
+                                    Page {safePage} / {totalPages}
+                                </span>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
