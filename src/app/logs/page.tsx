@@ -103,6 +103,45 @@ export default async function LogsPage({
         take: LOGS_PER_PAGE,
     });
 
+    // Build parent chain map for enriched media titles (Episode → Season → Series, Track → Album → Artist)
+    const parentIds = new Set<string>();
+    logs.forEach((log: any) => {
+        if (log.media?.parentId) parentIds.add(log.media.parentId);
+    });
+    const parentMedia = parentIds.size > 0
+        ? await prisma.media.findMany({ where: { jellyfinMediaId: { in: Array.from(parentIds) } }, select: { jellyfinMediaId: true, title: true, type: true, parentId: true } })
+        : [];
+    // Also fetch grandparent IDs (Season → Series)
+    const grandparentIds = new Set<string>();
+    parentMedia.forEach(pm => { if (pm.parentId) grandparentIds.add(pm.parentId); });
+    const grandparentMedia = grandparentIds.size > 0
+        ? await prisma.media.findMany({ where: { jellyfinMediaId: { in: Array.from(grandparentIds) } }, select: { jellyfinMediaId: true, title: true, type: true } })
+        : [];
+    const parentMap = new Map<string, { title: string; type: string; parentId: string | null }>();
+    parentMedia.forEach(pm => parentMap.set(pm.jellyfinMediaId, { title: pm.title, type: pm.type, parentId: pm.parentId }));
+    const grandparentMap = new Map<string, { title: string; type: string }>();
+    grandparentMedia.forEach(gp => grandparentMap.set(gp.jellyfinMediaId, { title: gp.title, type: gp.type }));
+
+    // Helper: build subtitle line for a media (e.g., "Série — Saison" or "Artist — Album")
+    function getMediaSubtitle(media: any): string | null {
+        if (!media?.parentId) return null;
+        const parent = parentMap.get(media.parentId);
+        if (!parent) return null;
+        if (media.type === 'Episode') {
+            // Episode → parent=Season → grandparent=Series
+            const grandparent = parent.parentId ? grandparentMap.get(parent.parentId) : null;
+            return grandparent ? `${grandparent.title} — ${parent.title}` : parent.title;
+        }
+        if (media.type === 'Season') {
+            return parent.title; // Season → Series
+        }
+        if (media.type === 'Audio') {
+            // Audio → parent=Album, also look for artist in album title or grandparent
+            return parent.title;
+        }
+        return parent.title;
+    }
+
     // Build pagination URL helper
     const buildPageUrl = (page: number) => {
         const p = new URLSearchParams();
@@ -239,7 +278,12 @@ export default async function LogsPage({
                                                                 </div>
                                                                 <div className="flex flex-col min-w-0 flex-1">
                                                                     <Link href={`/media/${log.media.jellyfinMediaId}`} className="truncate font-medium text-zinc-100 hover:underline" title={log.media.title}>{log.media.title}</Link>
-                                                                    <span className="text-xs text-zinc-500">{log.media.type}</span>
+                                                                    {(() => {
+                                                                        const subtitle = getMediaSubtitle(log.media);
+                                                                        return subtitle
+                                                                            ? <span className="text-[11px] text-zinc-400 truncate" title={subtitle}>{subtitle}</span>
+                                                                            : <span className="text-xs text-zinc-500">{log.media.type}</span>;
+                                                                    })()}
                                                                 </div>
                                                             </div>
                                                         </TableCell>

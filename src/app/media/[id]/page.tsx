@@ -5,7 +5,7 @@ import { FallbackImage } from "@/components/FallbackImage";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Clock, Eye, Timer, ArrowLeft, ChevronRight, Pause, Languages, Headphones, Tv, Music, Disc3, Play, Film, ListMusic } from "lucide-react";
+import { Clock, Eye, Timer, ArrowLeft, ChevronRight, Pause, Languages, Headphones, Tv, Music, Disc3, Play, Film, ListMusic, Activity } from "lucide-react";
 import Link from "next/link";
 import MediaDropoffChart from "./MediaDropoffChart";
 import TelemetryChart from "./TelemetryChart";
@@ -170,6 +170,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
     const subtitleLangs = Array.from(subtitleLangCounts.entries()).sort((a, b) => b[1] - a[1]);
 
     const genres = media.genres || [];
+    const isMusic = ['Audio', 'MusicAlbum'].includes(media.type);
 
     return (
         <div className="flex-col md:flex">
@@ -242,7 +243,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                 </div>
 
                 {/* KPI Cards */}
-                <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+                <div className={`grid gap-4 grid-cols-2 ${isMusic ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
 
                     {/* Children: Seasons / Episodes / Tracks */}
                     {children.length > 0 && (
@@ -331,22 +332,46 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Durée Moyenne</CardTitle><Timer className="h-4 w-4 text-emerald-500" /></CardHeader>
                         <CardContent><div className="text-2xl font-bold">{avgMinutes} min</div><p className="text-xs text-muted-foreground mt-1">Par session</p></CardContent>
                     </Card>
-                    <Card className="bg-zinc-900/50 border-zinc-800/50">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Pauses</CardTitle><Pause className="h-4 w-4 text-yellow-500" /></CardHeader>
-                        <CardContent><div className="text-2xl font-bold">{totalPauses}</div><p className="text-xs text-muted-foreground mt-1">Total</p></CardContent>
-                    </Card>
-                    <Card className="bg-zinc-900/50 border-zinc-800/50">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Changements Audio</CardTitle><Headphones className="h-4 w-4 text-purple-500" /></CardHeader>
-                        <CardContent><div className="text-2xl font-bold">{totalAudioChanges}</div><p className="text-xs text-muted-foreground mt-1">Pistes</p></CardContent>
-                    </Card>
-                    <Card className="bg-zinc-900/50 border-zinc-800/50">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Changements Sous-titres</CardTitle><Languages className="h-4 w-4 text-cyan-500" /></CardHeader>
-                        <CardContent><div className="text-2xl font-bold">{totalSubChanges}</div><p className="text-xs text-muted-foreground mt-1">Pistes</p></CardContent>
-                    </Card>
+                    {isMusic && (
+                        <Card className="bg-zinc-900/50 border-zinc-800/50">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Pauses</CardTitle><Pause className="h-4 w-4 text-yellow-500" /></CardHeader>
+                            <CardContent><div className="text-2xl font-bold">{totalPauses}</div><p className="text-xs text-muted-foreground mt-1">Total</p></CardContent>
+                        </Card>
+                    )}
                 </div>
 
+                {/* Telemetry Visual Summary (films/series only) */}
+                {!isMusic && (
+                    <Card className="bg-zinc-900/50 border-zinc-800/50">
+                        <CardHeader><CardTitle className="flex items-center gap-2"><Activity className="w-4 h-4" /> Résumé Télémétrie</CardTitle><CardDescription>Interactions utilisateurs cumulées sur toutes les sessions.</CardDescription></CardHeader>
+                        <CardContent>
+                            <div className="grid gap-4 md:grid-cols-3">
+                                {[
+                                    { label: 'Pauses', value: totalPauses, color: 'bg-yellow-500', icon: <Pause className="h-4 w-4 text-yellow-500" /> },
+                                    { label: 'Changements Audio', value: totalAudioChanges, color: 'bg-purple-500', icon: <Headphones className="h-4 w-4 text-purple-500" /> },
+                                    { label: 'Changements Sous-titres', value: totalSubChanges, color: 'bg-cyan-500', icon: <Languages className="h-4 w-4 text-cyan-500" /> },
+                                ].map((metric) => {
+                                    const maxVal = Math.max(totalPauses, totalAudioChanges, totalSubChanges, 1);
+                                    const pct = Math.round((metric.value / maxVal) * 100);
+                                    return (
+                                        <div key={metric.label} className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2 text-sm font-medium">{metric.icon}{metric.label}</div>
+                                                <span className="text-lg font-bold">{metric.value}</span>
+                                            </div>
+                                            <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
+                                                <div className={`h-full ${metric.color} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
                 {/* Users + Language Distribution */}
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className={`grid gap-4 ${isMusic ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
                     <Card className="bg-zinc-900/50 border-zinc-800/50">
                         <CardHeader><CardTitle>Spectateurs ({userList.length})</CardTitle><CardDescription>Utilisateurs ayant regardé ce média.</CardDescription></CardHeader>
                         <CardContent>
@@ -383,24 +408,26 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                             </div>
                         </CardContent>
                     </Card>
-                    <Card className="bg-zinc-900/50 border-zinc-800/50">
-                        <CardHeader><CardTitle className="flex items-center gap-2"><Languages className="w-4 h-4" /> Sous-titres</CardTitle></CardHeader>
-                        <CardContent>
-                            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                                {subtitleLangs.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">Aucun</p> :
-                                    subtitleLangs.map(([lang, count]) => (
-                                        <div key={lang} className="flex items-center justify-between">
-                                            <span className="font-mono text-xs bg-zinc-800 px-2 py-1 rounded">{lang}</span>
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-24 h-2 bg-zinc-800 rounded-full overflow-hidden"><div className="h-full bg-cyan-500 rounded-full" style={{ width: `${Math.round((count / totalViews) * 100)}%` }} /></div>
-                                                <span className="text-xs text-zinc-400 w-8 text-right">{count}</span>
+                    {!isMusic && (
+                        <Card className="bg-zinc-900/50 border-zinc-800/50">
+                            <CardHeader><CardTitle className="flex items-center gap-2"><Languages className="w-4 h-4" /> Sous-titres</CardTitle></CardHeader>
+                            <CardContent>
+                                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                                    {subtitleLangs.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">Aucun</p> :
+                                        subtitleLangs.map(([lang, count]) => (
+                                            <div key={lang} className="flex items-center justify-between">
+                                                <span className="font-mono text-xs bg-zinc-800 px-2 py-1 rounded">{lang}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-24 h-2 bg-zinc-800 rounded-full overflow-hidden"><div className="h-full bg-cyan-500 rounded-full" style={{ width: `${Math.round((count / totalViews) * 100)}%` }} /></div>
+                                                    <span className="text-xs text-zinc-400 w-8 text-right">{count}</span>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))
-                                }
-                            </div>
-                        </CardContent>
-                    </Card>
+                                        ))
+                                    }
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
 
                 {/* Drop-off Chart */}
@@ -416,9 +443,9 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                     <Card className="bg-zinc-900/50 border-zinc-800/50">
                         <CardHeader>
                             <CardTitle>Télémétrie par Session</CardTitle>
-                            <CardDescription>Pauses, changements audio et sous-titres dans le temps.</CardDescription>
+                            <CardDescription>{isMusic ? 'Pauses dans le temps.' : 'Pauses, changements audio et sous-titres dans le temps.'}</CardDescription>
                         </CardHeader>
-                        <CardContent><div className="h-[300px] w-full"><TelemetryChart data={telemetryData} /></div></CardContent>
+                        <CardContent><div className="h-[300px] w-full"><TelemetryChart data={isMusic ? telemetryData.map((d: any) => ({ ...d, audioChanges: 0, subtitleChanges: 0 })) : telemetryData} /></div></CardContent>
                     </Card>
                 )}
 
@@ -430,12 +457,12 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                             <Table className="min-w-[900px]">
                                 <TableHeader>
                                     <TableRow className="border-zinc-800">
-                                        <TableHead>Utilisateur</TableHead><TableHead>Date</TableHead><TableHead>Méthode</TableHead><TableHead>Audio</TableHead><TableHead>Sous-titres</TableHead><TableHead className="text-center">Pauses</TableHead><TableHead className="text-right">Durée</TableHead>
+                                        <TableHead>Utilisateur</TableHead><TableHead>Date</TableHead><TableHead>Méthode</TableHead><TableHead>Audio</TableHead>{!isMusic && <TableHead>Sous-titres</TableHead>}<TableHead className="text-center">Pauses</TableHead><TableHead className="text-right">Durée</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {media.playbackHistory.length === 0 ? (
-                                        <TableRow><TableCell colSpan={7} className="text-center h-24 text-muted-foreground">Aucune session.</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={isMusic ? 6 : 7} className="text-center h-24 text-muted-foreground">Aucune session.</TableCell></TableRow>
                                     ) : media.playbackHistory.map((h: any) => {
                                         const isTranscode = h.playMethod?.toLowerCase().includes("transcode");
                                         return (
@@ -446,7 +473,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                                                 <TableCell className="text-sm text-zinc-400 whitespace-nowrap">{new Date(h.startedAt).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</TableCell>
                                                 <TableCell><Badge variant={isTranscode ? "destructive" : "default"} className={isTranscode ? "bg-amber-500/10 text-amber-500" : "bg-emerald-500/10 text-emerald-500"}>{h.playMethod || "DirectPlay"}</Badge></TableCell>
                                                 <TableCell className="text-sm">{h.audioLanguage ? <span className="font-mono text-xs bg-zinc-800 px-1.5 py-0.5 rounded">{h.audioLanguage}{h.audioCodec ? ` (${h.audioCodec})` : ""}</span> : <span className="text-zinc-500 text-xs">—</span>}</TableCell>
-                                                <TableCell className="text-sm">{h.subtitleLanguage ? <span className="font-mono text-xs bg-zinc-800 px-1.5 py-0.5 rounded">{h.subtitleLanguage}{h.subtitleCodec ? ` (${h.subtitleCodec})` : ""}</span> : <span className="text-zinc-500 text-xs">—</span>}</TableCell>
+                                                {!isMusic && <TableCell className="text-sm">{h.subtitleLanguage ? <span className="font-mono text-xs bg-zinc-800 px-1.5 py-0.5 rounded">{h.subtitleLanguage}{h.subtitleCodec ? ` (${h.subtitleCodec})` : ""}</span> : <span className="text-zinc-500 text-xs">—</span>}</TableCell>}
                                                 <TableCell className="text-center">{(h.pauseCount || 0) > 0 ? <span className="text-yellow-400 font-medium">{h.pauseCount}</span> : <span className="text-zinc-500">0</span>}</TableCell>
                                                 <TableCell className="text-right whitespace-nowrap font-medium">{h.durationWatched > 0 ? `${Math.floor(h.durationWatched / 60)} min` : <span className="text-zinc-500 text-xs">0 min</span>}</TableCell>
                                             </TableRow>

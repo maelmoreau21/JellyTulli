@@ -113,6 +113,13 @@ async function pollJellyfinSessions() {
         const DeviceName = session.DeviceName;
         const IpAddress = cleanIpAddress(session.RemoteEndPoint);
 
+        // Parent chain metadata (for enriched display: "Episode — Season — Series")
+        const SeriesName = Item?.SeriesName || null;
+        const SeasonName = Item?.SeasonName || null;
+        const AlbumName = Item?.Album || null;
+        const AlbumArtist = Item?.AlbumArtist || Item?.AlbumArtists?.[0] || null;
+        const RunTimeTicks = Item?.RunTimeTicks || null;
+
         const PlayState = session.PlayState;
         const PlayMethod = PlayState?.PlayMethod || "DirectPlay";
         const PlaybackPositionTicks = PlayState?.PositionTicks;
@@ -228,7 +235,7 @@ async function pollJellyfinSessions() {
         // Compute GeoIP
         const geoData = getGeoLocation(IpAddress);
 
-        // Redis Payload
+        // Redis Payload (enriched with parent chain + progress info)
         const redisPayload = {
             SessionId,
             UserId,
@@ -241,6 +248,12 @@ async function pollJellyfinSessions() {
             IpAddress,
             PlayMethod,
             PlaybackPositionTicks,
+            RunTimeTicks,
+            IsPaused: PlayState?.IsPaused === true,
+            SeriesName,
+            SeasonName,
+            AlbumName,
+            AlbumArtist,
             Country: geoData.country,
             City: geoData.city,
         };

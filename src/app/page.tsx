@@ -57,10 +57,13 @@ type LiveStream = {
   itemId: string | null;
   user: string;
   mediaTitle: string;
+  mediaSubtitle: string | null;
   playMethod: string;
   device: string;
   country: string;
   city: string;
+  progressPercent: number;
+  isPaused: boolean;
 };
 
 export const dynamic = "force-dynamic";
@@ -460,17 +463,37 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
     liveStreams = payloads
       .filter((p): p is string => p !== null)
       .map((p) => {
-        const payload: WebhookPayload = JSON.parse(p);
+        const payload: any = JSON.parse(p);
         totalBandwidthMbps += payload.IsTranscoding ? 12 : 6;
+
+        // Build enriched subtitle for hierarchical display
+        let mediaSubtitle: string | null = null;
+        if (payload.SeriesName) {
+          // TV: "SeriesName — SeasonName"
+          mediaSubtitle = payload.SeriesName + (payload.SeasonName ? ` — ${payload.SeasonName}` : '');
+        } else if (payload.AlbumName) {
+          // Music: "Artist — Album"
+          mediaSubtitle = (payload.AlbumArtist ? `${payload.AlbumArtist} — ` : '') + payload.AlbumName;
+        }
+
+        // Calculate progress percentage
+        let progressPercent = 0;
+        if (payload.PlaybackPositionTicks && payload.RunTimeTicks && payload.RunTimeTicks > 0) {
+          progressPercent = Math.min(100, Math.round((payload.PlaybackPositionTicks / payload.RunTimeTicks) * 100));
+        }
+
         return {
           sessionId: payload.SessionId,
           itemId: payload.ItemId || null,
           user: payload.UserName || payload.UserId || "Unknown",
           mediaTitle: payload.ItemName || "Unknown",
+          mediaSubtitle,
           playMethod: payload.PlayMethod || (payload.IsTranscoding ? "Transcode" : "DirectPlay"),
           device: payload.DeviceName || "Unknown",
           country: payload.Country || "Unknown",
           city: payload.City || "Unknown",
+          progressPercent,
+          isPaused: payload.IsPaused === true,
         };
       });
   }
@@ -740,10 +763,13 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                               </div>
                             )}
 
-                            <div className="space-y-1 max-w-[150px]">
+                            <div className="space-y-1 flex-1 min-w-0">
                               <p className="text-sm font-medium leading-none truncate">
                                 {stream.mediaTitle}
                               </p>
+                              {stream.mediaSubtitle && (
+                                <p className="text-[11px] text-zinc-400 truncate">{stream.mediaSubtitle}</p>
+                              )}
                               <p className="text-xs text-muted-foreground flex flex-col gap-0.5">
                                 <span className="truncate">{stream.user} • {stream.device}</span>
                                 {(stream.city !== "Unknown" || stream.country !== "Unknown") && (
@@ -752,8 +778,22 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                                   </span>
                                 )}
                               </p>
+                              {/* Progress bar */}
+                              {stream.progressPercent > 0 && (
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all ${stream.isPaused ? 'bg-yellow-500' : 'bg-purple-500'}`}
+                                      style={{ width: `${stream.progressPercent}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[10px] text-zinc-500 w-8 text-right shrink-0">
+                                    {stream.isPaused ? '⏸' : ''}{stream.progressPercent}%
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                            <div className="ml-auto font-medium text-xs">
+                            <div className="ml-auto font-medium text-xs shrink-0">
                               <span
                                 className={`px-2 py-1 rounded-full ${stream.playMethod === "Transcode"
                                   ? "bg-orange-500/10 text-orange-500"
