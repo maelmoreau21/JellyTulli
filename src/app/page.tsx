@@ -28,7 +28,8 @@ import { HardwareMonitor } from "@/components/dashboard/HardwareMonitor";
 import { KillStreamButton } from "@/components/dashboard/KillStreamButton";
 import { MonthlyWatchTimeChart, MonthlyWatchData } from "@/components/charts/MonthlyWatchTimeChart";
 import { CompletionRatioChart, CompletionData } from "@/components/charts/CompletionRatioChart";
-import { ClientCategoryChart, ClientCategoryData, categorizeClient } from "@/components/charts/ClientCategoryChart";
+import { ClientCategoryChart, ClientCategoryData } from "@/components/charts/ClientCategoryChart";
+import { categorizeClient } from "@/lib/utils";
 
 // Webhook / Redis types
 type WebhookPayload = {
