@@ -1,10 +1,12 @@
 import prisma from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import UserInfo from "./UserInfo";
 import UserActivity from "./UserActivity";
 import UserRecentMedia from "./UserRecentMedia";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,14 @@ interface UserPageProps {
 
 export default async function UserDetailPage({ params }: UserPageProps) {
     const { id: jellyfinUserId } = await params;
+
+    // RBAC: Non-admin users can only view their own profile
+    const session = await getServerSession(authOptions);
+    const isAdmin = session?.user?.isAdmin === true;
+    const myJellyfinId = (session?.user as any)?.jellyfinUserId;
+    if (!isAdmin && myJellyfinId !== jellyfinUserId) {
+        redirect(myJellyfinId ? `/users/${myJellyfinId}` : "/login");
+    }
 
     const user = await prisma.user.findUnique({
         where: { jellyfinUserId },

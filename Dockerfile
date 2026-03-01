@@ -25,11 +25,13 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma generate
 
 # Provide dummy variables so Next.js build doesn't crash trying to connect to a real DB
-ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
-ENV NEXTAUTH_SECRET="placeholder"
+# Using ARG (build-only) instead of ENV to avoid leaking secrets into the final image
+ARG DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+ARG NEXTAUTH_SECRET="build-placeholder"
+ENV DATABASE_URL=${DATABASE_URL}
 
 # Build Next.js project
-RUN npm run build
+RUN NEXTAUTH_SECRET=${NEXTAUTH_SECRET} npm run build
 
 # 3. Production image, copy all the files and run next
 FROM base AS runner

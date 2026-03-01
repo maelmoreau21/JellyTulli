@@ -79,6 +79,31 @@ export async function startMonitoring() {
             }
             console.log(`[Monitor] Nettoyage au démarrage terminé.`);
         }
+
+        // Also clean any orphan Redis stream keys left from a previous container
+        const redisStreamKeys = await redis.keys("stream:*");
+        if (redisStreamKeys.length > 0) {
+            console.log(`[Monitor] Nettoyage Redis: ${redisStreamKeys.length} clé(s) stream orpheline(s) supprimée(s).`);
+            for (const key of redisStreamKeys) {
+                await redis.del(key);
+            }
+        }
+
+        // Close any PlaybackHistory entries that have no endedAt (orphan from crash)
+        const orphanPlaybacks = await prisma.playbackHistory.findMany({
+            where: { endedAt: null },
+        });
+        if (orphanPlaybacks.length > 0) {
+            console.log(`[Monitor] Fermeture de ${orphanPlaybacks.length} session(s) PlaybackHistory ouverte(s) sans fin.`);
+            for (const pb of orphanPlaybacks) {
+                const endedAt = new Date();
+                const durationS = Math.floor((endedAt.getTime() - pb.startedAt.getTime()) / 1000);
+                await prisma.playbackHistory.update({
+                    where: { id: pb.id },
+                    data: { endedAt, durationWatched: Math.min(durationS, 86400) }, // Cap at 24h max
+                });
+            }
+        }
     } catch (err) {
         console.error("[Monitor] Erreur nettoyage au démarrage:", err);
     }
@@ -576,41 +601,46 @@ async function pollJellyfinSessions(): Promise<boolean> {
         }
     }
 
-    // Stale session cleanup: close ActiveStreams that haven't been updated in 2+ minutes
-    // This catches orphan sessions from app restarts, network issues, etc.
-    const staleThreshold = new Date(Date.now() - 2 * 60 * 1000); // 2 minutes ago
-    const staleSessions = await prisma.activeStream.findMany({
-        where: { lastPingAt: { lt: staleThreshold } }
-    });
+    // Cross-validation: clean DB ActiveStreams that Jellyfin doesn't know about anymore
+    // This is the primary defense against ghost sessions after restart
+    const allDbStreams = await prisma.activeStream.findMany();
+    for (const dbStream of allDbStreams) {
+        if (!currentSessionIds.has(dbStream.sessionId)) {
+            // This session is in our DB but NOT in Jellyfin — it's a ghost
+            console.log(`[Monitor] Session fantôme détectée: ${dbStream.sessionId} — absente de Jellyfin, nettoyage.`);
 
-    for (const stale of staleSessions) {
-        console.log(`[Monitor] Nettoyage session orpheline: ${stale.sessionId} (dernier ping: ${stale.lastPingAt.toISOString()})`);
+            await redis.del(`stream:${dbStream.sessionId}`);
 
-        // Clean Redis key if it exists
-        await redis.del(`stream:${stale.sessionId}`);
-
-        // Close the open PlaybackHistory
-        const openPlayback = await prisma.playbackHistory.findFirst({
-            where: { userId: stale.userId, mediaId: stale.mediaId, endedAt: null },
-            orderBy: { startedAt: 'desc' },
-        });
-
-        if (openPlayback) {
-            const endedAt = new Date();
-            let durationS: number;
-            if (stale.positionTicks && BigInt(stale.positionTicks) > 0n) {
-                durationS = Math.floor(Number(BigInt(stale.positionTicks)) / 10_000_000);
-            } else {
-                durationS = Math.floor((endedAt.getTime() - openPlayback.startedAt.getTime()) / 1000);
-            }
-            await prisma.playbackHistory.update({
-                where: { id: openPlayback.id },
-                data: { endedAt, durationWatched: durationS },
+            const openPlayback = await prisma.playbackHistory.findFirst({
+                where: { userId: dbStream.userId, mediaId: dbStream.mediaId, endedAt: null },
+                orderBy: { startedAt: 'desc' },
             });
-        }
 
-        // Delete the stale ActiveStream
-        await prisma.activeStream.delete({ where: { id: stale.id } });
+            if (openPlayback) {
+                const endedAt = new Date();
+                let durationS: number;
+                if (dbStream.positionTicks && BigInt(dbStream.positionTicks) > 0n) {
+                    durationS = Math.floor(Number(BigInt(dbStream.positionTicks)) / 10_000_000);
+                } else {
+                    durationS = Math.floor((endedAt.getTime() - openPlayback.startedAt.getTime()) / 1000);
+                }
+                await prisma.playbackHistory.update({
+                    where: { id: openPlayback.id },
+                    data: { endedAt, durationWatched: durationS },
+                });
+            }
+
+            await prisma.activeStream.delete({ where: { id: dbStream.id } });
+        }
+    }
+
+    // Also clean orphan Redis stream keys that have no matching DB record
+    const allRedisStreamKeys = await redis.keys("stream:*");
+    for (const key of allRedisStreamKeys) {
+        const sessionId = key.replace("stream:", "");
+        if (!currentSessionIds.has(sessionId)) {
+            await redis.del(key);
+        }
     }
 
     // Return whether there are active sessions (drives adaptive polling interval)

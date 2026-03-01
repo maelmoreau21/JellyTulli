@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import redis from "@/lib/redis";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Activity, ActivitySquare, MonitorPlay, Clock, TrendingUp, TrendingDown, Award, Film, Tv, Music, BookOpen } from "lucide-react";
+import { Activity, ActivitySquare, MonitorPlay, Clock, TrendingUp, TrendingDown, Award, Film, Tv, Music, BookOpen, CalendarDays, PlayCircle, Users } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { unstable_cache } from "next/cache";
@@ -28,6 +28,7 @@ import { LiveStreamsPanel } from "@/components/dashboard/LiveStreamsPanel";
 import { MonthlyWatchTimeChart, MonthlyWatchData } from "@/components/charts/MonthlyWatchTimeChart";
 import { CompletionRatioChart, CompletionData } from "@/components/charts/CompletionRatioChart";
 import { ClientCategoryChart, ClientCategoryData } from "@/components/charts/ClientCategoryChart";
+import { LibraryDailyPlaysChart } from "@/components/charts/LibraryDailyPlaysChart";
 import { categorizeClient } from "@/lib/utils";
 
 // Webhook / Redis types
@@ -164,10 +165,24 @@ const getDashboardMetrics = unstable_cache(
     }
     const hoursGrowth = previousHoursWatched > 0 ? ((hoursWatched - previousHoursWatched) / previousHoursWatched) * 100 : 0;
 
+    // Previous period: total plays & active users
+    let previousPlays = 0;
+    let previousActiveUsers = 0;
+    if (prevDateFilter) {
+      previousPlays = await prisma.playbackHistory.count({
+        where: { media: mediaWhere, startedAt: prevDateFilter }
+      });
+      const prevActiveUsersAgg = await prisma.playbackHistory.groupBy({
+        by: ['userId'],
+        where: { media: mediaWhere, startedAt: prevDateFilter, userId: { not: null } }
+      });
+      previousActiveUsers = prevActiveUsersAgg.length;
+    }
+
     // 4. Load all history matching period
     const histories = await prisma.playbackHistory.findMany({
       where: { startedAt: dateFilter, media: mediaWhere },
-      select: { startedAt: true, durationWatched: true, clientName: true, playMethod: true, media: { select: { type: true, title: true } } },
+      select: { startedAt: true, durationWatched: true, clientName: true, playMethod: true, userId: true, media: { select: { type: true, title: true } } },
       orderBy: { startedAt: 'asc' }
     });
 
@@ -190,7 +205,7 @@ const getDashboardMetrics = unstable_cache(
 
       const key = getFormatKey(new Date(h.startedAt));
       if (!trendMap.has(key)) {
-        trendMap.set(key, { time: key, movieVolume: 0, seriesVolume: 0, musicVolume: 0, booksVolume: 0, totalViews: 0 });
+        trendMap.set(key, { time: key, movieVolume: 0, seriesVolume: 0, musicVolume: 0, booksVolume: 0, totalViews: 0, moviePlays: 0, seriesPlays: 0, musicPlays: 0, booksPlays: 0 });
       }
       const entry = trendMap.get(key)!;
       const mType = h.media?.type?.toLowerCase() || "";
@@ -199,18 +214,23 @@ const getDashboardMetrics = unstable_cache(
       // Classifying
       if (mType.includes('movie')) {
         entry.movieVolume += hours;
+        entry.moviePlays += 1;
         movieViews++; movieHours += hours;
       } else if (mType.includes('series') || mType.includes('episode')) {
         entry.seriesVolume += hours;
+        entry.seriesPlays += 1;
         seriesViews++; seriesHours += hours;
       } else if (mType.includes('audio') || mType.includes('track')) {
         entry.musicVolume += hours;
+        entry.musicPlays += 1;
         musicViews++; musicHours += hours;
       } else if (mType.includes('book')) {
         entry.booksVolume += hours;
+        entry.booksPlays += 1;
         booksViews++; booksHours += hours;
       } else {
         entry.booksVolume += hours;
+        entry.booksPlays += 1;
       }
 
       entry.totalViews += 1;
@@ -229,7 +249,11 @@ const getDashboardMetrics = unstable_cache(
       seriesVolume: parseFloat(v.seriesVolume.toFixed(2)),
       musicVolume: parseFloat(v.musicVolume.toFixed(2)),
       booksVolume: parseFloat(v.booksVolume.toFixed(2)),
-      totalViews: v.totalViews
+      totalViews: v.totalViews,
+      moviePlays: v.moviePlays,
+      seriesPlays: v.seriesPlays,
+      musicPlays: v.musicPlays,
+      booksPlays: v.booksPlays,
     }));
 
     const directPlayPercent = histories.length > 0 ? Math.round((directPlayCount / histories.length) * 100) : 100;
@@ -378,6 +402,23 @@ const getDashboardMetrics = unstable_cache(
       .map(([category, count]) => ({ category, count }))
       .sort((a, b) => b.count - a.count);
 
+    // Current period: total plays & active users
+    const totalPlays = histories.length;
+    const currentActiveUsers = new Set(histories.map((h: any) => h.userId).filter(Boolean)).size;
+    const playsGrowth = previousPlays > 0 ? ((totalPlays - previousPlays) / previousPlays) * 100 : 0;
+    const activeUsersGrowth = previousActiveUsers > 0 ? ((currentActiveUsers - previousActiveUsers) / previousActiveUsers) * 100 : 0;
+
+    // Today stats (always today regardless of selected timeRange)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayHistories = await prisma.playbackHistory.findMany({
+      where: { startedAt: { gte: todayStart }, media: mediaWhere },
+      select: { durationWatched: true, userId: true },
+    });
+    const todayPlays = todayHistories.length;
+    const todayHours = parseFloat((todayHistories.reduce((sum: number, h: any) => sum + (h.durationWatched || 0), 0) / 3600).toFixed(1));
+    const todayActiveUsers = new Set(todayHistories.map((h: any) => h.userId).filter(Boolean)).size;
+
     return {
       totalUsers,
       hoursWatched,
@@ -385,6 +426,15 @@ const getDashboardMetrics = unstable_cache(
       previousHoursWatched,
       directPlayPercent,
       peakConcurrentStreams,
+      totalPlays,
+      playsGrowth,
+      previousPlays,
+      currentActiveUsers,
+      activeUsersGrowth,
+      previousActiveUsers,
+      todayPlays,
+      todayHours,
+      todayActiveUsers,
       trendData,
       categoryPieData,
       hourlyChartData,
@@ -443,11 +493,11 @@ async function HeatmapWrapper() {
 }
 
 export default async function DashboardPage(props: { searchParams: Promise<{ type?: string; timeRange?: string; from?: string; to?: string }> }) {
-  // RBAC: Non-admin users are redirected to their Wrapped page
+  // RBAC: Non-admin users are redirected to their profile page
   const authSession = await getServerSession(authOptions);
   if (!authSession?.user?.isAdmin) {
     const uid = (authSession?.user as any)?.jellyfinUserId;
-    redirect(uid ? `/wrapped/${uid}` : "/login");
+    redirect(uid ? `/users/${uid}` : "/login");
   }
 
   const { type, timeRange = "7d", from, to } = await props.searchParams;
@@ -534,6 +584,29 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
 
         <HardwareMonitor />
 
+        {/* Today Stats Banner */}
+        <div className="flex items-center gap-3 px-4 py-3 bg-zinc-900/60 border border-zinc-800/50 rounded-xl backdrop-blur-sm">
+          <CalendarDays className="h-5 w-5 text-primary shrink-0" />
+          <span className="text-sm font-medium text-zinc-300">Aujourd&apos;hui</span>
+          <div className="flex items-center gap-6 ml-2">
+            <div className="flex items-center gap-1.5">
+              <PlayCircle className="h-3.5 w-3.5 text-blue-400" />
+              <span className="text-sm font-semibold text-white">{metrics.todayPlays}</span>
+              <span className="text-xs text-zinc-500">lectures</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-orange-400" />
+              <span className="text-sm font-semibold text-white">{metrics.todayHours}h</span>
+              <span className="text-xs text-zinc-500">visionnées</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="text-sm font-semibold text-white">{metrics.todayActiveUsers}</span>
+              <span className="text-xs text-zinc-500">utilisateur{metrics.todayActiveUsers !== 1 ? 's' : ''} actif{metrics.todayActiveUsers !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+        </div>
+
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="bg-zinc-900 border border-zinc-800">
             <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
@@ -560,12 +633,22 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
 
                 <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Bande Passante</CardTitle>
-                    <ActivitySquare className="h-4 w-4 text-blue-500" />
+                    <CardTitle className="text-sm font-medium">Total Lectures</CardTitle>
+                    <PlayCircle className="h-4 w-4 text-cyan-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">~{totalBandwidthMbps} Mbps</div>
-                    <p className="text-xs text-muted-foreground mt-1">Estimation sortante dynamique</p>
+                    <div className="flex items-center gap-2">
+                      <div className="text-2xl font-bold">{metrics.totalPlays.toLocaleString()}</div>
+                      {timeRange !== "all" && metrics.playsGrowth !== 0 && (
+                        <div className={`flex items-center text-xs font-semibold px-1.5 py-0.5 rounded-full ${metrics.playsGrowth >= 0 ? 'text-emerald-500 bg-emerald-500/10' : 'text-red-500 bg-red-500/10'}`}>
+                          {metrics.playsGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                          {metrics.playsGrowth > 0 ? "+" : ""}{metrics.playsGrowth.toFixed(1)}%
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {timeRange !== "all" && metrics.previousPlays > 0 ? `vs ${metrics.previousPlays} période préc.` : "Sur la période sélectionnée"}
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -605,12 +688,22 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
 
                 <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Pic de Charge</CardTitle>
-                    <Activity className="h-4 w-4 text-red-500" />
+                    <CardTitle className="text-sm font-medium">Utilisateurs Actifs</CardTitle>
+                    <Users className="h-4 w-4 text-red-500" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{metrics.peakConcurrentStreams}</div>
-                    <p className="text-xs text-muted-foreground mt-1">Record de flux simultanés</p>
+                    <div className="flex items-center gap-2">
+                      <div className="text-2xl font-bold">{metrics.currentActiveUsers}</div>
+                      {timeRange !== "all" && metrics.activeUsersGrowth !== 0 && (
+                        <div className={`flex items-center text-xs font-semibold px-1.5 py-0.5 rounded-full ${metrics.activeUsersGrowth >= 0 ? 'text-emerald-500 bg-emerald-500/10' : 'text-red-500 bg-red-500/10'}`}>
+                          {metrics.activeUsersGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                          {metrics.activeUsersGrowth > 0 ? "+" : ""}{metrics.activeUsersGrowth.toFixed(1)}%
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {timeRange !== "all" && metrics.previousActiveUsers > 0 ? `vs ${metrics.previousActiveUsers} période préc.` : `Sur ${metrics.totalUsers} inscrits`}
+                    </p>
                   </CardContent>
                 </Card>
               </div>,
@@ -702,6 +795,19 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                   </CardContent>
                 </Card>
               </div>,
+
+              /* Daily Plays by Library */
+              <Card key="libraryPlays" className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <CardHeader className="pb-1">
+                  <CardTitle>Lectures par Bibliothèque</CardTitle>
+                  <CardDescription>Nombre de lectures quotidiennes par type de bibliothèque. Cliquez sur la légende pour masquer/afficher une courbe.</CardDescription>
+                </CardHeader>
+                <CardContent className="pl-0 pb-4 pr-1">
+                  <div className="h-[300px] min-h-[300px] w-full">
+                    <LibraryDailyPlaysChart data={metrics.trendData} />
+                  </div>
+                </CardContent>
+              </Card>,
 
               /* Yearly Heatmap Contribution Component - Phase 6 */
               <Suspense key="heatmap" fallback={<Skeleton className="h-[250px] w-full rounded-xl" />}>

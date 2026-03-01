@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 // Routes réservées strictement aux administrateurs
 const ADMIN_API_PATHS = ["/api/admin"];
 const ADMIN_PAGE_PATHS = ["/admin", "/settings"];
+// Pages liste (non-admins redirigés vers leur profil au lieu de voir tous les utilisateurs)
+const ADMIN_LIST_PATHS = ["/users", "/logs", "/media", "/newsletter", "/recent"];
 
 export default withAuth(
     function middleware(req) {
@@ -21,12 +23,22 @@ export default withAuth(
             return NextResponse.json({ error: "Accès réservé aux administrateurs." }, { status: 403 });
         }
 
-        // Non-admin → Pages admin redirigées vers Wrapped
+        // Non-admin → Pages admin redirigées vers profil utilisateur
         const isAdminPage = ADMIN_PAGE_PATHS.some(p => pathname === p || pathname.startsWith(p + "/"));
         if (isAdminPage) {
             const jellyfinUserId = token?.jellyfinUserId as string;
             if (jellyfinUserId) {
-                return NextResponse.redirect(new URL(`/wrapped/${jellyfinUserId}`, req.url));
+                return NextResponse.redirect(new URL(`/users/${jellyfinUserId}`, req.url));
+            }
+            return NextResponse.redirect(new URL("/login", req.url));
+        }
+
+        // Non-admin → Pages listes admin (mais /users/[id] reste accessible via le guard de la page)
+        const isAdminList = ADMIN_LIST_PATHS.some(p => pathname === p);
+        if (isAdminList) {
+            const jellyfinUserId = token?.jellyfinUserId as string;
+            if (jellyfinUserId) {
+                return NextResponse.redirect(new URL(`/users/${jellyfinUserId}`, req.url));
             }
             return NextResponse.redirect(new URL("/login", req.url));
         }
