@@ -1,8 +1,6 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/maelmoreau21/jellytulli:latest
     container_name: jellytulli_app
     ports:
       - "3000:3000"

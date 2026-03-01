@@ -27,7 +27,7 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
             playbackHistory: {
                 where: {
                     startedAt: {
-                        gte: new Date(new Date().getFullYear(), 0, 1), // Only this year
+                        gte: new Date(new Date().getFullYear(), 0, 1),
                     },
                 },
                 include: {
@@ -50,12 +50,11 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
     }
 
     // Auto-create the user in Prisma if they authenticated via Jellyfin but
-    // were never synced/imported. Use session data to populate the record.
+    // were never synced/imported.
     if (!user) {
         const session = await getServerSession(authOptions);
         const sessionUserId = (session?.user as any)?.jellyfinUserId;
 
-        // Only auto-create if the requested userId matches the logged-in user
         if (session?.user && sessionUserId === userId) {
             user = await prisma.user.create({
                 data: {
@@ -63,7 +62,6 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
                     username: session.user.name || "Utilisateur Supprimé",
                 },
             }) as any;
-            // Re-fetch with relations
             user = await prisma.user.findUnique({
                 where: { jellyfinUserId: userId },
                 include: {
@@ -73,7 +71,6 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
                     }
                 }
             });
-            // Fallback all-time si aucune session cette année
             if (user && user.playbackHistory.length === 0) {
                 user = await prisma.user.findUnique({
                     where: { jellyfinUserId: userId },
@@ -94,6 +91,13 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
     const mediaCounts = new Map<string, number>();
     const genreCounts = new Map<string, number>();
     const dayCounts = new Map<number, number>(); // 0 = Sunday, 1 = Monday...
+    const hourCounts = new Map<number, number>(); // 0-23
+    const monthCounts = new Map<number, number>(); // 0-11
+
+    // Series tracking (aggregate episodes by parentId → series title)
+    const seriesCounts = new Map<string, number>(); // seriesTitle → totalSeconds
+    // Artist tracking (aggregate audio by parentId → album/artist)
+    const artistCounts = new Map<string, number>(); // artist → totalSeconds
 
     // Category breakdowns
     const categoryData: Record<string, Map<string, number>> = {
@@ -102,6 +106,25 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
         Audio: new Map(),
     };
     const categoryTotals: Record<string, number> = { Movie: 0, Episode: 0, Audio: 0 };
+
+    // Collect unique parent IDs for series/album resolution
+    const parentIds = new Set<string>();
+    user.playbackHistory.forEach((session: any) => {
+        if (session.media?.parentId) parentIds.add(session.media.parentId);
+    });
+
+    // Resolve parent → grandparent chain for episode → season → series
+    const parentMedia = parentIds.size > 0
+        ? await prisma.media.findMany({ where: { jellyfinMediaId: { in: Array.from(parentIds) } }, select: { jellyfinMediaId: true, title: true, parentId: true, type: true } })
+        : [];
+    const parentMap = new Map(parentMedia.map(m => [m.jellyfinMediaId, m]));
+
+    const grandparentIds = new Set<string>();
+    parentMedia.forEach(m => { if (m.parentId) grandparentIds.add(m.parentId); });
+    const grandparentMedia = grandparentIds.size > 0
+        ? await prisma.media.findMany({ where: { jellyfinMediaId: { in: Array.from(grandparentIds) } }, select: { jellyfinMediaId: true, title: true, type: true } })
+        : [];
+    const grandparentMap = new Map(grandparentMedia.map(m => [m.jellyfinMediaId, m]));
 
     user.playbackHistory.forEach((session: any) => {
         totalSeconds += session.durationWatched;
@@ -113,6 +136,27 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
                 session.media.genres.forEach((g: string) => {
                     genreCounts.set(g, (genreCounts.get(g) || 0) + 1);
                 });
+            }
+
+            // Track series (episodes → series name)
+            if (session.media.type === "Episode" && session.media.parentId) {
+                const parent = parentMap.get(session.media.parentId);
+                if (parent?.parentId) {
+                    const grandparent = grandparentMap.get(parent.parentId);
+                    if (grandparent) {
+                        seriesCounts.set(grandparent.title, (seriesCounts.get(grandparent.title) || 0) + session.durationWatched);
+                    }
+                } else if (parent) {
+                    seriesCounts.set(parent.title, (seriesCounts.get(parent.title) || 0) + session.durationWatched);
+                }
+            }
+
+            // Track artists (audio → album parent title as artist proxy)
+            if (session.media.type === "Audio" && session.media.parentId) {
+                const parent = parentMap.get(session.media.parentId);
+                if (parent) {
+                    artistCounts.set(parent.title, (artistCounts.get(parent.title) || 0) + session.durationWatched);
+                }
             }
 
             // Categorize by media type
@@ -129,25 +173,55 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
             }
         }
 
-        const day = new Date(session.startedAt).getDay();
-        dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
+        const date = new Date(session.startedAt);
+        dayCounts.set(date.getDay(), (dayCounts.get(date.getDay()) || 0) + 1);
+        hourCounts.set(date.getHours(), (hourCounts.get(date.getHours()) || 0) + 1);
+        monthCounts.set(date.getMonth(), (monthCounts.get(date.getMonth()) || 0) + session.durationWatched);
     });
 
     const totalHours = Math.round(totalSeconds / 3600);
 
     const topMedia = Array.from(mediaCounts.entries())
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(e => e[0]);
+        .slice(0, 5)
+        .map(([title, seconds]) => ({ title, seconds }));
 
-    const topGenre = Array.from(genreCounts.entries())
-        .sort((a, b) => b[1] - a[1])[0]?.[0] || "Inconnu";
+    const topGenres = Array.from(genreCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, count]) => ({ name, count }));
+
+    const topGenre = topGenres[0]?.name || "Inconnu";
 
     const topDayNumber = Array.from(dayCounts.entries())
         .sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
 
     const days = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
     const topDay = days[topDayNumber];
+
+    // Peak hour
+    const peakHourEntry = Array.from(hourCounts.entries()).sort((a, b) => b[1] - a[1])[0];
+    const peakHour = peakHourEntry ? `${peakHourEntry[0]}h` : "N/A";
+    const peakHourSessions = peakHourEntry?.[1] || 0;
+
+    // Monthly hours (0-11)
+    const months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+    const monthlyHours = months.map((name, i) => ({
+        name,
+        hours: Math.round((monthCounts.get(i) || 0) / 3600),
+    }));
+
+    // Top series
+    const topSeries = Array.from(seriesCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([title, seconds]) => ({ title, seconds }));
+
+    // Top artists/albums
+    const topArtists = Array.from(artistCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([title, seconds]) => ({ title, seconds }));
 
     const currentYear = new Date().getFullYear();
 
@@ -167,8 +241,14 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
         year: currentYear,
         totalHours,
         topMedia,
+        topGenres,
         topGenre,
         topDay,
+        peakHour,
+        peakHourSessions,
+        monthlyHours,
+        topSeries,
+        topArtists,
         totalSessions: user.playbackHistory.length,
         categories: {
             movies: buildBreakdown("Movie"),

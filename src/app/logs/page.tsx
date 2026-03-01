@@ -65,22 +65,29 @@ function detectWatchParties(logs: any[]): Map<string, string> {
 export default async function LogsPage({
     searchParams
 }: {
-    searchParams: Promise<{ query?: string, sort?: string, page?: string }>
+    searchParams: Promise<{ query?: string, sort?: string, page?: string, type?: string }>
 }) {
     const params = await searchParams;
     const query = params.query?.toLowerCase() || "";
     const sort = params.sort || "date_desc";
     const currentPage = Math.max(1, parseInt(params.page || "1", 10) || 1);
+    const typeFilter = params.type || "";
 
     // Build the non-fuzzy exact search constraint
-    const whereClause: any = query ? {
-        OR: [
+    const whereClause: any = {};
+
+    if (query) {
+        whereClause.OR = [
             { user: { username: { contains: query, mode: "insensitive" } } },
             { media: { title: { contains: query, mode: "insensitive" } } },
             { ipAddress: { contains: query, mode: "insensitive" } },
             { clientName: { contains: query, mode: "insensitive" } },
-        ]
-    } : {};
+        ];
+    }
+
+    if (typeFilter) {
+        whereClause.media = { type: typeFilter };
+    }
 
     // Determine the sorting order
     let orderBy: any = { startedAt: "desc" };
@@ -189,6 +196,18 @@ export default async function LogsPage({
                     <CardContent className="space-y-4">
                         <LogFilters initialQuery={query} initialSort={sort} />
 
+                        {typeFilter && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-zinc-400">Filtre actif :</span>
+                                <Badge variant="default" className="bg-purple-500/10 text-purple-400 hover:bg-purple-500/20">
+                                    {typeFilter === 'Movie' ? 'Films' : typeFilter === 'Episode' ? 'Séries & Épisodes' : typeFilter === 'Audio' ? 'Musique' : typeFilter === 'AudioBook' ? 'Livres & Audios' : typeFilter}
+                                </Badge>
+                                <Link href="/logs" className="text-xs text-zinc-500 hover:text-zinc-300 underline">
+                                    Supprimer le filtre
+                                </Link>
+                            </div>
+                        )}
+
                         <div className="border rounded-md overflow-x-auto w-full mt-6">
                             <Table className="min-w-[1000px] table-fixed">
                                 <TableHeader>
@@ -274,6 +293,8 @@ export default async function LogsPage({
                                                                     <FallbackImage
                                                                         src={`/api/jellyfin/image?itemId=${log.media.jellyfinMediaId}&type=Primary`}
                                                                         alt={log.media.title}
+                                                                        fill
+                                                                        className="object-cover"
                                                                     />
                                                                 </div>
                                                                 <div className="flex flex-col min-w-0 flex-1">
