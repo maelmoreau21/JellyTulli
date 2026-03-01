@@ -62,13 +62,6 @@ export async function POST(req: NextRequest) {
             return clean;
         };
 
-        // Pre-load all users for soft UUID matching (dashless lowercase map)
-        const allUsers = await prisma.user.findMany();
-        const userMap = new Map(
-            allUsers.map(u => [u.jellyfinUserId.replace(/-/g, '').toLowerCase(), u])
-        );
-        console.log(`[Playback Reporting Import] ${allUsers.length} utilisateurs chargés pour matching souple.`);
-
         let importedSess = 0;
         let errors = 0;
         let firstRowLogged = false;
@@ -85,14 +78,15 @@ export async function POST(req: NextRequest) {
                     // [5]: PlayMethod  [6]: ClientName  [7]: DeviceName  [8]: PlayDuration (seconds)
                     const dateStr = row[0];
 
-                    // IMMEDIATELY normalize UUID before any DB operation
+                    // Strict UUID normalization: dashless lowercase → formatted with dashes
                     const rawUserId = String(row[1] || "").trim();
-                    const jellyfinUserId = normalizeUuid(rawUserId);
+                    const rawId = rawUserId.toLowerCase().replace(/-/g, '');
+                    const formattedUserId = rawId.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
                     const rawMediaId = String(row[2] || "").trim();
                     const jellyfinMediaId = normalizeUuid(rawMediaId);
 
                     if (!firstRowLogged) {
-                        console.log(`[Playback Reporting Import] UUID normalization sample: "${rawUserId}" → "${jellyfinUserId}" | "${rawMediaId}" → "${jellyfinMediaId}"`);
+                        console.log(`[Playback Reporting Import] UUID normalization sample: "${rawUserId}" → "${formattedUserId}" | "${rawMediaId}" → "${jellyfinMediaId}"`);
                         firstRowLogged = true;
                     }
 
@@ -108,17 +102,16 @@ export async function POST(req: NextRequest) {
                         durationWatched = Math.floor(durationWatched / 10000000); // Ticks to seconds if necessary
                     }
 
-                    if (!jellyfinMediaId) {
+                    if (!jellyfinMediaId || !formattedUserId || rawId.length < 32) {
                         continue;
                     }
 
-                    // Soft UUID match — compare dashless lowercase against pre-loaded map
-                    const dashlessId = rawUserId.replace(/-/g, '').toLowerCase();
-                    const user = dashlessId ? (userMap.get(dashlessId) ?? null) : null;
-
-                    if (!user && dashlessId) {
-                        console.log(`[Playback Reporting Import] UUID inconnu: "${rawUserId}" (normalized: ${dashlessId}) — session importée sans lien utilisateur.`);
-                    }
+                    // Force-upsert user — always create if unknown
+                    const user = await prisma.user.upsert({
+                        where: { jellyfinUserId: formattedUserId },
+                        update: {},
+                        create: { jellyfinUserId: formattedUserId, username: "Utilisateur Supprimé TSV" },
+                    });
 
                     // Upsert Media
                     const media = await prisma.media.upsert({
@@ -139,17 +132,14 @@ export async function POST(req: NextRequest) {
                         }
                     }
 
-                    const historyUserId = user?.id ?? null;
-
                     const existingHistory = await prisma.playbackHistory.findFirst({
                         where: {
-                            userId: historyUserId,
+                            userId: user.id,
                             mediaId: media.id,
                             startedAt: startedAt,
                         }
                     });
 
-                    const effectiveClientName = user ? clientName : `${clientName} (Utilisateur Inconnu - TSV)`;
                     const endedAt = durationWatched > 0 ? new Date(startedAt.getTime() + durationWatched * 1000) : null;
 
                     if (existingHistory) {
@@ -158,7 +148,7 @@ export async function POST(req: NextRequest) {
                             data: {
                                 durationWatched: durationWatched,
                                 playMethod: playMethod,
-                                clientName: effectiveClientName,
+                                clientName: clientName,
                                 deviceName: deviceName,
                                 endedAt: endedAt,
                             }
@@ -166,12 +156,12 @@ export async function POST(req: NextRequest) {
                     } else {
                         await prisma.playbackHistory.create({
                             data: {
-                                userId: historyUserId,
+                                userId: user.id,
                                 mediaId: media.id,
                                 startedAt: startedAt,
                                 durationWatched: durationWatched,
                                 playMethod: playMethod,
-                                clientName: effectiveClientName,
+                                clientName: clientName,
                                 deviceName: deviceName,
                                 endedAt: endedAt,
                             }

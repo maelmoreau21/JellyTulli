@@ -122,16 +122,17 @@ export async function POST(req: NextRequest) {
             const username = extractStr(window, "UserName", "username", "user_name") || "Utilisateur Supprimé";
             const title = extractStr(window, "NowPlayingItemName", "ItemName", "itemname", "item_name", "Title", "title") || "Unknown Media";
             const type = extractStr(window, "ItemType", "itemtype", "item_type", "Type", "type") || "Movie";
-            let duration = extractNum(window, "PlayDuration", "play_duration", "playduration");
-            if (duration > 10_000_000) duration = Math.floor(duration / 10_000_000);
+            const rawTicks = extractNum(window, "PlayDuration", "play_duration", "playduration", "RunTimeTicks", "runtimeticks", "run_time_ticks");
+            const durationMs = rawTicks > 0 ? rawTicks / 10000 : 0; // ticks → milliseconds (1 tick = 100ns)
+            const durationSeconds = Math.floor(durationMs / 1000);
             const dateStr = extractStr(window, "DateCreated", "date_created", "datecreated", "StartedAt", "started_at", "startedat") || new Date().toISOString();
             const playMethod = extractStr(window, "PlayMethod", "play_method", "playmethod") || "DirectPlay";
             const client = extractStr(window, "Client", "ClientName", "client_name", "clientname") || "Jellystat Import";
             const device = extractStr(window, "DeviceName", "device_name", "devicename") || "Unknown Device";
 
             const startedAtDate = new Date(dateStr);
-            const endedAt = duration > 0 ? new Date(startedAtDate.getTime() + duration * 1000) : null;
-            batch.push({ userId, itemId, username, title, type, duration, startedAt: startedAtDate, endedAt, playMethod, client, device });
+            const endedAt = durationMs > 0 ? new Date(startedAtDate.getTime() + durationMs) : startedAtDate;
+            batch.push({ userId, itemId, username, title, type, duration: durationSeconds, startedAt: startedAtDate, endedAt, playMethod, client, device });
 
             if (batch.length >= BATCH) {
                 await processBatch(batch);

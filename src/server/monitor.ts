@@ -6,11 +6,17 @@ let isMonitoringStarted = false;
 
 // Format IP Address (Jellyfin returns IPv6 or with port like "192.168.1.1:8096")
 function cleanIpAddress(ip: string | undefined | null) {
-    if (!ip) return "127.0.0.1";
+    if (!ip) return "Réseau Local (Docker/LAN)";
+    let cleaned = ip;
     // Si format IPv6 local (::ffff:192.168.1.1)
-    if (ip.includes("::ffff:")) return ip.split("::ffff:")[1];
+    if (cleaned.includes("::ffff:")) cleaned = cleaned.split("::ffff:")[1];
     // Sinon on nettoie le port éventuel si c'est de l'IPv4
-    return ip.split(":")[0];
+    else cleaned = cleaned.split(":")[0];
+    // Detect local/Docker IPs
+    if (cleaned === "::1" || cleaned.startsWith("127.0.0") || cleaned.startsWith("172.") || cleaned.startsWith("10.") || cleaned.startsWith("192.168.")) {
+        return "Réseau Local (Docker/LAN)";
+    }
+    return cleaned;
 }
 
 export async function startMonitoring() {

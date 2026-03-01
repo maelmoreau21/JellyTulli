@@ -16,6 +16,21 @@ export async function POST(req: Request) {
 
         console.log(`[Webhook] Événement reçu: ${eventType}`);
 
+        // Extract real client IP from proxy headers (Docker / reverse proxy)
+        const forwardedFor = req.headers.get('x-forwarded-for');
+        const realIpHeader = forwardedFor?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || null;
+
+        // Helper: clean and label local IPs
+        const resolveIp = (ip: string | null | undefined): string => {
+            if (!ip) return "Réseau Local (Docker/LAN)";
+            let cleaned = ip.trim();
+            if (cleaned.includes("::ffff:")) cleaned = cleaned.split("::ffff:")[1];
+            if (cleaned === "::1" || cleaned.startsWith("127.0.0") || cleaned.startsWith("172.") || cleaned.startsWith("10.") || cleaned.startsWith("192.168.")) {
+                return "Réseau Local (Docker/LAN)";
+            }
+            return cleaned;
+        };
+
         if (eventType === "PlaybackStart") {
             // Lecture des données du Webhook
             const jellyfinUserId = payload.UserId || payload.UserId || payload.User_Id;
@@ -26,9 +41,8 @@ export async function POST(req: Request) {
             const clientName = payload.ClientName || payload.Client || "Inconnu";
             const deviceName = payload.DeviceName || payload.Device || "Inconnu";
 
-            // Le webhook ne contient pas toujours l'adresse IP cliente distante de façon fiable sans proxy headers
-            // On peut tenter de récupérer l'IP si elle est fournie dans un champ spécifique du webhook, sinon on laisse "Local"
-            const ipAddress = payload.IpAddress || payload.ClientIp || "127.0.0.1";
+            // Prefer real IP from proxy headers, then webhook payload, then fallback
+            const ipAddress = resolveIp(realIpHeader || payload.IpAddress || payload.ClientIp);
             const geoData = getGeoLocation(ipAddress);
 
             if (!jellyfinUserId || !jellyfinMediaId) {
