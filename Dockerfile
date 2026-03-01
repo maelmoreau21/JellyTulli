@@ -65,6 +65,14 @@ COPY --from=builder /app/package.json ./package.json
 # Force copy geoip-country to standalone
 COPY --from=builder /app/node_modules/geoip-country ./node_modules/geoip-country
 
+# Force copy node-cron to standalone (serverExternalPackages = not bundled by Next.js)
+COPY --from=builder /app/node_modules/node-cron ./node_modules/node-cron
+
+# OCI labels — links the GHCR package to the GitHub repo + enables automatic visibility inheritance
+LABEL org.opencontainers.image.source="https://github.com/MaelMoreau21/JellyTulli"
+LABEL org.opencontainers.image.description="JellyTulli — Dashboard analytique pour Jellyfin"
+LABEL org.opencontainers.image.licenses="MIT"
+
 
 # Expose port and configure entrypoint
 EXPOSE 3000

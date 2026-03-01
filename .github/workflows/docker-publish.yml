@@ -64,3 +64,18 @@ jobs:
           cache-to: type=gha,mode=max
           # Désactive les attestations de provenance qui cassent le manifest multi-arch sur GHCR
           provenance: false
+
+      # 7. Rendre le package GHCR public automatiquement après le push
+      - name: Make GHCR package public
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PACKAGE_NAME=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
+          echo "Setting package ${PACKAGE_NAME} visibility to public..."
+          curl -s -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/user/packages/container/${PACKAGE_NAME}" \
+            -d '{"visibility":"public"}' || echo "Note: Manual step may be needed — go to https://github.com/users/${{ github.actor }}/packages/container/${{ github.event.repository.name }}/settings and set visibility to Public"
