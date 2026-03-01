@@ -5,9 +5,10 @@ import { FallbackImage } from "@/components/FallbackImage";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Clock, Eye, Timer, ArrowLeft, ChevronRight, Pause, Languages, Headphones } from "lucide-react";
+import { Clock, Eye, Timer, ArrowLeft, ChevronRight, Pause, Languages, Headphones, Tv, Music, Disc3 } from "lucide-react";
 import Link from "next/link";
 import MediaDropoffChart from "./MediaDropoffChart";
+import TelemetryChart from "./TelemetryChart";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +93,19 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
         });
     }
 
+    // Telemetry timeline: group pauses, audio & subtitle changes per session date
+    const telemetryMap = new Map<string, { pauses: number; audioChanges: number; subtitleChanges: number }>();
+    media.playbackHistory.forEach((h: any) => {
+        const dateKey = new Date(h.startedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+        const entry = telemetryMap.get(dateKey) || { pauses: 0, audioChanges: 0, subtitleChanges: 0 };
+        entry.pauses += h.pauseCount || 0;
+        entry.audioChanges += h.audioChanges || 0;
+        entry.subtitleChanges += h.subtitleChanges || 0;
+        telemetryMap.set(dateKey, entry);
+    });
+    const telemetryData = Array.from(telemetryMap.entries()).map(([date, v]) => ({ date, ...v }));
+    const hasTelemetry = telemetryData.some(d => d.pauses > 0 || d.audioChanges > 0 || d.subtitleChanges > 0);
+
     // Unique users who watched this
     const userMap = new Map<string, { username: string; jellyfinUserId: string; sessions: number; totalSeconds: number }>();
     media.playbackHistory.forEach((h: any) => {
@@ -148,6 +162,27 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                     <span className="text-white font-medium truncate max-w-xs">{media.title}</span>
                 </nav>
 
+                {/* Quick navigation for Episodes / Audio tracks */}
+                {(seriesId || seasonId || albumId) && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {seriesId && seriesName && (
+                            <Link href={`/media/${seriesId}`} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20 transition-colors text-sm font-medium">
+                                <Tv className="w-4 h-4" /> Voir la s\u00e9rie : {seriesName}
+                            </Link>
+                        )}
+                        {seasonId && seasonName && (
+                            <Link href={`/media/${seasonId}`} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-500/10 border border-violet-500/30 text-violet-400 hover:bg-violet-500/20 transition-colors text-sm font-medium">
+                                <Disc3 className="w-4 h-4" /> {seasonName}
+                            </Link>
+                        )}
+                        {albumId && albumName && (
+                            <Link href={`/media/${albumId}`} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 hover:bg-purple-500/20 transition-colors text-sm font-medium">
+                                <Music className="w-4 h-4" /> Voir l\u0027album : {albumName}
+                            </Link>
+                        )}
+                    </div>
+                )}
+
                 {/* Header */}
                 <div className="flex flex-col md:flex-row gap-8">
                     <div className="relative w-48 aspect-[2/3] bg-zinc-900 rounded-lg overflow-hidden ring-1 ring-white/10 shadow-xl shrink-0">
@@ -192,11 +227,11 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                         <CardContent><div className="text-2xl font-bold">{totalPauses}</div><p className="text-xs text-muted-foreground mt-1">Total</p></CardContent>
                     </Card>
                     <Card className="bg-zinc-900/50 border-zinc-800/50">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Chgts Audio</CardTitle><Headphones className="h-4 w-4 text-purple-500" /></CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Changements Audio</CardTitle><Headphones className="h-4 w-4 text-purple-500" /></CardHeader>
                         <CardContent><div className="text-2xl font-bold">{totalAudioChanges}</div><p className="text-xs text-muted-foreground mt-1">Pistes</p></CardContent>
                     </Card>
                     <Card className="bg-zinc-900/50 border-zinc-800/50">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Chgts Sous-titres</CardTitle><Languages className="h-4 w-4 text-cyan-500" /></CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Changements Sous-titres</CardTitle><Languages className="h-4 w-4 text-cyan-500" /></CardHeader>
                         <CardContent><div className="text-2xl font-bold">{totalSubChanges}</div><p className="text-xs text-muted-foreground mt-1">Pistes</p></CardContent>
                     </Card>
                 </div>
@@ -262,8 +297,19 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                 {/* Drop-off Chart */}
                 {mediaDurationSeconds && mediaDurationSeconds > 0 && (
                     <Card className="bg-zinc-900/50 border-zinc-800/50">
-                        <CardHeader><CardTitle>Télémétrie & Chute (Drop-off)</CardTitle><CardDescription>Pourcentage de complétion par session.</CardDescription></CardHeader>
+                        <CardHeader><CardTitle>Chute (Drop-off)</CardTitle><CardDescription>Pourcentage de complétion par session.</CardDescription></CardHeader>
                         <CardContent><div className="h-[300px] w-full"><MediaDropoffChart data={dropoffBuckets} /></div></CardContent>
+                    </Card>
+                )}
+
+                {/* Telemetry Timeline Chart */}
+                {hasTelemetry && (
+                    <Card className="bg-zinc-900/50 border-zinc-800/50">
+                        <CardHeader>
+                            <CardTitle>Télémétrie par Session</CardTitle>
+                            <CardDescription>Pauses, changements audio et sous-titres dans le temps.</CardDescription>
+                        </CardHeader>
+                        <CardContent><div className="h-[300px] w-full"><TelemetryChart data={telemetryData} /></div></CardContent>
                     </Card>
                 )}
 

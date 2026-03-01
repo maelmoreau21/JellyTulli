@@ -30,15 +30,14 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
     const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
     const excludedLibraries = settings?.excludedLibraries || [];
 
-    const buildMediaFilter = () => {
-        let AND: any[] = [];
-        if (type === 'movie') AND.push({ collectionType: "movies" });
-        else if (type === 'series') AND.push({ collectionType: "tvshows" });
-        else if (type === 'music') AND.push({ collectionType: "music" });
-        else {
-            // Default "Tous": show all types
-        }
+    // Build parent-level type filter (show Series/Albums, not individual Episodes/Tracks)
+    const displayTypes = type === 'movie' ? ['Movie']
+        : type === 'series' ? ['Series']
+        : type === 'music' ? ['MusicAlbum']
+        : ['Movie', 'Series', 'MusicAlbum'];
 
+    const buildMediaFilter = () => {
+        const AND: any[] = [{ type: { in: displayTypes } }];
         if (excludedLibraries.length > 0) {
             AND.push({
                 NOT: {
@@ -49,13 +48,13 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                 }
             });
         }
-        return AND.length > 0 ? { AND } : {};
+        return { AND };
     };
 
     const mediaWhere = buildMediaFilter();
 
-    // 1. Fetch tous les médias avec l'historique de lecture
-    const allMedia = await prisma.media.findMany({
+    // 1. Fetch parent-level items (Movies, Series, Albums) with direct playback
+    const parentItems = await prisma.media.findMany({
         where: mediaWhere,
         include: {
             playbackHistory: {
@@ -67,29 +66,83 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
         },
     });
 
-    // 2. Traitement et calcul des statistiques JavaScript (Agrégation Mémoire)
-    const processedMedia = allMedia.map((media: any) => {
-        const plays = media.playbackHistory.length;
-        const durationSeconds = media.playbackHistory.reduce((acc: number, h: any) => acc + h.durationWatched, 0);
+    // 2. Aggregate child stats for Series (via Seasons → Episodes)
+    const seriesIdList = parentItems.filter((m: any) => m.type === 'Series').map((m: any) => m.jellyfinMediaId);
+    const seriesChildStats = new Map<string, { plays: number; dur: number; dp: number; childCount: number }>();
+
+    if (seriesIdList.length > 0) {
+        const seasons = await prisma.media.findMany({
+            where: { type: 'Season', parentId: { in: seriesIdList } },
+            select: { jellyfinMediaId: true, parentId: true },
+        });
+        const seasonToSeries = new Map(seasons.map((s: any) => [s.jellyfinMediaId, s.parentId!]));
+        const seasonIdList = seasons.map((s: any) => s.jellyfinMediaId);
+
+        if (seasonIdList.length > 0) {
+            const episodes = await prisma.media.findMany({
+                where: { type: 'Episode', parentId: { in: seasonIdList } },
+                include: { playbackHistory: { select: { durationWatched: true, playMethod: true } } },
+            });
+            for (const ep of episodes) {
+                const sid = seasonToSeries.get(ep.parentId!);
+                if (!sid) continue;
+                const s = seriesChildStats.get(sid) || { plays: 0, dur: 0, dp: 0, childCount: 0 };
+                s.childCount++;
+                s.plays += ep.playbackHistory.length;
+                s.dur += ep.playbackHistory.reduce((a: number, h: any) => a + h.durationWatched, 0);
+                s.dp += ep.playbackHistory.filter((h: any) => h.playMethod === 'DirectPlay').length;
+                seriesChildStats.set(sid, s);
+            }
+        }
+    }
+
+    // 3. Aggregate child stats for Albums (Audio tracks)
+    const albumIdList = parentItems.filter((m: any) => m.type === 'MusicAlbum').map((m: any) => m.jellyfinMediaId);
+    const albumChildStats = new Map<string, { plays: number; dur: number; dp: number; childCount: number }>();
+
+    if (albumIdList.length > 0) {
+        const tracks = await prisma.media.findMany({
+            where: { type: 'Audio', parentId: { in: albumIdList } },
+            include: { playbackHistory: { select: { durationWatched: true, playMethod: true } } },
+        });
+        for (const track of tracks) {
+            if (!track.parentId) continue;
+            const s = albumChildStats.get(track.parentId) || { plays: 0, dur: 0, dp: 0, childCount: 0 };
+            s.childCount++;
+            s.plays += track.playbackHistory.length;
+            s.dur += track.playbackHistory.reduce((a: number, h: any) => a + h.durationWatched, 0);
+            s.dp += track.playbackHistory.filter((h: any) => h.playMethod === 'DirectPlay').length;
+            albumChildStats.set(track.parentId, s);
+        }
+    }
+
+    // 4. Process items with aggregated stats
+    const processedMedia = parentItems.map((media: any) => {
+        let plays = 0, durationSeconds = 0, dpCount = 0, childCount = 0;
+
+        if (media.type === 'Movie') {
+            plays = media.playbackHistory.length;
+            durationSeconds = media.playbackHistory.reduce((a: number, h: any) => a + h.durationWatched, 0);
+            dpCount = media.playbackHistory.filter((h: any) => h.playMethod === 'DirectPlay').length;
+        } else if (media.type === 'Series') {
+            const stats = seriesChildStats.get(media.jellyfinMediaId);
+            if (stats) { plays = stats.plays; durationSeconds = stats.dur; dpCount = stats.dp; childCount = stats.childCount; }
+        } else if (media.type === 'MusicAlbum') {
+            const stats = albumChildStats.get(media.jellyfinMediaId);
+            if (stats) { plays = stats.plays; durationSeconds = stats.dur; dpCount = stats.dp; childCount = stats.childCount; }
+        }
+
         const durationHours = parseFloat((durationSeconds / 3600).toFixed(1));
+        const qualityPercent = plays > 0 ? Math.round((dpCount / plays) * 100) : 0;
 
-        // Calcul qualité vidéo (% de DirectPlay vs Transcode)
-        const directPlayCount = media.playbackHistory.filter((h: any) => h.playMethod === "DirectPlay").length;
-        const qualityPercent = plays > 0 ? Math.round((directPlayCount / plays) * 100) : 0;
-
-        return {
-            ...media,
-            plays,
-            durationHours,
-            qualityPercent, // 100% = Full DirectPlay, 0% = Full Transcode
-        };
+        return { ...media, plays, durationHours, qualityPercent, childCount };
     });
 
     // 3. Extraction des Stats Globales (Genres et Résolution)
     const genreCounts = new Map<string, number>();
     const resolutionCounts = new Map<string, number>();
 
-    allMedia.forEach((m: any) => {
+    parentItems.forEach((m: any) => {
         if (m.genres && m.genres.length > 0) {
             m.genres.forEach((g: string) => {
                 genreCounts.set(g, (genreCounts.get(g) || 0) + 1);
@@ -200,7 +253,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                     <CardHeader>
                         <CardTitle>Tous les Médias</CardTitle>
                         <CardDescription>
-                            Liste des {allMedia.length} contenus disponibles extraits depuis Jellyfin.
+                            Liste des {parentItems.length} contenus disponibles extraits depuis Jellyfin.
                         </CardDescription>
                         {/* Barre de tri */}
                         <div className="flex items-center gap-2 pt-4">
@@ -246,6 +299,14 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                                 height={600}
                                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50"
                                             />
+                                            {/* Type badge on Tous tab */}
+                                            {!type && media.type !== 'Movie' && (
+                                                <div className="absolute top-2 left-2 z-10 transition-opacity duration-300 group-hover:opacity-0">
+                                                    <Badge variant="outline" className="text-[10px] bg-black/60 text-white border-white/20 backdrop-blur-sm">
+                                                        {media.type === 'Series' ? 'Série' : 'Album'}
+                                                    </Badge>
+                                                </div>
+                                            )}
                                             {/* Top Overlay logic (Quality) */}
                                             {media.plays > 0 && (
                                                 <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10 transition-opacity duration-300 group-hover:opacity-0">
@@ -269,6 +330,11 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                         </div>
                                         <div className="flex flex-col px-1">
                                             <span className="font-semibold text-sm truncate text-zinc-100" title={media.title}>{media.title}</span>
+                                            {media.childCount > 0 && (
+                                                <span className="text-xs text-zinc-500">
+                                                    {media.childCount} {media.type === 'Series' ? 'épisodes' : 'pistes'}
+                                                </span>
+                                            )}
                                             <div className="flex items-center justify-between text-xs text-zinc-400 mt-1">
                                                 <span>{media.plays} {media.plays > 1 ? 'vues' : 'vue'}</span>
                                                 {media.durationHours > 0 && <span className="font-medium">{media.durationHours}h</span>}

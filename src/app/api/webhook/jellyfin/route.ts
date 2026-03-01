@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import redis from "@/lib/redis";
 import { getGeoLocation } from "@/lib/geoip";
 
 export async function POST(req: Request) {
@@ -124,6 +125,7 @@ export async function POST(req: Request) {
                 const media = await prisma.media.findUnique({ where: { jellyfinMediaId } });
 
                 if (user && media) {
+                    // Close the open PlaybackHistory
                     const lastPlayback = await prisma.playbackHistory.findFirst({
                         where: { userId: user.id, mediaId: media.id, endedAt: null },
                         orderBy: { startedAt: 'desc' },
@@ -143,6 +145,16 @@ export async function POST(req: Request) {
                             data: { endedAt, durationWatched: durationS },
                         });
                         console.log(`[Webhook] PlaybackStop: Session ${lastPlayback.id} closed, duration=${durationS}s`);
+                    }
+
+                    // Also clean up ActiveStream + Redis to avoid ghost sessions
+                    const activeStream = await prisma.activeStream.findFirst({
+                        where: { userId: user.id, mediaId: media.id },
+                    });
+                    if (activeStream) {
+                        await redis.del(`stream:${activeStream.sessionId}`);
+                        await prisma.activeStream.delete({ where: { id: activeStream.id } });
+                        console.log(`[Webhook] PlaybackStop: ActiveStream ${activeStream.sessionId} nettoyé.`);
                     }
                 }
             }

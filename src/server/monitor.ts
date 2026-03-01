@@ -199,8 +199,8 @@ async function pollJellyfinSessions() {
             City: geoData.city,
         };
 
-        // Cache for 30s (will be refreshed every 5s anyway)
-        await redis.setex(`stream:${SessionId}`, 30, JSON.stringify(redisPayload));
+        // Cache for 60s (refreshed every 5s, extra margin prevents premature expiry)
+        await redis.setex(`stream:${SessionId}`, 60, JSON.stringify(redisPayload));
 
         // DB Upsert (Active Stream)
         if (UserId && ItemId) {
@@ -240,6 +240,61 @@ async function pollJellyfinSessions() {
                     city: geoData.city,
                 },
             });
+        }
+
+        // Telemetry tracking for ongoing sessions (pause/audio/subtitle changes)
+        if (!isNew && UserId && ItemId) {
+            const user = await prisma.user.findUnique({ where: { jellyfinUserId: UserId } });
+            const media = await prisma.media.findUnique({ where: { jellyfinMediaId: ItemId } });
+            if (user && media) {
+                const openPlayback = await prisma.playbackHistory.findFirst({
+                    where: { userId: user.id, mediaId: media.id, endedAt: null },
+                    orderBy: { startedAt: 'desc' },
+                });
+                if (openPlayback) {
+                    const updates: any = {};
+                    const isPaused = PlayState?.IsPaused === true;
+
+                    // Track pause state transitions
+                    const pauseKey = `pause:${openPlayback.id}`;
+                    const prevPauseState = await redis.get(pauseKey);
+                    if (isPaused && prevPauseState !== "paused") {
+                        updates.pauseCount = { increment: 1 };
+                        await redis.setex(pauseKey, 3600, "paused");
+                    } else if (!isPaused && prevPauseState === "paused") {
+                        await redis.setex(pauseKey, 3600, "playing");
+                    }
+
+                    // Track audio stream changes
+                    const audioStreamIndex = PlayState?.AudioStreamIndex;
+                    if (audioStreamIndex !== undefined && audioStreamIndex !== null) {
+                        const audioKey = `audio:${openPlayback.id}`;
+                        const prevAudio = await redis.get(audioKey);
+                        if (prevAudio !== null && prevAudio !== String(audioStreamIndex)) {
+                            updates.audioChanges = { increment: 1 };
+                        }
+                        await redis.setex(audioKey, 3600, String(audioStreamIndex));
+                    }
+
+                    // Track subtitle stream changes
+                    const subtitleStreamIndex = PlayState?.SubtitleStreamIndex;
+                    if (subtitleStreamIndex !== undefined && subtitleStreamIndex !== null) {
+                        const subKey = `sub:${openPlayback.id}`;
+                        const prevSub = await redis.get(subKey);
+                        if (prevSub !== null && prevSub !== String(subtitleStreamIndex)) {
+                            updates.subtitleChanges = { increment: 1 };
+                        }
+                        await redis.setex(subKey, 3600, String(subtitleStreamIndex));
+                    }
+
+                    if (Object.keys(updates).length > 0) {
+                        await prisma.playbackHistory.update({
+                            where: { id: openPlayback.id },
+                            data: updates,
+                        });
+                    }
+                }
+            }
         }
 
         // Handle PlaybackStart Logic

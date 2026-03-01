@@ -63,7 +63,7 @@ export async function syncJellyfinLibrary() {
 
         // 3. Sync Media (Movies, Series, Episodes, Audio, MusicAlbum) with Genres and MediaSources
         console.log("[Sync] Fetching Media Items...");
-        const itemsRes = await fetch(`${baseUrl}/Items?api_key=${apiKey}&IncludeItemTypes=Movie,Series,Episode,Audio,MusicAlbum&Recursive=true&Fields=ProviderIds,PremiereDate,Genres,MediaSources,ParentId`);
+        const itemsRes = await fetch(`${baseUrl}/Items?api_key=${apiKey}&IncludeItemTypes=Movie,Series,Season,Episode,Audio,MusicAlbum&Recursive=true&Fields=ProviderIds,PremiereDate,Genres,MediaSources,ParentId`);
         if (!itemsRes.ok) throw new Error("Erreur de récupération des médias");
         const itemsData = await itemsRes.json();
         const items = itemsData.Items || [];

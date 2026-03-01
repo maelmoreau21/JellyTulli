@@ -44,6 +44,9 @@ RUN npm install -g prisma@5
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Create backup directory with correct permissions
+RUN mkdir -p /data/backups && chown nextjs:nodejs /data/backups
+
 COPY --from=builder /app/public ./public
 
 # Automatically leverage output traces to reduce image size

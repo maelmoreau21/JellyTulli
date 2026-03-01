@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { ActivityCalendar, ThemeInput } from "react-activity-calendar";
-import { format, eachDayOfInterval, startOfYear } from "date-fns";
+import { format, eachDayOfInterval, startOfYear, endOfYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -23,14 +23,15 @@ const customTheme: ThemeInput = {
 };
 
 export function YearlyHeatmap({ data }: YearlyHeatmapProps) {
-    // Fill in the blanks (ActivityCalendar needs continuous dates from Jan 1 to today)
+    // Fill in the blanks (ActivityCalendar needs continuous dates from Jan 1 to Dec 31)
     const processedData = useMemo(() => {
         const today = new Date();
         const jan1 = startOfYear(today);
+        const dec31 = endOfYear(today);
         const yearData: HeatmapData[] = [];
 
-        // Loop from January 1st of the current year to today
-        const allDays = eachDayOfInterval({ start: jan1, end: today });
+        // Loop from January 1st to December 31st of the current year
+        const allDays = eachDayOfInterval({ start: jan1, end: dec31 });
         for (const date of allDays) {
             const dateStr = format(date, "yyyy-MM-dd");
             const existing = data.find(d => d.date === dateStr);
