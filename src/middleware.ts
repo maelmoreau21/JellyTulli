@@ -51,14 +51,12 @@ export const config = {
         /*
          * Match all request paths except for the ones starting with:
          * - api/jellyfin/image (Proxy images publiques)
-         * - api/setup (Sauvegarde du serveur)
          * - api/webhook (Réception webhook)
-         * - setup (Page de configuration publique)
          * - login (Page de connexion publique)
          * - _next/static (Fichiers Next.js internes statiques)
          * - _next/image (Next.js image optimization API)
          * - favicon.ico, sitemap.xml, robots.txt (Metadata basique)
          */
-        "/((?!api/jellyfin/image|api/setup|api/webhook|setup|login|_next|favicon.ico).*)",
+        "/((?!api/jellyfin/image|api/webhook|login|_next|favicon.ico).*)",
     ],
 };

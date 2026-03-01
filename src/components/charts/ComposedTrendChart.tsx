@@ -88,6 +88,8 @@ export function ComposedTrendChart({ data, series }: { data: TrendData[], series
 
                 <Tooltip
                     contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }}
+                    labelStyle={{ color: '#a1a1aa' }}
+                    itemStyle={{ color: '#e4e4e7' }}
                     formatter={formatTooltipValue}
                 />
                 <Legend onClick={toggleLegend} wrapperStyle={{ fontSize: '12px', paddingTop: '10px', cursor: 'pointer' }} />

@@ -15,8 +15,9 @@ export default function MediaDropoffChart({ data }: { data: DropoffData[] }) {
                 <XAxis dataKey="range" tick={{ fill: '#a1a1aa', fontSize: 11 }} />
                 <YAxis tick={{ fill: '#a1a1aa', fontSize: 12 }} allowDecimals={false} />
                 <Tooltip
-                    contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: '8px' }}
+                    contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: '8px', color: '#f4f4f5' }}
                     labelStyle={{ color: '#e4e4e7' }}
+                    itemStyle={{ color: '#e4e4e7' }}
                     formatter={(value: any) => [`${value} session${value > 1 ? 's' : ''}`, 'Arrêts']}
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>

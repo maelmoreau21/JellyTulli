@@ -53,9 +53,11 @@ export function MonthlyWatchTimeChart({ data }: MonthlyWatchTimeChartProps) {
                         backgroundColor: "#18181b",
                         border: "1px solid #27272a",
                         borderRadius: "8px",
+                        color: "#f4f4f5",
                     }}
                     formatter={(value: number) => [`${value.toFixed(1)}h`, "Temps de visionnage"]}
                     labelStyle={{ color: "#a1a1aa" }}
+                    itemStyle={{ color: "#e4e4e7" }}
                 />
                 <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
                     {data.map((entry, index) => (

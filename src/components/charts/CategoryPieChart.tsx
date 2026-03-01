@@ -33,6 +33,8 @@ export function CategoryPieChart({ data }: { data: CategoryData[] }) {
                 </Pie>
                 <Tooltip
                     contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }}
+                    labelStyle={{ color: '#a1a1aa' }}
+                    itemStyle={{ color: '#e4e4e7' }}
                     formatter={formatTooltipValue}
                 />
                 <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }} />

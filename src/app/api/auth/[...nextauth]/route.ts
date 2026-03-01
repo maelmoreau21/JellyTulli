@@ -1,6 +1,5 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import prisma from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -13,16 +12,13 @@ export const authOptions: NextAuthOptions = {
             async authorize(credentials) {
                 if (!credentials?.username || !credentials?.password) return null;
 
-                const settings = await prisma.globalSettings.findUnique({
-                    where: { id: "global" }
-                });
-
-                if (!settings || !settings.jellyfinUrl) {
-                    throw new Error("Serveur non configuré. Accédez à /setup.");
+                const jellyfinUrl = process.env.JELLYFIN_URL;
+                if (!jellyfinUrl) {
+                    throw new Error("JELLYFIN_URL non configurée dans les variables d'environnement.");
                 }
 
                 try {
-                    const res = await fetch(`${settings.jellyfinUrl}/Users/AuthenticateByName`, {
+                    const res = await fetch(`${jellyfinUrl}/Users/AuthenticateByName`, {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",

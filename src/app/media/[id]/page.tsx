@@ -44,10 +44,11 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
     let albumArtist: string | null = null;
 
     try {
-        const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
-        if (settings?.jellyfinUrl && settings?.jellyfinApiKey) {
+        const jellyfinUrl = process.env.JELLYFIN_URL;
+        const jellyfinApiKey = process.env.JELLYFIN_API_KEY;
+        if (jellyfinUrl && jellyfinApiKey) {
             const res = await fetch(
-                `${settings.jellyfinUrl}/Items/${id}?api_key=${settings.jellyfinApiKey}`,
+                `${jellyfinUrl}/Items/${id}?api_key=${jellyfinApiKey}`,
                 { next: { revalidate: 86400 } }
             );
             if (res.ok) {

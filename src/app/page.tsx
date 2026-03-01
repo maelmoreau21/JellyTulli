@@ -494,6 +494,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
           city: payload.City || "Unknown",
           progressPercent,
           isPaused: payload.IsPaused === true,
+          parentItemId: payload.AlbumId || payload.SeriesId || payload.SeasonId || null,
         };
       });
   }

@@ -47,8 +47,9 @@ export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
                     allowDecimals={false}
                 />
                 <Tooltip
-                    contentStyle={{ backgroundColor: "#18181b", border: "1px solid #27272a", borderRadius: "8px" }}
-                    itemStyle={{ color: "#fff" }}
+                    contentStyle={{ backgroundColor: "#18181b", border: "1px solid #27272a", borderRadius: "8px", color: "#f4f4f5" }}
+                    labelStyle={{ color: "#a1a1aa" }}
+                    itemStyle={{ color: "#e4e4e7" }}
                     cursor={{ fill: '#27272a' }}
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>

@@ -56,7 +56,9 @@ export async function POST(req: NextRequest) {
                 await tx.playbackHistory.createMany({ data: playbackHistory });
             }
             if (settings) {
-                await tx.globalSettings.create({ data: settings });
+                // Strip legacy jellyfinUrl/jellyfinApiKey fields (now env vars)
+                const { jellyfinUrl, jellyfinApiKey, ...cleanSettings } = settings as any;
+                await tx.globalSettings.create({ data: cleanSettings });
             }
         }, {
             timeout: 60000 // Give it 60 seconds if the DB is massive

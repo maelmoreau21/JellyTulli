@@ -51,7 +51,10 @@ export function CompletionRatioChart({ data }: CompletionRatioChartProps) {
                         backgroundColor: "#18181b",
                         border: "1px solid #27272a",
                         borderRadius: "8px",
+                        color: "#f4f4f5",
                     }}
+                    labelStyle={{ color: "#a1a1aa" }}
+                    itemStyle={{ color: "#e4e4e7" }}
                     formatter={(value: number, name: string) => [
                         `${value} sessions`,
                         name,

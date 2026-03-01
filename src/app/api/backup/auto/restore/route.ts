@@ -114,8 +114,6 @@ export async function POST(req: NextRequest) {
                 await tx.globalSettings.upsert({
                     where: { id: "global" },
                     update: {
-                        jellyfinUrl: settings.jellyfinUrl,
-                        jellyfinApiKey: settings.jellyfinApiKey,
                         discordWebhookUrl: settings.discordWebhookUrl,
                         discordAlertsEnabled: settings.discordAlertsEnabled,
                         discordAlertCondition: settings.discordAlertCondition,
@@ -123,8 +121,6 @@ export async function POST(req: NextRequest) {
                     },
                     create: {
                         id: "global",
-                        jellyfinUrl: settings.jellyfinUrl,
-                        jellyfinApiKey: settings.jellyfinApiKey,
                         discordWebhookUrl: settings.discordWebhookUrl,
                         discordAlertsEnabled: settings.discordAlertsEnabled,
                         discordAlertCondition: settings.discordAlertCondition,

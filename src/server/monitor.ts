@@ -3,7 +3,9 @@ import redis from "@/lib/redis";
 import { getGeoLocation } from "@/lib/geoip";
 
 let isMonitoringStarted = false;
-let monitorIntervalId: ReturnType<typeof setInterval> | null = null;
+let monitorTimeoutId: ReturnType<typeof setTimeout> | null = null;
+const POLL_INTERVAL_ACTIVE = 1000;   // 1s when sessions are active
+const POLL_INTERVAL_IDLE   = 5000;   // 5s when idle
 
 // Format IP Address (Jellyfin returns IPv6 or with port like "192.168.1.1:8096")
 // We keep the raw IP (no more masking local IPs) for full visibility.
@@ -21,7 +23,7 @@ export async function startMonitoring() {
     if (isMonitoringStarted) return;
     isMonitoringStarted = true;
 
-    console.log("[Monitor] Démarrage du polling autonome Jellyfin (5s)...");
+    console.log("[Monitor] Démarrage du polling autonome Jellyfin (adaptatif: 1s actif / 5s veille)...");
 
     // Startup cleanup: close all orphan ActiveStreams and their open PlaybackHistory entries
     // This handles app restarts where Redis state was lost but DB ActiveStreams persist
@@ -56,32 +58,36 @@ export async function startMonitoring() {
         console.error("[Monitor] Erreur nettoyage au démarrage:", err);
     }
 
-    // Clear previous interval if any (HMR safety)
-    if (monitorIntervalId) {
-        clearInterval(monitorIntervalId);
+    // Clear previous timeout if any (HMR safety)
+    if (monitorTimeoutId) {
+        clearTimeout(monitorTimeoutId);
     }
 
-    monitorIntervalId = setInterval(async () => {
+    // Adaptive polling loop: 1s with active sessions, 5s when idle
+    async function scheduleNextPoll() {
         try {
-            await pollJellyfinSessions();
+            const hasActive = await pollJellyfinSessions();
+            const interval = hasActive ? POLL_INTERVAL_ACTIVE : POLL_INTERVAL_IDLE;
+            monitorTimeoutId = setTimeout(scheduleNextPoll, interval);
         } catch (error) {
             console.error("[Monitor] Erreur lors du polling:", error);
+            monitorTimeoutId = setTimeout(scheduleNextPoll, POLL_INTERVAL_IDLE);
         }
-    }, 5000);
+    }
+    scheduleNextPoll();
 }
 
-async function pollJellyfinSessions() {
-    const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
-    const baseUrl = settings?.jellyfinUrl;
-    const apiKey = settings?.jellyfinApiKey;
+async function pollJellyfinSessions(): Promise<boolean> {
+    const baseUrl = process.env.JELLYFIN_URL;
+    const apiKey = process.env.JELLYFIN_API_KEY;
 
     if (!baseUrl || !apiKey) {
-        console.warn("[Monitor] Jellyfin URL or API Key missing.");
-        return;
+        console.warn("[Monitor] JELLYFIN_URL or JELLYFIN_API_KEY env vars missing.");
+        return false;
     }
 
     const response = await fetch(`${baseUrl}/Sessions?api_key=${apiKey}`);
-    if (!response.ok) return;
+    if (!response.ok) return false;
 
     const sessions = await response.json();
 
@@ -118,6 +124,9 @@ async function pollJellyfinSessions() {
         const SeasonName = Item?.SeasonName || null;
         const AlbumName = Item?.Album || null;
         const AlbumArtist = Item?.AlbumArtist || Item?.AlbumArtists?.[0] || null;
+        const AlbumId = Item?.AlbumId || null;
+        const SeriesId = Item?.SeriesId || null;
+        const SeasonId = Item?.SeasonId || null;
         const RunTimeTicks = Item?.RunTimeTicks || null;
 
         const PlayState = session.PlayState;
@@ -190,14 +199,14 @@ async function pollJellyfinSessions() {
                         });
                         if (prevPlayback) {
                             const endedAt = new Date();
-                            const durationS = PlaybackPositionTicks && PlaybackPositionTicks > 0
-                                ? Math.floor(PlaybackPositionTicks / 10_000_000)
-                                : Math.floor((endedAt.getTime() - prevPlayback.startedAt.getTime()) / 1000);
+                            // For item changes, always use wall clock duration
+                            // (PlaybackPositionTicks belongs to the NEW item, not the old one)
+                            const durationS = Math.floor((endedAt.getTime() - prevPlayback.startedAt.getTime()) / 1000);
                             await prisma.playbackHistory.update({
                                 where: { id: prevPlayback.id },
                                 data: { endedAt, durationWatched: durationS },
                             });
-                            console.log(`[Monitor] Item changed in session ${SessionId}: closed ${prev.ItemId}, now playing ${ItemId}`);
+                            console.log(`[Monitor] Item changed in session ${SessionId}: closed ${prev.ItemId} (${durationS}s), now playing ${ItemId}`);
                         }
                     }
                 }
@@ -254,6 +263,9 @@ async function pollJellyfinSessions() {
             SeasonName,
             AlbumName,
             AlbumArtist,
+            AlbumId,
+            SeriesId,
+            SeasonId,
             Country: geoData.country,
             City: geoData.city,
         };
@@ -522,4 +534,7 @@ async function pollJellyfinSessions() {
         // Delete the stale ActiveStream
         await prisma.activeStream.delete({ where: { id: stale.id } });
     }
+
+    // Return whether there are active sessions (drives adaptive polling interval)
+    return activeSessions.length > 0;
 }

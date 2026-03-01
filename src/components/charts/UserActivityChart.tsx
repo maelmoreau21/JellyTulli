@@ -29,7 +29,8 @@ export function UserActivityChart({ data }: { data: ActivityData[] }) {
                 />
                 <Tooltip
                     contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }}
-                    itemStyle={{ color: '#0ea5e9' }}
+                    labelStyle={{ color: '#a1a1aa' }}
+                    itemStyle={{ color: '#e4e4e7' }}
                     cursor={{ fill: '#27272a', opacity: 0.4 }}
                 />
                 <Bar dataKey="hours" fill="#0ea5e9" radius={[4, 4, 0, 0]} name="Heures" />

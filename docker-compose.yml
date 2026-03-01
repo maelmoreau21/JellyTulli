@@ -1,5 +1,5 @@
 services:
-  app:
+  jellytulli:
     image: ghcr.io/maelmoreau21/jellytulli:latest
     container_name: jellytulli_app
     ports:
@@ -7,6 +7,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://jellytulli:jellytulli_password@postgres:5432/jellytulli?schema=public&connection_limit=5
       - REDIS_URL=redis://redis:6379
+      - JELLYFIN_URL=http://jellyfin:8096
+      - JELLYFIN_API_KEY=your-jellyfin-api-key
       - ADMIN_PASSWORD=supersecretadmin
       - NEXTAUTH_SECRET=your-generated-random-secret
       - NEXTAUTH_URL=http://localhost:3000

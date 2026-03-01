@@ -50,6 +50,7 @@ export function VolumeAreaChart({ data }: { data: VolumeHourData[] }) {
                 />
                 <Tooltip
                     contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }}
+                    labelStyle={{ color: '#a1a1aa' }}
                     itemStyle={{ color: '#e4e4e7' }}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />

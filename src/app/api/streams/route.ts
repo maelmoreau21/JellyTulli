@@ -32,6 +32,7 @@ export async function GET() {
                     return {
                         sessionId: payload.SessionId,
                         itemId: payload.ItemId || null,
+                        parentItemId: payload.AlbumId || payload.SeriesId || payload.SeasonId || null,
                         user: payload.UserName || payload.UserId || "Unknown",
                         mediaTitle: payload.ItemName || "Unknown",
                         mediaSubtitle,

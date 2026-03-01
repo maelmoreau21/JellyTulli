@@ -9,6 +9,7 @@ import { KillStreamButton } from "@/components/dashboard/KillStreamButton";
 interface LiveStream {
     sessionId: string;
     itemId: string | null;
+    parentItemId: string | null;
     user: string;
     mediaTitle: string;
     mediaSubtitle: string | null;
@@ -20,8 +21,10 @@ interface LiveStream {
     isPaused: boolean;
 }
 
-function getImageUrl(itemId: string, type: string = 'Primary') {
-    return `/api/jellyfin/image?itemId=${itemId}&type=${type}`;
+function getImageUrl(itemId: string, type: string = 'Primary', fallbackId?: string) {
+    let url = `/api/jellyfin/image?itemId=${itemId}&type=${type}`;
+    if (fallbackId) url += `&fallbackId=${fallbackId}`;
+    return url;
 }
 
 export function LiveStreamsPanel({ initialStreams, initialBandwidth }: { initialStreams: LiveStream[]; initialBandwidth: number }) {
@@ -69,7 +72,7 @@ export function LiveStreamsPanel({ initialStreams, initialBandwidth }: { initial
                                 {stream.itemId ? (
                                     <div className="relative w-12 aspect-[2/3] bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10">
                                         <FallbackImage
-                                            src={getImageUrl(stream.itemId)}
+                                            src={getImageUrl(stream.itemId, 'Primary', stream.parentItemId || undefined)}
                                             alt={stream.mediaTitle}
                                             fill
                                             className="object-cover"

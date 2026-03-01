@@ -1,6 +1,4 @@
 import { Suspense } from "react";
-import prisma from "@/lib/prisma";
-import { redirect } from "next/navigation";
 import { Lock } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import LoginForm from "./LoginForm";
@@ -8,20 +6,6 @@ import LoginForm from "./LoginForm";
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
-    // SECURITY & ERROR HANDLING:
-    // Ensure the JellyTulli server has at least a Jellyfin URL configured before allowing login.
-    // If not, redirect to the Setup Wizard.
-    try {
-        const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
-        if (!settings?.jellyfinUrl || !settings?.jellyfinApiKey) {
-            redirect("/setup");
-        }
-    } catch (e) {
-        // If the database connection fails completely or Prisma is not initialized, 
-        // we can't do much but we must not crash the whole page rendering unexpectedly.
-        console.error("Erreur lors de la vérification des paramètres dans LoginPage :", e);
-    }
-
     return (
         <div className="min-h-screen bg-black text-white flex items-center justify-center p-4 selection:bg-indigo-500/30">
             <div className="absolute inset-0 z-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-900 via-black to-black" />

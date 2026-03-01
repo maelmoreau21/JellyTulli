@@ -21,7 +21,7 @@ export function StandardBarChart({ data, dataKey, fill, name, horizontal, xAxisK
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#27272a" />
                     <XAxis type="number" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis dataKey={xAxisKey} type="category" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} width={100} />
-                    <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }} labelStyle={{ color: '#a1a1aa' }} itemStyle={{ color: '#e4e4e7' }} />
                     <Bar dataKey={dataKey} fill={fill} radius={[0, 4, 4, 0]} name={name} />
                 </BarChart>
             </ResponsiveContainer>
@@ -34,7 +34,7 @@ export function StandardBarChart({ data, dataKey, fill, name, horizontal, xAxisK
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
                 <XAxis dataKey={xAxisKey} stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }} />
+                <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }} labelStyle={{ color: '#a1a1aa' }} itemStyle={{ color: '#e4e4e7' }} />
                 <Bar dataKey={dataKey} fill={fill} radius={[4, 4, 0, 0]} name={name} />
             </BarChart>
         </ResponsiveContainer>
@@ -48,7 +48,7 @@ export function StandardAreaChart({ data, dataKey, stroke, name }: { data: any[]
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
                 <XAxis dataKey="time" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }} />
+                <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }} labelStyle={{ color: '#a1a1aa' }} itemStyle={{ color: '#e4e4e7' }} />
                 <Area type="monotone" dataKey={dataKey} stroke={stroke} fill={stroke} fillOpacity={0.6} name={name} />
             </AreaChart>
         </ResponsiveContainer>
@@ -79,6 +79,7 @@ export function StandardPieChart({ data, nameKey, dataKey }: { data: any[], name
                 </Pie>
                 <Tooltip
                     contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }}
+                    labelStyle={{ color: '#a1a1aa' }}
                     itemStyle={{ color: '#f4f4f5' }}
                 />
             </PieChart>

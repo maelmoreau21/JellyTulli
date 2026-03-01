@@ -5,25 +5,17 @@ export function getJellyfinImageUrl(itemId: string, type: 'Primary' | 'Thumb' = 
 }
 
 export async function fetchJellyfinImage(itemId: string, type: string) {
-    // Required to prevent import loops if this is a lib (better to import inline or ensure prisma is available)
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-
-    const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
-    const baseUrl = settings?.jellyfinUrl;
-    const apiKey = settings?.jellyfinApiKey;
+    const baseUrl = process.env.JELLYFIN_URL;
+    const apiKey = process.env.JELLYFIN_API_KEY;
 
     if (!baseUrl || !apiKey) {
-        throw new Error("Le serveur Jellyfin n'est pas configuré dans les paramètres globaux.");
+        throw new Error("JELLYFIN_URL ou JELLYFIN_API_KEY non configurées dans les variables d'environnement.");
     }
 
-    // L'API Jellyfin prend en charge plusieurs tailles et qualités, on force un format pour nos UI de façon performante
     const url = `${baseUrl}/Items/${itemId}/Images/${type}?api_key=${apiKey}&fillWidth=300&quality=80`;
 
-    // Ajout d'un timer pour éviter de bloquer indéfiniment le réseau si Jellyfin est lent
     const response = await fetch(url, {
         method: 'GET',
-        // Ajout d'une option Next.js de cache ou revalidation si on le souhaite (ex: revalidate 86400)
         next: { revalidate: 86400 }
     });
 

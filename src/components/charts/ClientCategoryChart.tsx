@@ -40,9 +40,11 @@ export function ClientCategoryChart({ data }: ClientCategoryChartProps) {
                         backgroundColor: "#18181b",
                         border: "1px solid #27272a",
                         borderRadius: "8px",
+                        color: "#f4f4f5",
                     }}
                     formatter={(value: number) => [`${value} sessions`, "Sessions"]}
                     labelStyle={{ color: "#a1a1aa" }}
+                    itemStyle={{ color: "#e4e4e7" }}
                 />
                 <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={24}>
                     {data.map((entry, index) => (

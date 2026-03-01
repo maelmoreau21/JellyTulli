@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import prisma from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
     // Only allow authenticated users to kill a stream
@@ -16,12 +15,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Session ID required" }, { status: 400 });
         }
 
-        const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
-        const baseUrl = settings?.jellyfinUrl;
-        const apiKey = settings?.jellyfinApiKey;
+        const baseUrl = process.env.JELLYFIN_URL;
+        const apiKey = process.env.JELLYFIN_API_KEY;
 
         if (!baseUrl || !apiKey) {
-            return NextResponse.json({ error: "Serveur Jellyfin non configuré." }, { status: 500 });
+            return NextResponse.json({ error: "JELLYFIN_URL ou JELLYFIN_API_KEY non configurées." }, { status: 500 });
         }
 
         // POST /Sessions/{sessionId}/Playing/Stop

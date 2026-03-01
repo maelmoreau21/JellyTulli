@@ -62,3 +62,5 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # Désactive les attestations de provenance qui cassent le manifest multi-arch sur GHCR
+          provenance: false

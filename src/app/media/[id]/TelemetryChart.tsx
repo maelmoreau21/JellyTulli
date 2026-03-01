@@ -19,8 +19,9 @@ export default function TelemetryChart({ data }: { data: TelemetryData[] }) {
                 <XAxis dataKey="date" tick={{ fill: '#a1a1aa', fontSize: 11 }} />
                 <YAxis tick={{ fill: '#a1a1aa', fontSize: 12 }} allowDecimals={false} />
                 <Tooltip
-                    contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: '8px' }}
+                    contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: '8px', color: '#f4f4f5' }}
                     labelStyle={{ color: '#e4e4e7' }}
+                    itemStyle={{ color: '#e4e4e7' }}
                 />
                 <Legend
                     wrapperStyle={{ fontSize: '12px', color: '#a1a1aa' }}
