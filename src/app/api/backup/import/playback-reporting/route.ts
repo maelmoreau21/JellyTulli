@@ -106,12 +106,13 @@ export async function POST(req: NextRequest) {
                         continue;
                     }
 
-                    // Force-upsert user — always create if unknown
-                    const user = await prisma.user.upsert({
-                        where: { jellyfinUserId: formattedUserId },
-                        update: {},
-                        create: { jellyfinUserId: formattedUserId, username: "Utilisateur Supprimé TSV" },
-                    });
+                    // Smart upsert: preserve existing user, only create if truly unknown
+                    let user = await prisma.user.findUnique({ where: { jellyfinUserId: formattedUserId } });
+                    if (!user) {
+                        user = await prisma.user.create({
+                            data: { jellyfinUserId: formattedUserId, username: "Utilisateur Supprimé TSV" },
+                        });
+                    }
 
                     // Upsert Media
                     const media = await prisma.media.upsert({
@@ -151,6 +152,7 @@ export async function POST(req: NextRequest) {
                                 clientName: clientName,
                                 deviceName: deviceName,
                                 endedAt: endedAt,
+                                ipAddress: "Inconnue (TSV)",
                             }
                         });
                     } else {
@@ -164,6 +166,7 @@ export async function POST(req: NextRequest) {
                                 clientName: clientName,
                                 deviceName: deviceName,
                                 endedAt: endedAt,
+                                ipAddress: "Inconnue (TSV)",
                             }
                         });
                     }

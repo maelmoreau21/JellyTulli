@@ -42,6 +42,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
     let seasonName: string | null = null;
     let albumId: string | null = null;
     let albumName: string | null = null;
+    let albumArtist: string | null = null;
     try {
         const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
         if (settings?.jellyfinUrl && settings?.jellyfinApiKey) {
@@ -60,6 +61,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                 seasonName = data.SeasonName || null;
                 albumId = data.AlbumId || null;
                 albumName = data.Album || null;
+                albumArtist = data.AlbumArtist || (data.AlbumArtists?.[0] || null);
             }
         }
     } catch {}
@@ -111,6 +113,12 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                             <Link href={`/media/${seasonId}`} className="hover:text-white transition-colors">
                                 {seasonName}
                             </Link>
+                        </>
+                    )}
+                    {albumArtist && (
+                        <>
+                            <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+                            <span className="text-zinc-300">{albumArtist}</span>
                         </>
                     )}
                     {albumId && albumName && (

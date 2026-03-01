@@ -109,11 +109,11 @@ export async function POST(req: NextRequest) {
                     if (existing) {
                         await prisma.playbackHistory.update({
                             where: { id: existing.id },
-                            data: { durationWatched: s.duration, playMethod: s.playMethod, clientName: s.client, deviceName: s.device, endedAt: s.endedAt },
+                            data: { durationWatched: s.duration, playMethod: s.playMethod, clientName: s.client, deviceName: s.device, endedAt: s.endedAt, ipAddress: s.ipAddress },
                         });
                     } else {
                         await prisma.playbackHistory.create({
-                            data: { userId: user.id, mediaId: media.id, playMethod: s.playMethod, clientName: s.client, deviceName: s.device, durationWatched: s.duration, startedAt: s.startedAt, endedAt: s.endedAt },
+                            data: { userId: user.id, mediaId: media.id, playMethod: s.playMethod, clientName: s.client, deviceName: s.device, durationWatched: s.duration, startedAt: s.startedAt, endedAt: s.endedAt, ipAddress: s.ipAddress },
                         });
                     }
                     importedSess++;
@@ -144,16 +144,17 @@ export async function POST(req: NextRequest) {
             const title = extractStr(window, "NowPlayingItemName", "ItemName", "itemname", "item_name", "Title", "title") || "Unknown Media";
             const type = extractStr(window, "ItemType", "itemtype", "item_type", "Type", "type") || "Movie";
             const rawTicks = extractNum(window, "PlayDuration", "play_duration", "playduration", "RunTimeTicks", "runtimeticks", "run_time_ticks");
-            const durationMs = rawTicks > 0 ? rawTicks / 10000 : 0; // ticks → milliseconds (1 tick = 100ns)
-            const durationSeconds = Math.floor(durationMs / 1000);
-            const dateStr = extractStr(window, "DateCreated", "date_created", "datecreated", "StartedAt", "started_at", "startedat") || new Date().toISOString();
+            // Jellyfin ticks: 1 second = 10,000,000 ticks
+            const durationSeconds = rawTicks > 0 ? Math.floor(rawTicks / 10_000_000) : 0;
+            const dateStr = extractStr(window, "DateCreated", "date_created", "datecreated", "StartedAt", "started_at", "startedat", "PlayDate", "play_date", "playdate", "time_played") || new Date().toISOString();
             const playMethod = extractStr(window, "PlayMethod", "play_method", "playmethod") || "DirectPlay";
             const client = extractStr(window, "Client", "ClientName", "client_name", "clientname") || "Jellystat Import";
             const device = extractStr(window, "DeviceName", "device_name", "devicename") || "Unknown Device";
+            const ipAddress = extractStr(window, "IPAddress", "ip_address", "ipaddress", "RemoteEndPoint", "remote_end_point") || null;
 
             const startedAtDate = new Date(dateStr);
-            const endedAt = durationMs > 0 ? new Date(startedAtDate.getTime() + durationMs) : startedAtDate;
-            batch.push({ userId, itemId, username, title, type, duration: durationSeconds, startedAt: startedAtDate, endedAt, playMethod, client, device });
+            const endedAt = durationSeconds > 0 ? new Date(startedAtDate.getTime() + durationSeconds * 1000) : startedAtDate;
+            batch.push({ userId, itemId, username, title, type, duration: durationSeconds, startedAt: startedAtDate, endedAt, playMethod, client, device, ipAddress });
 
             if (batch.length >= BATCH) {
                 await processBatch(batch);
