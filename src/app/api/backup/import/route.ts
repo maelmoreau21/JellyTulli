@@ -20,6 +20,22 @@ export async function POST(req: NextRequest) {
 
         const { users, media, playbackHistory, settings } = body.data;
 
+        // Restore BigInt fields that were serialized as strings during export
+        if (media && Array.isArray(media)) {
+            for (const m of media) {
+                if (m.durationMs !== undefined && m.durationMs !== null) {
+                    m.durationMs = BigInt(m.durationMs);
+                }
+            }
+        }
+        if (playbackHistory && Array.isArray(playbackHistory)) {
+            for (const h of playbackHistory) {
+                // Convert date strings back to Date objects for Prisma
+                if (h.startedAt && typeof h.startedAt === 'string') h.startedAt = new Date(h.startedAt);
+                if (h.endedAt && typeof h.endedAt === 'string') h.endedAt = new Date(h.endedAt);
+            }
+        }
+
         // Perform atomic restore transaction
         await prisma.$transaction(async (tx) => {
             // 1. Clear current database completely (Volatile first, then records)

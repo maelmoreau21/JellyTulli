@@ -5,7 +5,7 @@ import { FallbackImage } from "@/components/FallbackImage";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Clock, Eye, Timer, ArrowLeft, ChevronRight, Pause, Languages, Headphones, Tv, Music, Disc3 } from "lucide-react";
+import { Clock, Eye, Timer, ArrowLeft, ChevronRight, Pause, Languages, Headphones, Tv, Music, Disc3, Play, Film, ListMusic } from "lucide-react";
 import Link from "next/link";
 import MediaDropoffChart from "./MediaDropoffChart";
 import TelemetryChart from "./TelemetryChart";
@@ -68,9 +68,42 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
         console.error("[Media Profile] Erreur récupération métadonnées Jellyfin:", err);
     }
 
-    // Global stats
-    const totalViews = media.playbackHistory.length;
-    const totalSeconds = media.playbackHistory.reduce((acc: number, h: any) => acc + h.durationWatched, 0);
+    // Fetch children items (Seasons for Series, Episodes for Season, Tracks for MusicAlbum)
+    const isParentType = ['Series', 'Season', 'MusicAlbum'].includes(media.type);
+    let children: { jellyfinMediaId: string; title: string; type: string; resolution: string | null; durationMs: bigint | null; _count: number; _totalDuration: number }[] = [];
+    if (isParentType) {
+        const childMedia = await prisma.media.findMany({
+            where: { parentId: media.jellyfinMediaId },
+            include: {
+                playbackHistory: {
+                    select: { durationWatched: true },
+                },
+            },
+            orderBy: { title: 'asc' },
+        });
+        children = childMedia.map(c => ({
+            jellyfinMediaId: c.jellyfinMediaId,
+            title: c.title,
+            type: c.type,
+            resolution: c.resolution,
+            durationMs: c.durationMs,
+            _count: c.playbackHistory.length,
+            _totalDuration: c.playbackHistory.reduce((acc, h) => acc + h.durationWatched, 0),
+        }));
+    }
+
+    // Global stats (include children's playback for parent items like Series/Season/Album)
+    let totalViews = media.playbackHistory.length;
+    let totalSeconds = media.playbackHistory.reduce((acc: number, h: any) => acc + h.durationWatched, 0);
+
+    // For parent items, also aggregate stats from children
+    if (isParentType && children.length > 0) {
+        const childViews = children.reduce((acc, c) => acc + c._count, 0);
+        const childSeconds = children.reduce((acc, c) => acc + c._totalDuration, 0);
+        totalViews += childViews;
+        totalSeconds += childSeconds;
+    }
+
     const totalHours = parseFloat((totalSeconds / 3600).toFixed(1));
     const avgMinutes = totalViews > 0 ? Math.round(totalSeconds / totalViews / 60) : 0;
 
@@ -210,6 +243,82 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
 
                 {/* KPI Cards */}
                 <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+
+                    {/* Children: Seasons / Episodes / Tracks */}
+                    {children.length > 0 && (
+                        <Card className="bg-zinc-900/50 border-zinc-800/50 col-span-full mb-2">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    {media.type === 'Series' ? <><Film className="w-5 h-5 text-indigo-400" /> Saisons ({children.length})</> :
+                                     media.type === 'Season' ? <><Play className="w-5 h-5 text-violet-400" /> Épisodes ({children.length})</> :
+                                     <><ListMusic className="w-5 h-5 text-purple-400" /> Pistes ({children.length})</>}
+                                </CardTitle>
+                                <CardDescription>
+                                    {media.type === 'Series' ? 'Saisons de cette série avec statistiques agrégées.' :
+                                     media.type === 'Season' ? 'Épisodes de cette saison.' :
+                                     'Pistes de cet album.'}
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="border rounded-md overflow-x-auto border-zinc-800/50">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="border-zinc-800">
+                                                <TableHead className="w-12">#</TableHead>
+                                                <TableHead>Titre</TableHead>
+                                                <TableHead className="text-center">Type</TableHead>
+                                                {media.type !== 'MusicAlbum' && <TableHead className="text-center">Résolution</TableHead>}
+                                                <TableHead className="text-center">Sessions</TableHead>
+                                                <TableHead className="text-right">Temps Total</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {children.map((child, idx) => (
+                                                <TableRow key={child.jellyfinMediaId} className="border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+                                                    <TableCell className="text-zinc-500 text-sm">{idx + 1}</TableCell>
+                                                    <TableCell>
+                                                        <Link
+                                                            href={`/media/${child.jellyfinMediaId}`}
+                                                            className="text-sm font-medium text-primary hover:underline flex items-center gap-2"
+                                                        >
+                                                            <div className="relative w-8 h-8 rounded overflow-hidden bg-zinc-800 shrink-0">
+                                                                <FallbackImage
+                                                                    src={getJellyfinImageUrl(child.jellyfinMediaId, "Primary", media.jellyfinMediaId)}
+                                                                    alt={child.title}
+                                                                    fill
+                                                                    className="object-cover"
+                                                                />
+                                                            </div>
+                                                            <span className="truncate max-w-xs">{child.title}</span>
+                                                        </Link>
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Badge variant="outline" className="text-xs">{child.type}</Badge>
+                                                    </TableCell>
+                                                    {media.type !== 'MusicAlbum' && (
+                                                        <TableCell className="text-center">
+                                                            {child.resolution ? <Badge variant="secondary" className="text-xs">{child.resolution}</Badge> : <span className="text-zinc-500 text-xs">—</span>}
+                                                        </TableCell>
+                                                    )}
+                                                    <TableCell className="text-center font-medium">
+                                                        {child._count > 0 ? <span className="text-blue-400">{child._count}</span> : <span className="text-zinc-500">0</span>}
+                                                    </TableCell>
+                                                    <TableCell className="text-right whitespace-nowrap font-medium">
+                                                        {child._totalDuration > 0
+                                                            ? child._totalDuration >= 3600
+                                                                ? `${(child._totalDuration / 3600).toFixed(1)}h`
+                                                                : `${Math.round(child._totalDuration / 60)} min`
+                                                            : <span className="text-zinc-500 text-xs">0 min</span>
+                                                        }
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                     <Card className="bg-zinc-900/50 border-zinc-800/50">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Temps Total</CardTitle><Clock className="h-4 w-4 text-orange-500" /></CardHeader>
                         <CardContent><div className="text-2xl font-bold">{totalHours}h</div><p className="text-xs text-muted-foreground mt-1">Cumulé</p></CardContent>

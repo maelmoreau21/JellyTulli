@@ -61,7 +61,32 @@ export async function POST(req: Request) {
                 create: { jellyfinMediaId, title, type }
             });
 
-            // 3. Envoi de la notification Discord
+            // 3. Create PlaybackHistory if no open session exists for this user+media (dedup guard)
+            // This ensures short tracks (e.g. music < 5s) are logged even if the monitor misses them
+            const dbUser = await prisma.user.findUnique({ where: { jellyfinUserId: jellyfinUserId } });
+            const dbMedia = await prisma.media.findUnique({ where: { jellyfinMediaId: jellyfinMediaId } });
+            if (dbUser && dbMedia) {
+                const existingOpen = await prisma.playbackHistory.findFirst({
+                    where: { userId: dbUser.id, mediaId: dbMedia.id, endedAt: null },
+                });
+                if (!existingOpen) {
+                    await prisma.playbackHistory.create({
+                        data: {
+                            user: { connect: { jellyfinUserId: jellyfinUserId } },
+                            media: { connect: { jellyfinMediaId: jellyfinMediaId } },
+                            playMethod: payload.PlayMethod || "Unknown",
+                            clientName: clientName,
+                            deviceName: deviceName,
+                            ipAddress: ipAddress,
+                            country: geoData.country,
+                            city: geoData.city,
+                        },
+                    });
+                    console.log(`[Webhook] PlaybackStart: Created PlaybackHistory for ${title}`);
+                }
+            }
+
+            // 4. Envoi de la notification Discord
             try {
                 const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
 
@@ -118,6 +143,7 @@ export async function POST(req: Request) {
             const jellyfinUserId = payload.UserId || payload.User_Id;
             const jellyfinMediaId = payload.ItemId || payload.Item_Id || payload.MediaId;
             const positionTicks = payload.PlaybackPositionTicks || payload.PositionTicks || 0;
+            const runTimeTicks = payload.RunTimeTicks || payload.Item?.RunTimeTicks || 0;
 
             if (jellyfinUserId && jellyfinMediaId) {
                 // Find the user and media internal IDs
@@ -133,10 +159,18 @@ export async function POST(req: Request) {
 
                     if (lastPlayback) {
                         const endedAt = new Date();
-                        // Use position ticks if available (1 sec = 10M ticks)
                         let durationS: number;
                         if (positionTicks > 0) {
-                            durationS = Math.floor(positionTicks / 10_000_000);
+                            // If positionTicks equals runTimeTicks (fully watched), use wall clock time as sanity check
+                            if (runTimeTicks > 0 && positionTicks >= runTimeTicks * 0.95) {
+                                // Media was watched to completion - use actual elapsed wall-clock time
+                                const wallClockS = Math.floor((endedAt.getTime() - lastPlayback.startedAt.getTime()) / 1000);
+                                const ticksS = Math.floor(positionTicks / 10_000_000);
+                                // Use the smaller of tick-derived or wall-clock (prevents logging 2h for a 3min rewatch)
+                                durationS = Math.min(ticksS, wallClockS);
+                            } else {
+                                durationS = Math.floor(positionTicks / 10_000_000);
+                            }
                         } else {
                             durationS = Math.floor((endedAt.getTime() - lastPlayback.startedAt.getTime()) / 1000);
                         }

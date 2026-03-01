@@ -64,16 +64,23 @@ const getDeepInsights = unstable_cache(
         }));
 
         // --- Pro Telemetry: Resolution Matrix ---
-        // Join PlaybackHistory → Media to get resolution distribution
+        // Join PlaybackHistory → Media to get resolution distribution (only count items with known resolution)
         const resolutionData = await prisma.playbackHistory.findMany({
             select: { media: { select: { resolution: true } } },
         });
 
         const resolutionMap = new Map<string, number>();
         resolutionData.forEach(r => {
-            const res = r.media?.resolution || "Inconnu";
-            resolutionMap.set(res, (resolutionMap.get(res) || 0) + 1);
+            const res = r.media?.resolution;
+            if (res) {
+                resolutionMap.set(res, (resolutionMap.get(res) || 0) + 1);
+            }
         });
+
+        // Only show "Inconnu" if there's no resolution data at all (fallback)
+        if (resolutionMap.size === 0 && resolutionData.length > 0) {
+            resolutionMap.set("Inconnu", resolutionData.length);
+        }
 
         const resolutionChartData = Array.from(resolutionMap.entries())
             .map(([name, value]) => ({ name, value }))

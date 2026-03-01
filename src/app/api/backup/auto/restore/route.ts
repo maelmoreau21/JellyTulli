@@ -69,6 +69,11 @@ export async function POST(req: NextRequest) {
                             jellyfinMediaId: m.jellyfinMediaId,
                             title: m.title,
                             type: m.type,
+                            collectionType: m.collectionType || null,
+                            genres: m.genres || [],
+                            resolution: m.resolution || null,
+                            durationMs: m.durationMs != null ? BigInt(m.durationMs) : null,
+                            parentId: m.parentId || null,
                             createdAt: new Date(m.createdAt),
                         }
                     });
@@ -85,7 +90,7 @@ export async function POST(req: NextRequest) {
                             mediaId: ph.mediaId,
                             startedAt: new Date(ph.startedAt),
                             endedAt: ph.endedAt ? new Date(ph.endedAt) : null,
-                            durationWatched: ph.durationWatched,
+                            durationWatched: ph.durationWatched || 0,
                             playMethod: ph.playMethod,
                             clientName: ph.clientName,
                             deviceName: ph.deviceName,
@@ -96,6 +101,9 @@ export async function POST(req: NextRequest) {
                             audioLanguage: ph.audioLanguage,
                             subtitleCodec: ph.subtitleCodec,
                             subtitleLanguage: ph.subtitleLanguage,
+                            pauseCount: ph.pauseCount || 0,
+                            audioChanges: ph.audioChanges || 0,
+                            subtitleChanges: ph.subtitleChanges || 0,
                         }
                     });
                 }

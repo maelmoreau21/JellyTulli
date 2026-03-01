@@ -42,9 +42,12 @@ export async function performAutoBackup(): Promise<string> {
     const fileName = `jellytulli-auto-${dateStr}_${timeStr}.json`;
     const filePath = path.join(BACKUP_DIR, fileName);
 
+    // BigInt-safe JSON serializer (Prisma returns BigInt for durationMs, positionTicks, etc.)
+    const bigIntReplacer = (_key: string, value: unknown) => typeof value === 'bigint' ? value.toString() : value;
+
     // Write backup file
-    writeFileSync(filePath, JSON.stringify(backupContent, null, 2), "utf-8");
-    const fileSizeMb = (Buffer.byteLength(JSON.stringify(backupContent)) / 1024 / 1024).toFixed(2);
+    writeFileSync(filePath, JSON.stringify(backupContent, bigIntReplacer, 2), "utf-8");
+    const fileSizeMb = (Buffer.byteLength(JSON.stringify(backupContent, bigIntReplacer)) / 1024 / 1024).toFixed(2);
     console.log(`[Auto-Backup] Backup saved: ${fileName} (${fileSizeMb} Mo)`);
 
     // Rolling rotation: delete oldest files if we exceed MAX_BACKUPS

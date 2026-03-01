@@ -123,10 +123,11 @@ async function pollJellyfinSessions() {
         const TranscodeFps = TranscodingInfo ? TranscodingInfo.Framerate : null;
         const Bitrate = TranscodingInfo ? TranscodingInfo.Bitrate : null;
 
-        // Telemetry: Audio & Subtitles Extraction
+        // Telemetry: Audio & Subtitles Extraction + Resolution
         let AudioLanguage: string | null = null;
         let SubtitleLanguage: string | null = null;
         let SubtitleCodec: string | null = null;
+        let DetectedResolution: string | null = null;
 
         if (session.NowPlayingItem && session.NowPlayingItem.MediaStreams) {
             const streams: any[] = session.NowPlayingItem.MediaStreams;
@@ -150,9 +151,51 @@ async function pollJellyfinSessions() {
                     SubtitleCodec = subStream.Codec || "Unknown";
                 }
             }
+
+            // Extract video resolution from the stream (fills resolution for media that sync missed)
+            const videoStream = streams.find((s: any) => s.Type === "Video");
+            if (videoStream && videoStream.Width) {
+                const w = videoStream.Width;
+                if (w >= 3800) DetectedResolution = "4K";
+                else if (w >= 1900) DetectedResolution = "1080p";
+                else if (w >= 1200) DetectedResolution = "720p";
+                else DetectedResolution = "SD";
+            }
         }
 
         const isNew = !previousSessionIds.has(SessionId);
+
+        // Detect item change within same session (e.g., auto-play next episode)
+        let itemChanged = false;
+        if (!isNew) {
+            const redisData = await redis.get(`stream:${SessionId}`);
+            if (redisData) {
+                const prev = JSON.parse(redisData);
+                if (prev.ItemId && prev.ItemId !== ItemId) {
+                    itemChanged = true;
+                    // Close the previous item's PlaybackHistory
+                    const prevMedia = await prisma.media.findUnique({ where: { jellyfinMediaId: prev.ItemId } });
+                    const prevUser = UserId ? await prisma.user.findUnique({ where: { jellyfinUserId: UserId } }) : null;
+                    if (prevMedia && prevUser) {
+                        const prevPlayback = await prisma.playbackHistory.findFirst({
+                            where: { userId: prevUser.id, mediaId: prevMedia.id, endedAt: null },
+                            orderBy: { startedAt: 'desc' },
+                        });
+                        if (prevPlayback) {
+                            const endedAt = new Date();
+                            const durationS = PlaybackPositionTicks && PlaybackPositionTicks > 0
+                                ? Math.floor(PlaybackPositionTicks / 10_000_000)
+                                : Math.floor((endedAt.getTime() - prevPlayback.startedAt.getTime()) / 1000);
+                            await prisma.playbackHistory.update({
+                                where: { id: prevPlayback.id },
+                                data: { endedAt, durationWatched: durationS },
+                            });
+                            console.log(`[Monitor] Item changed in session ${SessionId}: closed ${prev.ItemId}, now playing ${ItemId}`);
+                        }
+                    }
+                }
+            }
+        }
 
         // Ensure User exists in DB
         if (UserId) {
@@ -166,15 +209,18 @@ async function pollJellyfinSessions() {
             });
         }
 
-        // Ensure Media exists in DB
+        // Ensure Media exists in DB (and update resolution if we detected one from the stream)
         if (ItemId) {
+            const updateData: any = { title: ItemName || "Unknown", type: ItemType || "Unknown" };
+            if (DetectedResolution) updateData.resolution = DetectedResolution;
             await prisma.media.upsert({
                 where: { jellyfinMediaId: ItemId },
-                update: { title: ItemName || "Unknown", type: ItemType || "Unknown" },
+                update: updateData,
                 create: {
                     jellyfinMediaId: ItemId,
                     title: ItemName || "Unknown",
                     type: ItemType || "Unknown",
+                    resolution: DetectedResolution,
                 },
             });
         }
@@ -297,30 +343,44 @@ async function pollJellyfinSessions() {
             }
         }
 
-        // Handle PlaybackStart Logic
-        if (isNew && UserId && ItemId) {
+        // Handle PlaybackStart Logic (new session or item changed within session)
+        if ((isNew || itemChanged) && UserId && ItemId) {
             const pastIpCount = await prisma.playbackHistory.count({
                 where: { user: { jellyfinUserId: UserId }, ipAddress: IpAddress }
             });
             const isNewIp = pastIpCount === 0;
 
-            // New Session! Add to PlaybackHistory
-            await prisma.playbackHistory.create({
-                data: {
-                    user: { connect: { jellyfinUserId: UserId } },
-                    media: { connect: { jellyfinMediaId: ItemId } },
-                    playMethod: PlayMethod,
-                    clientName: ClientName,
-                    deviceName: DeviceName,
-                    ipAddress: IpAddress,
-                    country: geoData.country,
-                    city: geoData.city,
-                    audioCodec: AudioCodec,
-                    audioLanguage: AudioLanguage,
-                    subtitleCodec: SubtitleCodec,
-                    subtitleLanguage: SubtitleLanguage,
-                },
-            });
+            // Dedup guard: only create PlaybackHistory if no open session exists for this user+media
+            // (the webhook PlaybackStart may have already created one)
+            const user = await prisma.user.findUnique({ where: { jellyfinUserId: UserId } });
+            const media = await prisma.media.findUnique({ where: { jellyfinMediaId: ItemId } });
+            let alreadyExists = false;
+            if (user && media) {
+                const existingOpen = await prisma.playbackHistory.findFirst({
+                    where: { userId: user.id, mediaId: media.id, endedAt: null },
+                });
+                alreadyExists = !!existingOpen;
+            }
+
+            if (!alreadyExists) {
+                // New Session! Add to PlaybackHistory
+                await prisma.playbackHistory.create({
+                    data: {
+                        user: { connect: { jellyfinUserId: UserId } },
+                        media: { connect: { jellyfinMediaId: ItemId } },
+                        playMethod: PlayMethod,
+                        clientName: ClientName,
+                        deviceName: DeviceName,
+                        ipAddress: IpAddress,
+                        country: geoData.country,
+                        city: geoData.city,
+                        audioCodec: AudioCodec,
+                        audioLanguage: AudioLanguage,
+                        subtitleCodec: SubtitleCodec,
+                        subtitleLanguage: SubtitleLanguage,
+                    },
+                });
+            }
 
             // Discord Notifications
             try {

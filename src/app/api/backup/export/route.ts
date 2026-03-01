@@ -29,8 +29,11 @@ export async function GET(req: NextRequest) {
             }
         };
 
+        // BigInt-safe JSON serializer (Prisma returns BigInt for durationMs, positionTicks, etc.)
+        const bigIntReplacer = (_key: string, value: unknown) => typeof value === 'bigint' ? value.toString() : value;
+
         // Construct standard file headers to serve the file instantly downstream.
-        return new NextResponse(JSON.stringify(backupContent, null, 2), {
+        return new NextResponse(JSON.stringify(backupContent, bigIntReplacer, 2), {
             status: 200,
             headers: {
                 "Content-Type": "application/json",
