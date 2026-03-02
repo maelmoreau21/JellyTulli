@@ -55,7 +55,7 @@ export function LibraryDailyPlaysChart({ data }: { data: LibraryPlaysData[] }) {
     };
 
     return (
-        <ResponsiveContainer width="100%" height={300} minHeight={300}>
+        <ResponsiveContainer width="100%" height={350} minHeight={350}>
             <LineChart
                 data={data}
                 margin={{ top: 20, right: 30, left: -10, bottom: 5 }}

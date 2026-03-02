@@ -55,14 +55,13 @@ export function ComposedTrendChart({ data, series }: { data: TrendData[], series
     };
 
     return (
-        <ResponsiveContainer width="100%" height={300} minHeight={300}>
+        <ResponsiveContainer width="100%" height={400} minHeight={400}>
             <ComposedChart
                 data={data}
                 margin={{ top: 20, right: 30, left: -10, bottom: 5 }}
             >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
 
-                {/* XAxis pour les dates / heures */}
                 <XAxis
                     dataKey="time"
                     stroke="#52525b"
@@ -104,18 +103,18 @@ export function ComposedTrendChart({ data, series }: { data: TrendData[], series
                         if (s.type === "bar") {
                             return <Bar key={s.key} hide={hidden.has(s.key)} yAxisId={s.yAxisId || "left"} dataKey={s.key} barSize={20} fill={s.color} radius={[4, 4, 0, 0]} name={s.name} />;
                         }
-                        return <Area key={s.key} hide={hidden.has(s.key)} yAxisId={s.yAxisId || "left"} type="monotone" dataKey={s.key} stackId="1" stroke={s.color} fill={s.color} fillOpacity={0.6} name={s.name} />;
+                        return <Area key={s.key} hide={hidden.has(s.key)} yAxisId={s.yAxisId || "left"} type="monotone" dataKey={s.key} stackId="1" stroke={s.color} fill={s.color} fillOpacity={0.25} name={s.name} />;
                     })
                 ) : (
                     <>
-                        {/* Les Barres pour le nombre total de lectures (Vues) */}
-                        <Bar hide={hidden.has("totalViews")} yAxisId="right" dataKey="totalViews" barSize={20} fill="#3f3f46" radius={[4, 4, 0, 0]} name={t('viewsTotal')} />
+                        {/* Dashed line for total views instead of bar for better readability */}
+                        <Line hide={hidden.has("totalViews")} yAxisId="right" type="monotone" dataKey="totalViews" stroke="#a1a1aa" strokeWidth={2} strokeDasharray="6 3" dot={false} name={t('viewsTotal')} />
 
-                        {/* Les zones empilées pour les volumes horaires */}
-                        <Area hide={hidden.has("movieVolume")} yAxisId="left" type="monotone" dataKey="movieVolume" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name={t('movies')} />
-                        <Area hide={hidden.has("seriesVolume")} yAxisId="left" type="monotone" dataKey="seriesVolume" stackId="1" stroke="#22c55e" fill="#22c55e" fillOpacity={0.6} name={t('series')} />
-                        <Area hide={hidden.has("musicVolume")} yAxisId="left" type="monotone" dataKey="musicVolume" stackId="1" stroke="#eab308" fill="#eab308" fillOpacity={0.6} name={t('music')} />
-                        <Area hide={hidden.has("booksVolume")} yAxisId="left" type="monotone" dataKey="booksVolume" stackId="1" stroke="#a855f7" fill="#a855f7" fillOpacity={0.6} name={t('books')} />
+                        {/* Stacked areas with lower opacity for clarity */}
+                        <Area hide={hidden.has("movieVolume")} yAxisId="left" type="monotone" dataKey="movieVolume" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25} name={t('movies')} />
+                        <Area hide={hidden.has("seriesVolume")} yAxisId="left" type="monotone" dataKey="seriesVolume" stackId="1" stroke="#22c55e" fill="#22c55e" fillOpacity={0.25} name={t('series')} />
+                        <Area hide={hidden.has("musicVolume")} yAxisId="left" type="monotone" dataKey="musicVolume" stackId="1" stroke="#eab308" fill="#eab308" fillOpacity={0.25} name={t('music')} />
+                        <Area hide={hidden.has("booksVolume")} yAxisId="left" type="monotone" dataKey="booksVolume" stackId="1" stroke="#a855f7" fill="#a855f7" fillOpacity={0.25} name={t('books')} />
                     </>
                 )}
 

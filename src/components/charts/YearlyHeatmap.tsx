@@ -19,19 +19,33 @@ export interface HeatmapData {
 interface YearlyHeatmapProps {
     data: HeatmapData[];
     availableYears: number[];
+    dataByType?: Record<string, HeatmapData[]>;
+    libraryTypes?: string[];
 }
+
+const LIBRARY_COLORS: Record<string, string> = {
+    'movies': '#3b82f6',
+    'tvshows': '#22c55e',
+    'music': '#eab308',
+    'books': '#a855f7',
+    'Movie': '#3b82f6',
+    'Episode': '#22c55e',
+    'Audio': '#eab308',
+    'Series': '#14b8a6',
+};
 
 const customTheme: ThemeInput = {
     light: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'],
     dark: ['#18181b', '#312e81', '#4338ca', '#4f46e5', '#6366f1'],
 };
 
-export function YearlyHeatmap({ data, availableYears }: YearlyHeatmapProps) {
+export function YearlyHeatmap({ data, availableYears, dataByType, libraryTypes }: YearlyHeatmapProps) {
     const t = useTranslations('charts');
     const locale = useLocale();
     const dateFnsLocale = locale === 'fr' ? fr : enUS;
     const currentYear = new Date().getFullYear();
     const [selectedYear, setSelectedYear] = useState(currentYear);
+    const [selectedLibrary, setSelectedLibrary] = useState<string>('_total');
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState(0);
 
@@ -71,19 +85,25 @@ export function YearlyHeatmap({ data, availableYears }: YearlyHeatmapProps) {
         const jan1 = startOfYear(new Date(selectedYear, 0, 1));
         const dec31 = endOfYear(new Date(selectedYear, 0, 1));
 
+        // Use filtered data based on selected library
+        const sourceData = (selectedLibrary !== '_total' && dataByType?.[selectedLibrary]) 
+            ? dataByType[selectedLibrary] 
+            : data;
+
         // Filter data for the selected year
-        const yearEntries = data.filter(d => d.date.startsWith(String(selectedYear)));
+        const yearEntries = sourceData.filter(d => d.date.startsWith(String(selectedYear)));
         const dataMap = new Map(yearEntries.map(d => [d.date, d]));
 
-        // Recompute levels based on this year's max
+        // Recompute levels based on this year's max using log scale
         const counts = yearEntries.map(d => d.count);
         const maxCount = counts.length > 0 ? Math.max(...counts) : 1;
+        const logMax = Math.log(maxCount + 1);
         const getLevel = (count: number): 0 | 1 | 2 | 3 | 4 => {
             if (count === 0) return 0;
-            const ratio = count / maxCount;
-            if (ratio < 0.25) return 1;
-            if (ratio < 0.5) return 2;
-            if (ratio < 0.75) return 3;
+            const ratio = Math.log(count + 1) / logMax;
+            if (ratio < 0.3) return 1;
+            if (ratio < 0.55) return 2;
+            if (ratio < 0.8) return 3;
             return 4;
         };
 
@@ -99,7 +119,7 @@ export function YearlyHeatmap({ data, availableYears }: YearlyHeatmapProps) {
             });
         }
         return yearData;
-    }, [data, selectedYear]);
+    }, [data, dataByType, selectedYear, selectedLibrary]);
 
     const totalPlays = processedData.reduce((sum, d) => sum + d.count, 0);
 
@@ -139,6 +159,34 @@ export function YearlyHeatmap({ data, availableYears }: YearlyHeatmapProps) {
                 <CardDescription className="text-zinc-400">
                     {t('playsInYear', { count: totalPlays, year: selectedYear })}
                 </CardDescription>
+                {libraryTypes && libraryTypes.length > 1 && (
+                    <div className="flex flex-wrap gap-1.5 pt-2">
+                        <button
+                            onClick={() => setSelectedLibrary('_total')}
+                            className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                                selectedLibrary === '_total'
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                            }`}
+                        >
+                            {t('all')}
+                        </button>
+                        {libraryTypes.map(lib => (
+                            <button
+                                key={lib}
+                                onClick={() => setSelectedLibrary(lib)}
+                                className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                                    selectedLibrary === lib
+                                        ? 'text-white'
+                                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                                }`}
+                                style={selectedLibrary === lib ? { backgroundColor: LIBRARY_COLORS[lib] || '#6366f1' } : undefined}
+                            >
+                                {lib}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </CardHeader>
             <CardContent className="w-full pb-6 pt-4 px-4" ref={containerRef}>
                 <div className="w-full">

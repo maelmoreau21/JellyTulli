@@ -184,8 +184,8 @@
   "granular": {
     "disabled": "Désactivés",
     "skipped": "< 10% (Zappé)",
-    "tried": "10-25% (Essayé)",
-    "half": "25-80% (Moitié)",
+    "abandoned": "10-50% (Abandonné)",
+    "almost": "50-80% (Presque)",
     "finished": "> 80% (Terminé)",
     "playsPerDay": "Lectures par Jour",
     "playsPerDayDesc": "Volume brut des lancements.",
@@ -320,7 +320,9 @@
     "sortDateDesc": "Date (Récent)",
     "sortDateAsc": "Date (Ancien)",
     "sortDurationDesc": "Durée (Plus long)",
-    "sortDurationAsc": "Durée (Plus court)"
+    "sortDurationAsc": "Durée (Plus court)",
+    "columns": "Colonnes",
+    "toggleColumns": "Afficher/masquer des colonnes"
   },
   "media": {
     "title": "Bibliothèque",
@@ -424,6 +426,17 @@
     "mostUsedApp": "L'application la plus utilisée",
     "favDevice": "Appareil Favori",
     "mostUsedPlatform": "La plateforme la plus utilisée",
+    "completionRate": "Taux de Complétion",
+    "avgCompletion": "Complétion moyenne",
+    "avgPerSession": "~{min} min / session",
+    "peakActivity": "Pic d'Activité",
+    "mostActiveTime": "Moment le plus actif",
+    "bestStreak": "Meilleure Série",
+    "days": "jours",
+    "consecutiveDays": "Jours consécutifs d'activité",
+    "uniqueContent": "Contenus Uniques",
+    "mostWatched": "Le Plus Regardé",
+    "dayNames": "Dim,Lun,Mar,Mer,Jeu,Ven,Sam",
     "activity30d": "Activité sur 30 jours",
     "activity30dDesc": "Visualisez le volume de lecture quotidien de cet utilisateur.",
     "playbackHistory": "Historique de lecture",
@@ -555,7 +568,8 @@
     "weekdays": "Dim,Lun,Mar,Mer,Jeu,Ven,Sam",
     "noPlatformData": "Aucune donnée plateforme",
     "noGenreData": "Aucune donnée de genre disponible",
-    "server": "Serveur"
+    "server": "Serveur",
+    "all": "Tout"
   },
   "wrapped": {
     "noData": "Aucune donn\u00e9e.",

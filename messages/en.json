@@ -184,8 +184,8 @@
   "granular": {
     "disabled": "Disabled",
     "skipped": "< 10% (Skipped)",
-    "tried": "10-25% (Tried)",
-    "half": "25-80% (Half)",
+    "abandoned": "10-50% (Abandoned)",
+    "almost": "50-80% (Almost)",
     "finished": "> 80% (Finished)",
     "playsPerDay": "Plays per Day",
     "playsPerDayDesc": "Raw volume of playback starts.",
@@ -320,7 +320,9 @@
     "sortDateDesc": "Date (Newest)",
     "sortDateAsc": "Date (Oldest)",
     "sortDurationDesc": "Duration (Longest)",
-    "sortDurationAsc": "Duration (Shortest)"
+    "sortDurationAsc": "Duration (Shortest)",
+    "columns": "Columns",
+    "toggleColumns": "Toggle column visibility"
   },
   "media": {
     "title": "Library",
@@ -424,6 +426,17 @@
     "mostUsedApp": "Most used application",
     "favDevice": "Favorite Device",
     "mostUsedPlatform": "Most used platform",
+    "completionRate": "Completion Rate",
+    "avgCompletion": "Average completion",
+    "avgPerSession": "~{min} min / session",
+    "peakActivity": "Peak Activity",
+    "mostActiveTime": "Most active time",
+    "bestStreak": "Best Streak",
+    "days": "days",
+    "consecutiveDays": "Consecutive activity days",
+    "uniqueContent": "Unique Content",
+    "mostWatched": "Most Watched",
+    "dayNames": "Sun,Mon,Tue,Wed,Thu,Fri,Sat",
     "activity30d": "Activity over 30 days",
     "activity30dDesc": "View this user's daily playback volume.",
     "playbackHistory": "Playback History",
@@ -555,7 +568,8 @@
     "weekdays": "Sun,Mon,Tue,Wed,Thu,Fri,Sat",
     "noPlatformData": "No platform data",
     "noGenreData": "No genre data available",
-    "server": "Server"
+    "server": "Server",
+    "all": "All"
   },
   "wrapped": {
     "noData": "No data.",

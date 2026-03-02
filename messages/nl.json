@@ -1,0 +1,83 @@
+{
+  "common": {
+    "all": "Alles", "movies": "Films", "series": "Series", "music": "Muziek", "books": "Boeken",
+    "unknown": "Onbekend", "unknownDevice": "Onbekend apparaat", "deletedUser": "Verwijderde gebruiker",
+    "unknownMedia": "Onbekende media", "unknownSeries": "Onbekende serie", "loading": "Laden...",
+    "save": "Opslaan", "saving": "Opslaan...", "apply": "Toepassen", "cancel": "Annuleren",
+    "delete": "Verwijderen", "restore": "Herstellen", "previous": "Vorige", "next": "Volgende",
+    "search": "Zoeken", "run": "Uitvoeren", "running": "Bezig...", "noData": "Geen gegevens",
+    "views": "weergaven", "view": "weergave", "plays": "afgespeeld", "play": "afgespeeld",
+    "hours": "uur", "hour": "uur", "episodes": "afleveringen", "tracks": "nummers", "mb": "MB",
+    "local": "Lokaal", "active": "Actief", "networkError": "Netwerkfout.",
+    "saveError": "Fout bij opslaan.", "error": "Fout.", "success": "Gereed.", "on": "van",
+    "movie": "Film", "seriesSingular": "Serie", "season": "Seizoen", "episode": "Aflevering",
+    "album": "Album", "track": "Nummer", "source": "Bron", "viewers": "kijkers"
+  },
+  "nav": {
+    "dashboard": "Dashboard", "recentlyAdded": "Recent toegevoegd", "library": "Bibliotheek",
+    "logs": "Logboek", "users": "Gebruikers", "cleanup": "Opschonen", "settings": "Instellingen",
+    "myProfile": "Mijn profiel", "myWrapped": "Mijn Wrapped", "logout": "Uitloggen"
+  },
+  "search": {
+    "placeholder": "Zoeken\u2026", "searching": "Zoeken\u2026", "noResults": "Geen resultaten",
+    "mediaSection": "Media", "usersSection": "Gebruikers"
+  },
+  "timeRange": {
+    "period": "Periode", "last24h": "Laatste 24 uur", "last7d": "Laatste 7 dagen",
+    "last30d": "Laatste 30 dagen", "allTime": "Altijd", "custom": "Aangepast", "pickDate": "Kies een datum"
+  },
+  "dashboard": {
+    "cachedData": "Database gegevens gecached (60s)", "today": "Vandaag", "readings": "afgespeeld",
+    "watched": "bekeken", "activeUsers": "actieve gebruiker(s)", "overviewTab": "Overzicht",
+    "detailedTab": "Gedetailleerde analyses", "networkTab": "Netwerk", "activeStreams": "Actieve streams",
+    "managedByServer": "Momenteel beheerd door de server", "totalPlays": "Totaal afgespeeld",
+    "vsPrevPeriod": "vs {count} vorige periode", "onSelectedPeriod": "In geselecteerde periode",
+    "directPlay": "DirectPlay", "directPlayDesc": "Afspelen zonder transcodering (Periode)",
+    "globalTime": "Totale tijd", "cumulVsPrev": "Cumulatief vs vorige periode ({count}u)",
+    "cumulAllTime": "Cumulatief totaal voor {count} gebruikers", "activeUsersTitle": "Actieve gebruikers",
+    "vsUsersOnPeriod": "vs {count} vorige periode", "onTotalRegistered": "Van {count} geregistreerd",
+    "moviesCard": "Films", "moviesViews": "weergaven", "moviesWatched": "bekeken",
+    "seriesCard": "Series & Afleveringen", "seriesPlays": "afgespeeld", "seriesWatched": "gebinged",
+    "musicCard": "Muziek", "musicTitles": "titels", "musicListened": "beluisterd",
+    "booksCard": "Boeken & Audioboeken", "booksOpened": "geopend", "booksSpent": "besteed",
+    "volumeHistory": "Volume- & weergavegeschiedenis",
+    "volumeHistoryDesc": "Tijdskruising van weergaven & kijkuren per bibliotheek.",
+    "categoryBreakdown": "Categorieverdeling", "categoryBreakdownDesc": "Aandeel totaal afspeelvolume (uren).",
+    "noCategoryData": "Geen gegevens om grafiek te genereren", "libraryPlays": "Afgespeeld per bibliotheek",
+    "libraryPlaysDesc": "Dagelijkse afspeeltellingen per bibliotheektype. Klik op legenda om een curve te wisselen.",
+    "loyalUsers": "Topfans", "loyalUsersDesc": "Topgebruikers.", "noActivity": "Geen activiteit",
+    "clientEcosystem": "Client-ecosysteem", "clientEcosystemDesc": "Afspeelplatformverdeling (Top 8).",
+    "hourlyActivity": "Activiteit per uur", "hourlyActivityDesc": "Starttijd van sessies over de geselecteerde periode.",
+    "dayOfWeekActivity": "Activiteit per dag", "dayOfWeekActivityDesc": "Aantal sessies per dag van de week.",
+    "monthlyTime": "Maandelijkse tijd", "monthlyTimeDesc": "Kijkuren per maand (laatste 12 maanden).",
+    "completionRate": "Voltooiingspercentage",
+    "completionRateDesc": "Verhouding voltooide vs afgebroken vs gedeeltelijke sessies.",
+    "noDurationData": "Geen duurgegevens", "clientFamilies": "Clientfamilies",
+    "clientFamiliesDesc": "TV, Web, Mobiel, Desktop \u2014 automatische categorisering.",
+    "noClient": "Geen client", "serverLoad": "Serverbelasting (Gelijktijdige streams)",
+    "serverLoadDesc": "Tijdsevolutie van geregistreerde gelijktijdige actieve streams.",
+    "completed": "Voltooid", "partial": "Gedeeltelijk", "abandoned": "Verlaten",
+    "dayNames": "Zo,Ma,Di,Wo,Do,Vr,Za", "monthNames": "Jan,Feb,Mrt,Apr,Mei,Jun,Jul,Aug,Sep,Okt,Nov,Dec"
+  },
+  "draggable": { "finishEdit": "Bewerken voltooien", "editOrder": "Volgorde bewerken" },
+  "hardware": { "temperature": "Temperatuur" },
+  "liveStreams": {
+    "title": "Live", "description": "Momenteel {count} actieve stream(s).",
+    "noStreams": "Geen streams worden momenteel afgespeeld."
+  },
+  "killStream": {
+    "confirm": "Weet je zeker dat je het afspelen van \"{title}\" wilt stoppen?",
+    "stopped": "Gestopt", "tooltip": "Stream be\u00ebindigen"
+  },
+  "deepInsights": {
+    "views": "weergaven", "topMovies": "Top films", "noMovies": "Geen films bekeken.",
+    "topSeries": "Top series", "noSeries": "Geen series bekeken.", "topAlbums": "Top albums",
+    "noAlbums": "Geen albums afgespeeld.", "topBooks": "Top boeken", "noBooks": "Geen boeken gelezen.",
+    "genresDesc": "Meest afgespeelde/bekeken genres op aantal.", "topClients": "Top clients",
+    "topClientsDesc": "Meest gebruikte applicaties.", "streamMethods": "Streammethoden",
+    "streamMethodsDesc": "DirectPlay / Transcode verhouding.", "resolutionMatrix": "Resolutiematrix",
+    "resolutionMatrixDesc": "Sessieverdeling per mediaresolutie (4K, 1080p, 720p, SD).",
+    "noResolutionData": "Geen resolutiegegevens beschikbaar.", "deviceEcosystem": "Apparaat-ecosysteem",
+    "deviceEcosystemDesc": "Top 8 fysieke apparaten gebruikt voor afspelen.",
+    "noDeviceData": "Geen apparaatgegevens beschikbaar."
+  },

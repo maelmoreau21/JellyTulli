@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LogFilters } from "./LogFilters";
+import { ColumnToggle, parseVisibleColumns } from "./ColumnToggle";
 import { FallbackImage } from "@/components/FallbackImage";
 import prisma from "@/lib/prisma";
 import { getTranslations, getLocale } from 'next-intl/server';
@@ -66,7 +67,7 @@ function detectWatchParties(logs: any[]): Map<string, string> {
 export default async function LogsPage({
     searchParams
 }: {
-    searchParams: Promise<{ query?: string, sort?: string, page?: string, type?: string }>
+    searchParams: Promise<{ query?: string, sort?: string, page?: string, type?: string, cols?: string }>
 }) {
     const params = await searchParams;
     const tl = await getTranslations('logs');
@@ -76,6 +77,7 @@ export default async function LogsPage({
     const sort = params.sort || "date_desc";
     const currentPage = Math.max(1, parseInt(params.page || "1", 10) || 1);
     const typeFilter = params.type || "";
+    const visibleColumns = parseVisibleColumns(params.cols);
 
     // Build the non-fuzzy exact search constraint
     const whereClause: any = {};
@@ -212,7 +214,12 @@ export default async function LogsPage({
                         <CardDescription>{tl('searchFiltersDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <LogFilters initialQuery={query} initialSort={sort} />
+                        <div className="flex items-start gap-2">
+                            <div className="flex-1">
+                                <LogFilters initialQuery={query} initialSort={sort} />
+                            </div>
+                            <ColumnToggle visibleColumns={visibleColumns} />
+                        </div>
 
                         {typeFilter && (
                             <div className="flex items-center gap-2">
@@ -227,22 +234,22 @@ export default async function LogsPage({
                         )}
 
                         <div className="border rounded-md overflow-x-auto w-full mt-6">
-                            <Table className="min-w-[1000px] table-fixed">
+                            <Table className="min-w-[600px] table-fixed">
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-[130px]">{tl('colDate')}</TableHead>
-                                        <TableHead className="w-[120px]">{tl('colUser')}</TableHead>
-                                        <TableHead className="w-[250px]">{tl('colMedia')}</TableHead>
-                                        <TableHead className="w-[160px]">{tl('colClientIp')}</TableHead>
-                                        <TableHead className="w-[130px]">{tl('colStatus')}</TableHead>
-                                        <TableHead className="w-[100px]">{tl('colCodecs')}</TableHead>
-                                        <TableHead className="w-[80px] text-right">{tl('colDuration')}</TableHead>
+                                        {visibleColumns.includes('date') && <TableHead className="w-[130px]">{tl('colDate')}</TableHead>}
+                                        {visibleColumns.includes('user') && <TableHead className="w-[120px]">{tl('colUser')}</TableHead>}
+                                        {visibleColumns.includes('media') && <TableHead className="w-[250px]">{tl('colMedia')}</TableHead>}
+                                        {visibleColumns.includes('clientIp') && <TableHead className="w-[160px]">{tl('colClientIp')}</TableHead>}
+                                        {visibleColumns.includes('status') && <TableHead className="w-[130px]">{tl('colStatus')}</TableHead>}
+                                        {visibleColumns.includes('codecs') && <TableHead className="w-[100px]">{tl('colCodecs')}</TableHead>}
+                                        {visibleColumns.includes('duration') && <TableHead className="w-[80px] text-right">{tl('colDuration')}</TableHead>}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {logs.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
+                                            <TableCell colSpan={visibleColumns.length} className="text-center h-24 text-muted-foreground">
                                                 {tl('noResults')}
                                             </TableCell>
                                         </TableRow>
@@ -260,7 +267,7 @@ export default async function LogsPage({
                                                     {/* Watch Party Banner — first log of each party */}
                                                     {isFirstOfParty && party && (
                                                         <TableRow key={`party-banner-${partyId}`} className="border-none">
-                                                            <TableCell colSpan={7} className="py-1.5 px-3">
+                                                            <TableCell colSpan={visibleColumns.length} className="py-1.5 px-3">
                                                                 <div className="flex items-center gap-2 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-violet-500/10 border border-violet-500/20 rounded-lg px-4 py-2 animate-pulse-slow">
                                                                     <span className="text-lg" role="img" aria-label="Watch Party">🍿</span>
                                                                     <span className="font-bold text-sm bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
@@ -283,6 +290,7 @@ export default async function LogsPage({
                                                     )}
                                                     <TableRow key={log.id} className={`even:bg-zinc-900/30 hover:bg-zinc-800/50 border-zinc-800/50 transition-colors ${isParty ? 'border-l-2 border-l-violet-500/40' : ''}`}>
                                                         {/* Date */}
+                                                        {visibleColumns.includes('date') && (
                                                         <TableCell className="font-medium whitespace-nowrap">
                                                             <div className="flex items-center gap-1.5">
                                                                 {isParty && (
@@ -296,15 +304,19 @@ export default async function LogsPage({
                                                                 </span>
                                                             </div>
                                                         </TableCell>
+                                                        )}
 
                                                         {/* Utilisateur */}
+                                                        {visibleColumns.includes('user') && (
                                                         <TableCell className="font-semibold text-primary">
                                                             {log.user ? (
                                                                 <Link href={`/users/${log.user.jellyfinUserId}`} className="hover:underline">{log.user.username}</Link>
                                                             ) : tc('deletedUser')}
                                                         </TableCell>
+                                                        )}
 
                                                         {/* Média */}
+                                                        {visibleColumns.includes('media') && (
                                                         <TableCell className="overflow-hidden">
                                                             <div className="flex items-center gap-3 w-full overflow-hidden" title={log.media.title}>
                                                                 <div className="relative w-12 aspect-[2/3] bg-muted rounded-md shrink-0 overflow-hidden ring-1 ring-white/10">
@@ -335,8 +347,10 @@ export default async function LogsPage({
                                                                 </div>
                                                             </div>
                                                         </TableCell>
+                                                        )}
 
                                                         {/* Client & IP */}
+                                                        {visibleColumns.includes('clientIp') && (
                                                         <TableCell>
                                                             <div className="flex flex-col">
                                                                 <span className="text-sm font-semibold">{log.clientName || tc('unknown')}</span>
@@ -350,15 +364,19 @@ export default async function LogsPage({
                                                                 )}
                                                             </div>
                                                         </TableCell>
+                                                        )}
 
                                                         {/* Statut (Méthode) */}
+                                                        {visibleColumns.includes('status') && (
                                                         <TableCell>
                                                             <Badge variant={isTranscode ? "destructive" : "default"} className={`shadow-sm ${isTranscode ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'}`}>
                                                                 {log.playMethod || "DirectPlay"}
                                                             </Badge>
                                                         </TableCell>
+                                                        )}
 
                                                         {/* Codecs */}
+                                                        {visibleColumns.includes('codecs') && (
                                                         <TableCell>
                                                             {isTranscode && log.videoCodec ? (
                                                                 <div className="flex flex-col text-xs text-muted-foreground font-mono">
@@ -369,8 +387,10 @@ export default async function LogsPage({
                                                                 <span className="text-xs text-muted-foreground italic">{tc('source')}</span>
                                                             )}
                                                         </TableCell>
+                                                        )}
 
                                                         {/* Durée */}
+                                                        {visibleColumns.includes('duration') && (
                                                         <TableCell className="text-right whitespace-nowrap">
                                                             {log.durationWatched
                                                                 ? `${Math.floor(log.durationWatched / 60)} min`
@@ -379,6 +399,7 @@ export default async function LogsPage({
                                                                 )
                                                             }
                                                         </TableCell>
+                                                        )}
                                                     </TableRow>
                                                 </Fragment>
                                             );

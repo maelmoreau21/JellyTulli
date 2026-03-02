@@ -469,40 +469,43 @@ const getDashboardMetrics = unstable_cache(
 );
 
 async function HeatmapWrapper() {
-  // Fetch ALL playback history (not just current year) for year navigation
+  // Fetch ALL playback history with media type for library filtering
   const rawData = await prisma.playbackHistory.findMany({
-    select: { startedAt: true }
+    select: { startedAt: true, media: { select: { collectionType: true, type: true } } }
   });
 
-  const countsByDate = new Map<string, number>();
+  const countsByDateAndType = new Map<string, Map<string, number>>();
   const yearsSet = new Set<number>();
+  const libraryTypes = new Set<string>();
+
   rawData.forEach(r => {
     const d = r.startedAt.toISOString().split('T')[0];
-    countsByDate.set(d, (countsByDate.get(d) || 0) + 1);
+    const lib = r.media?.collectionType || r.media?.type || 'unknown';
+    libraryTypes.add(lib);
     yearsSet.add(r.startedAt.getFullYear());
+
+    if (!countsByDateAndType.has(d)) countsByDateAndType.set(d, new Map());
+    const dayMap = countsByDateAndType.get(d)!;
+    dayMap.set(lib, (dayMap.get(lib) || 0) + 1);
+    dayMap.set('_total', (dayMap.get('_total') || 0) + 1);
   });
 
-  const counts = Array.from(countsByDate.values());
-  const maxCount = counts.length > 0 ? Math.max(...counts) : 1;
+  const heatmapDataByType: Record<string, HeatmapData[]> = {};
 
-  const getLevel = (count: number): 0 | 1 | 2 | 3 | 4 => {
-    if (count === 0) return 0;
-    const ratio = count / maxCount;
-    if (ratio < 0.25) return 1;
-    if (ratio < 0.5) return 2;
-    if (ratio < 0.75) return 3;
-    return 4;
-  };
-
-  const heatmapData: HeatmapData[] = Array.from(countsByDate.entries()).map(([date, count]) => ({
-    date,
-    count,
-    level: getLevel(count)
-  }));
+  // Build per-library and total data sets
+  const allKeys = ['_total', ...Array.from(libraryTypes)];
+  for (const key of allKeys) {
+    const entries: HeatmapData[] = [];
+    countsByDateAndType.forEach((dayMap, date) => {
+      const count = dayMap.get(key) || 0;
+      if (count > 0) entries.push({ date, count, level: 0 });
+    });
+    heatmapDataByType[key] = entries;
+  }
 
   const availableYears = Array.from(yearsSet).sort((a, b) => b - a);
 
-  return <YearlyHeatmap data={heatmapData} availableYears={availableYears} />;
+  return <YearlyHeatmap data={heatmapDataByType['_total'] || []} availableYears={availableYears} dataByType={heatmapDataByType} libraryTypes={Array.from(libraryTypes)} />;
 }
 
 export default async function DashboardPage(props: { searchParams: Promise<{ type?: string; timeRange?: string; from?: string; to?: string }> }) {
@@ -809,14 +812,14 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
               </div>,
 
               /* Dataviz Row : Multi-Axis Volume & PieChart */
-              <div key="volumes" className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+              <div key="volumes" className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 min-w-0">
                 <Card className="col-span-1 lg:col-span-5 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                   <CardHeader className="pb-1">
                     <CardTitle>{t('volumeHistory')}</CardTitle>
                     <CardDescription>{t('volumeHistoryDesc')}</CardDescription>
                   </CardHeader>
                   <CardContent className="pl-0 pb-4 pr-1">
-                    <div className="h-[300px] min-h-[300px] w-full">
+                    <div className="h-[400px] min-h-[400px] w-full overflow-hidden">
                       <ComposedTrendChart data={metrics.trendData} />
                     </div>
                   </CardContent>
@@ -828,7 +831,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                     <CardDescription>{t('categoryBreakdownDesc')}</CardDescription>
                   </CardHeader>
                   <CardContent className="pl-0 pb-4">
-                    <div className="h-[300px] min-h-[300px] w-full">
+                    <div className="h-[300px] min-h-[300px] w-full overflow-hidden">
                       {metrics.categoryPieData.length > 0 ? (
                         <CategoryPieChart data={metrics.categoryPieData.map((d: any) => ({ ...d, name: tc(d.name) }))} />
                       ) : (
@@ -848,7 +851,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                   <CardDescription>{t('libraryPlaysDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="pl-0 pb-4 pr-1">
-                  <div className="h-[300px] min-h-[300px] w-full">
+                  <div className="h-[350px] min-h-[350px] w-full overflow-hidden">
                     <LibraryDailyPlaysChart data={metrics.trendData} />
                   </div>
                 </CardContent>
@@ -860,7 +863,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
               </Suspense>,
 
               /* Dataviz Row : Plateformes + Top Users + Live */
-              <div key="platforms" className="grid gap-4 md:grid-cols-2 lg:grid-cols-8">
+              <div key="platforms" className="grid gap-4 md:grid-cols-2 lg:grid-cols-8 min-w-0">
 
                 <Card className="col-span-2 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
                   <CardHeader>
@@ -910,7 +913,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                     <CardDescription>{t('hourlyActivityDesc')}</CardDescription>
                   </CardHeader>
                   <CardContent className="pl-0 pb-4">
-                    <div className="h-[250px] min-h-[250px] w-full">
+                    <div className="h-[250px] min-h-[250px] w-full overflow-hidden">
                       <ActivityByHourChart data={metrics.hourlyChartData} />
                     </div>
                   </CardContent>
@@ -921,7 +924,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                     <CardDescription>{t('dayOfWeekActivityDesc')}</CardDescription>
                   </CardHeader>
                   <CardContent className="pl-0 pb-4">
-                    <div className="h-[250px] min-h-[250px] w-full">
+                    <div className="h-[250px] min-h-[250px] w-full overflow-hidden">
                       <DayOfWeekChart data={metrics.dayOfWeekChartData} />
                     </div>
                   </CardContent>
@@ -936,7 +939,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                     <CardDescription>{t('monthlyTimeDesc')}</CardDescription>
                   </CardHeader>
                   <CardContent className="pl-0 pb-4">
-                    <div className="h-[300px] w-full">
+                    <div className="h-[300px] w-full overflow-hidden">
                       {metrics.monthlyWatchData.length > 0 ? (
                         <MonthlyWatchTimeChart data={metrics.monthlyWatchData} />
                       ) : (
@@ -952,7 +955,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                     <CardDescription>{t('completionRateDesc')}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-[280px] w-full">
+                    <div className="h-[280px] w-full overflow-hidden">
                       {metrics.completionData.length > 0 ? (
                         <CompletionRatioChart data={metrics.completionData} />
                       ) : (
@@ -968,7 +971,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                     <CardDescription>{t('clientFamiliesDesc')}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-[280px] w-full">
+                    <div className="h-[280px] w-full overflow-hidden">
                       {metrics.clientCategoryData.length > 0 ? (
                         <ClientCategoryChart data={metrics.clientCategoryData} />
                       ) : (

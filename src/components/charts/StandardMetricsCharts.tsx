@@ -62,16 +62,20 @@ export function StandardPieChart({ data, nameKey, dataKey }: { data: any[], name
                 <Pie
                     data={data}
                     cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
+                    cy="45%"
+                    innerRadius={50}
+                    outerRadius={80}
                     fill="#8884d8"
                     paddingAngle={2}
                     dataKey={dataKey}
                     nameKey={nameKey}
                     stroke="none"
-                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => {
+                        const truncated = name && name.length > 12 ? name.substring(0, 12) + '…' : name;
+                        return `${truncated} ${((percent || 0) * 100).toFixed(0)}%`;
+                    }}
                     labelLine={false}
+                    fontSize={11}
                 >
                     {data.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -81,6 +85,10 @@ export function StandardPieChart({ data, nameKey, dataKey }: { data: any[], name
                     contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }}
                     labelStyle={{ color: '#a1a1aa' }}
                     itemStyle={{ color: '#f4f4f5' }}
+                />
+                <Legend
+                    wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+                    formatter={(value: string) => <span className="text-zinc-300">{value}</span>}
                 />
             </PieChart>
         </ResponsiveContainer>

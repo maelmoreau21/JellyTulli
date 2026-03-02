@@ -15,10 +15,15 @@ interface UserPageProps {
     params: Promise<{
         id: string; // jellyfinUserId
     }>;
+    searchParams: Promise<{
+        historyPage?: string;
+    }>;
 }
 
-export default async function UserDetailPage({ params }: UserPageProps) {
+export default async function UserDetailPage({ params, searchParams }: UserPageProps) {
     const { id: jellyfinUserId } = await params;
+    const { historyPage } = await searchParams;
+    const currentHistoryPage = Math.max(1, parseInt(historyPage || "1", 10) || 1);
 
     // RBAC: Non-admin users can only view their own profile
     const session = await getServerSession(authOptions);
@@ -67,7 +72,7 @@ export default async function UserDetailPage({ params }: UserPageProps) {
                 </Suspense>
 
                 <Suspense fallback={<Skeleton className="w-full h-[500px] rounded-xl bg-zinc-900/50 mt-6" />}>
-                    <UserRecentMedia userId={jellyfinUserId} />
+                    <UserRecentMedia userId={jellyfinUserId} page={currentHistoryPage} />
                 </Suspense>
             </div>
         </div>

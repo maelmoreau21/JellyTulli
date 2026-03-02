@@ -22,7 +22,7 @@ const getGranularData = unstable_cache(
                 durationWatched: true,
                 audioLanguage: true,
                 subtitleLanguage: true,
-                media: { select: { collectionType: true, type: true, durationMs: true, title: true } }
+                media: { select: { collectionType: true, type: true, durationMs: true, title: true, jellyfinMediaId: true } }
             },
             orderBy: { startedAt: 'asc' }
         });
@@ -32,14 +32,18 @@ const getGranularData = unstable_cache(
         const collections = new Set<string>();
         const completionMap = new Map<string, { totalCompletion: number, sessions: number }>();
 
-        // Segments
-        let drop10 = 0;
-        let drop25 = 0;
-        let drop50 = 0;
-        let drop90 = 0;
+        // Segments — clearer categories
+        let dropSkipped = 0;   // <10% "Zappé"
+        let dropAbandoned = 0; // 10-50% "Abandonné"
+        let dropAlmost = 0;    // 50-80% "Presque"
+        let dropFinished = 0;  // ≥80% "Terminé"
 
         // Media specific Drop-off
-        const mediaDropMap = new Map<string, { title: string, completion: number, count: number }>();
+        const mediaDropMap = new Map<string, { title: string, mediaId: string, completion: number, count: number }>();
+
+        // Languages — filter out codec strings (e.g. "FLAC - STEREO", "AAC - 5.1")
+        // Only keep valid ISO 639 language codes (2-3 uppercase letters)
+        const isValidLang = (s: string) => /^[A-Z]{2,3}$/.test(s.trim());
 
         // Languages
         const audioMap = new Map<string, number>();
@@ -92,15 +96,15 @@ const getGranularData = unstable_cache(
                     compEntry.sessions += 1;
 
                     // 2. Segmentation
-                    if (comp < 10) drop10++;
-                    else if (comp < 25) drop25++;
-                    else if (comp < 80) drop50++;
-                    else drop90++;
+                    if (comp < 10) dropSkipped++;
+                    else if (comp < 50) dropAbandoned++;
+                    else if (comp < 80) dropAlmost++;
+                    else dropFinished++;
 
                     // 3. Top Abandoned Media Tracker
                     if (comp < 80) { // Only track those visibly dropped
                         const mKey = h.media.title;
-                        if (!mediaDropMap.has(mKey)) mediaDropMap.set(mKey, { title: mKey, completion: 0, count: 0 });
+                        if (!mediaDropMap.has(mKey)) mediaDropMap.set(mKey, { title: mKey, mediaId: h.media.jellyfinMediaId || '', completion: 0, count: 0 });
                         const mEntry = mediaDropMap.get(mKey)!;
                         mEntry.completion += comp;
                         mEntry.count++;
@@ -110,8 +114,10 @@ const getGranularData = unstable_cache(
 
             // Languages
             if (h.audioLanguage) {
-                const aKey = h.audioLanguage.toUpperCase();
-                audioMap.set(aKey, (audioMap.get(aKey) || 0) + 1);
+                const aKey = h.audioLanguage.toUpperCase().trim();
+                if (isValidLang(aKey)) {
+                    audioMap.set(aKey, (audioMap.get(aKey) || 0) + 1);
+                }
             }
 
             // For subtitles, we count "None" if null/undefined, otherwise the language
@@ -139,20 +145,23 @@ const getGranularData = unstable_cache(
             completion: Math.round(data.totalCompletion / data.sessions)
         })).sort((a, b) => b.completion - a.completion);
 
-        // Finalize Segment Data
+        // Finalize Segment Data — 4 clear categories with distinct colors
         const dropSegments = [
-            { name: "skipped", value: drop10, fill: "#ef4444" },
-            { name: "tried", value: drop25, fill: "#f97316" },
-            { name: "half", value: drop50, fill: "#eab308" },
-            { name: "finished", value: drop90, fill: "#22c55e" },
+            { name: "skipped", value: dropSkipped, fill: "#ef4444" },
+            { name: "abandoned", value: dropAbandoned, fill: "#f97316" },
+            { name: "almost", value: dropAlmost, fill: "#eab308" },
+            { name: "finished", value: dropFinished, fill: "#22c55e" },
         ];
 
-        // Finalize Top 5 Abandonnés
+        // Finalize Top 5 Abandonnés — include mediaId for links
         const topAbandoned = Array.from(mediaDropMap.values())
             .filter(m => m.count >= 2) // At least tried a few times
             .map(m => ({
-                title: m.title.length > 20 ? m.title.substring(0, 20) + '...' : m.title,
-                completion: Math.round(m.completion / m.count)
+                title: m.title.length > 25 ? m.title.substring(0, 25) + '…' : m.title,
+                fullTitle: m.title,
+                mediaId: m.mediaId,
+                completion: Math.round(m.completion / m.count),
+                count: m.count
             }))
             .sort((a, b) => a.completion - b.completion) // Lowest completion first
             .slice(0, 5);
@@ -254,8 +263,27 @@ export async function GranularAnalysis({ type, timeRange, excludedLibraries }: {
                         <CardTitle>{t('abandonSegments')}</CardTitle>
                         <CardDescription>{t('abandonSegmentsDesc')}</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-[300px] flex items-center justify-center">
-                        <StandardBarChart data={data.dropSegments.map((s: any) => ({ ...s, name: t(s.name) }))} dataKey="value" fill="#ec4899" name={t('abandonSegments')} horizontal />
+                    <CardContent>
+                        <div className="space-y-3">
+                            {data.dropSegments.map((s: any) => {
+                                const total = data.dropSegments.reduce((sum: number, seg: any) => sum + seg.value, 0);
+                                const pct = total > 0 ? Math.round((s.value / total) * 100) : 0;
+                                return (
+                                    <div key={s.name} className="space-y-1">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-zinc-300">{t(s.name)}</span>
+                                            <span className="text-zinc-400 font-mono">{s.value} ({pct}%)</span>
+                                        </div>
+                                        <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full rounded-full transition-all duration-500"
+                                                style={{ width: `${pct}%`, backgroundColor: s.fill }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -276,8 +304,34 @@ export async function GranularAnalysis({ type, timeRange, excludedLibraries }: {
                         <CardTitle>{t('worstCompletion')}</CardTitle>
                         <CardDescription>{t('worstCompletionDesc')}</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-[300px] flex items-center justify-center">
-                        <StandardBarChart data={data.topAbandoned} dataKey="completion" fill="#ef4444" name={t('completionPct')} horizontal xAxisKey="title" />
+                    <CardContent>
+                        <div className="space-y-3">
+                            {data.topAbandoned.length === 0 ? (
+                                <p className="text-sm text-zinc-500 text-center py-6">—</p>
+                            ) : data.topAbandoned.map((m: any, i: number) => (
+                                <a
+                                    key={i}
+                                    href={m.mediaId ? `/media/${m.mediaId}` : '#'}
+                                    className="block group"
+                                >
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-zinc-300 group-hover:text-indigo-400 transition-colors truncate max-w-[180px]" title={m.fullTitle || m.title}>
+                                            {m.title}
+                                        </span>
+                                        <span className="text-zinc-500 font-mono text-xs">{m.completion}% · {m.count}×</span>
+                                    </div>
+                                    <div className="h-2 bg-zinc-800 rounded-full overflow-hidden mt-1">
+                                        <div
+                                            className="h-full rounded-full transition-all duration-300"
+                                            style={{
+                                                width: `${m.completion}%`,
+                                                backgroundColor: m.completion < 10 ? '#ef4444' : m.completion < 50 ? '#f97316' : '#eab308'
+                                            }}
+                                        />
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
                     </CardContent>
                 </Card>
 

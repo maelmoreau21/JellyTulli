@@ -84,46 +84,87 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
     // Fetch children items (Seasons for Series, Episodes for Season, Tracks for MusicAlbum)
     const isParentType = ['Series', 'Season', 'MusicAlbum'].includes(media.type);
     let children: { jellyfinMediaId: string; title: string; type: string; resolution: string | null; durationMs: bigint | null; _count: number; _totalDuration: number }[] = [];
+    // For Series, we also need grandchildren (Episodes via Seasons) for accurate stats
+    let allDescendantHistory: any[] = [];
     if (isParentType) {
         const childMedia = await prisma.media.findMany({
             where: { parentId: media.jellyfinMediaId },
             include: {
                 playbackHistory: {
-                    select: { durationWatched: true },
+                    include: { user: true },
+                    orderBy: { startedAt: "desc" },
                 },
             },
             orderBy: { title: 'asc' },
         });
-        children = childMedia.map(c => ({
-            jellyfinMediaId: c.jellyfinMediaId,
-            title: c.title,
-            type: c.type,
-            resolution: c.resolution,
-            durationMs: c.durationMs,
-            _count: c.playbackHistory.length,
-            _totalDuration: c.playbackHistory.reduce((acc, h) => acc + h.durationWatched, 0),
-        }));
+
+        // For Series: also fetch grandchildren (Episodes) via Season IDs
+        let grandchildMedia: any[] = [];
+        if (media.type === 'Series' && childMedia.length > 0) {
+            const seasonIds = childMedia.map(c => c.jellyfinMediaId);
+            grandchildMedia = await prisma.media.findMany({
+                where: { parentId: { in: seasonIds } },
+                include: {
+                    playbackHistory: {
+                        include: { user: true },
+                        orderBy: { startedAt: "desc" },
+                    },
+                },
+                orderBy: { title: 'asc' },
+            });
+            // Build a map: seasonId -> aggregated episode stats
+            const seasonEpisodeStats = new Map<string, { count: number; duration: number }>();
+            grandchildMedia.forEach(gc => {
+                const sid = gc.parentId || '';
+                if (!seasonEpisodeStats.has(sid)) seasonEpisodeStats.set(sid, { count: 0, duration: 0 });
+                const entry = seasonEpisodeStats.get(sid)!;
+                entry.count += gc.playbackHistory.length;
+                entry.duration += gc.playbackHistory.reduce((acc: number, h: any) => acc + h.durationWatched, 0);
+            });
+            children = childMedia.map(c => ({
+                jellyfinMediaId: c.jellyfinMediaId,
+                title: c.title,
+                type: c.type,
+                resolution: c.resolution,
+                durationMs: c.durationMs,
+                _count: (seasonEpisodeStats.get(c.jellyfinMediaId)?.count || 0) + c.playbackHistory.length,
+                _totalDuration: (seasonEpisodeStats.get(c.jellyfinMediaId)?.duration || 0) + c.playbackHistory.reduce((acc: number, h: any) => acc + h.durationWatched, 0),
+            }));
+            // Collect all descendant playback history for charts
+            allDescendantHistory = [
+                ...childMedia.flatMap(c => c.playbackHistory),
+                ...grandchildMedia.flatMap(gc => gc.playbackHistory),
+            ];
+        } else {
+            children = childMedia.map(c => ({
+                jellyfinMediaId: c.jellyfinMediaId,
+                title: c.title,
+                type: c.type,
+                resolution: c.resolution,
+                durationMs: c.durationMs,
+                _count: c.playbackHistory.length,
+                _totalDuration: c.playbackHistory.reduce((acc: number, h: any) => acc + h.durationWatched, 0),
+            }));
+            allDescendantHistory = childMedia.flatMap(c => c.playbackHistory);
+        }
     }
+
+    // Use descendant history for parent types that have no direct playbackHistory
+    const effectiveHistory = isParentType && allDescendantHistory.length > 0
+        ? [...media.playbackHistory, ...allDescendantHistory]
+        : media.playbackHistory;
 
     // Global stats (include children's playback for parent items like Series/Season/Album)
-    let totalViews = media.playbackHistory.length;
-    let totalSeconds = media.playbackHistory.reduce((acc: number, h: any) => acc + h.durationWatched, 0);
-
-    // For parent items, also aggregate stats from children
-    if (isParentType && children.length > 0) {
-        const childViews = children.reduce((acc, c) => acc + c._count, 0);
-        const childSeconds = children.reduce((acc, c) => acc + c._totalDuration, 0);
-        totalViews += childViews;
-        totalSeconds += childSeconds;
-    }
+    let totalViews = effectiveHistory.length;
+    let totalSeconds = effectiveHistory.reduce((acc: number, h: any) => acc + h.durationWatched, 0);
 
     const totalHours = parseFloat((totalSeconds / 3600).toFixed(1));
     const avgMinutes = totalViews > 0 ? Math.round(totalSeconds / totalViews / 60) : 0;
 
     // Telemetry aggregates
-    const totalPauses = media.playbackHistory.reduce((acc: number, h: any) => acc + (h.pauseCount || 0), 0);
-    const totalAudioChanges = media.playbackHistory.reduce((acc: number, h: any) => acc + (h.audioChanges || 0), 0);
-    const totalSubChanges = media.playbackHistory.reduce((acc: number, h: any) => acc + (h.subtitleChanges || 0), 0);
+    const totalPauses = effectiveHistory.reduce((acc: number, h: any) => acc + (h.pauseCount || 0), 0);
+    const totalAudioChanges = effectiveHistory.reduce((acc: number, h: any) => acc + (h.audioChanges || 0), 0);
+    const totalSubChanges = effectiveHistory.reduce((acc: number, h: any) => acc + (h.subtitleChanges || 0), 0);
 
     // Drop-off buckets
     const mediaDurationSeconds = media.durationMs ? Number(media.durationMs) / 1000 : null;
@@ -132,7 +173,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
         count: 0,
     }));
     if (mediaDurationSeconds && mediaDurationSeconds > 0) {
-        media.playbackHistory.forEach((h: any) => {
+        effectiveHistory.forEach((h: any) => {
             const pct = Math.min((h.durationWatched / mediaDurationSeconds) * 100, 100);
             const bucket = Math.min(Math.floor(pct / 10), 9);
             dropoffBuckets[bucket].count++;
@@ -141,7 +182,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
 
     // Telemetry timeline: group pauses, audio & subtitle changes per session date
     const telemetryMap = new Map<string, { pauses: number; audioChanges: number; subtitleChanges: number }>();
-    media.playbackHistory.forEach((h: any) => {
+    effectiveHistory.forEach((h: any) => {
         const dateKey = new Date(h.startedAt).toLocaleDateString(locale, { day: "2-digit", month: "2-digit" });
         const entry = telemetryMap.get(dateKey) || { pauses: 0, audioChanges: 0, subtitleChanges: 0 };
         entry.pauses += h.pauseCount || 0;
@@ -153,7 +194,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
     const hasTelemetry = telemetryData.some(d => d.pauses > 0 || d.audioChanges > 0 || d.subtitleChanges > 0);
 
     // Fetch positional telemetry events for timeline chart
-    const playbackIds = media.playbackHistory.map((h: any) => h.id);
+    const playbackIds = effectiveHistory.map((h: any) => h.id);
     let timelineEvents: TimelineEvent[] = [];
     let sessionTimelines: SessionTimeline[] = [];
     if (playbackIds.length > 0 && mediaDurationSeconds && mediaDurationSeconds > 0) {
@@ -189,7 +230,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
             list.push({ eventType: e.eventType, positionMs: Number(e.positionMs) });
             eventsByPlayback.set(e.playbackId, list);
         }
-        sessionTimelines = media.playbackHistory
+        sessionTimelines = effectiveHistory
             .filter((h: any) => eventsByPlayback.has(h.id))
             .map((h: any) => ({
                 id: h.id,
@@ -204,7 +245,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
 
     // Unique users who watched this
     const userMap = new Map<string, { username: string; jellyfinUserId: string; sessions: number; totalSeconds: number }>();
-    media.playbackHistory.forEach((h: any) => {
+    effectiveHistory.forEach((h: any) => {
         if (!h.user) return;
         const uid = h.user.jellyfinUserId;
         if (!userMap.has(uid)) {
@@ -219,7 +260,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
     // Audio & subtitle language distribution
     const audioLangCounts = new Map<string, number>();
     const subtitleLangCounts = new Map<string, number>();
-    media.playbackHistory.forEach((h: any) => {
+    effectiveHistory.forEach((h: any) => {
         if (h.audioLanguage) {
             const key = `${h.audioLanguage}${h.audioCodec ? ` (${h.audioCodec})` : ""}`;
             audioLangCounts.set(key, (audioLangCounts.get(key) || 0) + 1);
@@ -537,9 +578,9 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {media.playbackHistory.length === 0 ? (
+                                    {effectiveHistory.length === 0 ? (
                                         <TableRow><TableCell colSpan={isMusic ? 6 : 7} className="text-center h-24 text-muted-foreground">{t('noSession')}</TableCell></TableRow>
-                                    ) : media.playbackHistory.map((h: any) => {
+                                    ) : effectiveHistory.slice(0, 200).map((h: any) => {
                                         const isTranscode = h.playMethod?.toLowerCase().includes("transcode");
                                         return (
                                             <TableRow key={h.id} className="border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
