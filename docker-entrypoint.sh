@@ -33,7 +33,7 @@ chown -R "$PUID:$PGID" /app /data/backups 2>/dev/null || true
 
 # ─── Prisma Migration ──────────────────────────────────────────────
 echo "Running Prisma db push..."
-su-exec "$PUID:$PGID" npx prisma db push --accept-data-loss --skip-generate
+su-exec "$PUID:$PGID" prisma db push --accept-data-loss --skip-generate
 
 echo "Prisma schema pushed successfully."
 
