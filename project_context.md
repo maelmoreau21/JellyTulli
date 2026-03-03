@@ -560,10 +560,12 @@ Conversion intégrale de l'interface utilisateur du français codé en dur vers 
   - `HardwareMonitor.tsx` utilise `t('cpuUsage')` et `t('ram', { total })` au lieu de textes anglais codés en dur.
 - **Validation** : build `npm run build` OK, 10/10 locales valides.
 
-### Phase 40.2 — Fix crash logs (parseVisibleColumns client/server boundary) & npm update Docker
-- **Cause racine confirmée** : `parseVisibleColumns()` était exportée depuis `ColumnToggle.tsx` qui porte la directive `"use client"`. L'import et l'appel dans le Server Component `logs/page.tsx` provoquait : `Error: Attempted to call parseVisibleColumns() from the server but parseVisibleColumns is on the client`.
-- **Fix** : extraction de `parseVisibleColumns`, `ALL_COLUMNS`, `Column` et `DEFAULT_VISIBLE` dans un nouveau fichier utilitaire `src/app/logs/columnUtils.ts` (sans directive `"use client"`), importable aussi bien côté serveur que client.
-  - `ColumnToggle.tsx` importe désormais `ALL_COLUMNS` et `Column` depuis `columnUtils.ts`.
-  - `page.tsx` importe `parseVisibleColumns` depuis `columnUtils.ts` au lieu de `ColumnToggle.tsx`.
-- **Dockerfile** : ajout `npm install -g npm@latest` dans le stage runner pour supprimer le warning `New major version of npm available! 10.8.2 -> 11.11.0`.
+### Phase 40.2 — Fix crash logs (server/client boundary) & npm update Docker
+- **Problème initial** : `parseVisibleColumns()` exportée depuis `ColumnToggle.tsx` (`"use client"`) et appelée dans le Server Component `logs/page.tsx` → `Error: Attempted to call parseVisibleColumns() from the server but parseVisibleColumns is on the client`.
+- **Tentative intermédiaire** : extraction dans `columnUtils.ts` partagé (sans `"use client"`) → a causé `ReferenceError: Cannot access 'S' before initialization` dans Turbopack (conflit d'initialisation quand un module est importé simultanément par un Server Component et un Client Component).
+- **Fix final** : suppression de `columnUtils.ts`, duplication des constantes :
+  - `page.tsx` (Server Component) : `parseVisibleColumns`, `ALL_COLUMNS`, `Column`, `DEFAULT_VISIBLE` définis localement.
+  - `ColumnToggle.tsx` (Client Component) : `ALL_COLUMNS` et `Column` définis localement. Aucun import partagé entre serveur et client.
+- **Dockerfile** : ajout `npm install -g npm@latest` dans le stage runner pour supprimer le warning npm.
+- **docker-entrypoint.sh** : remplacement de `npx prisma` par `prisma` (installé globalement) pour éviter le warning npm au démarrage.
 - **Validation** : build `npm run build` OK, toutes les routes générées.
