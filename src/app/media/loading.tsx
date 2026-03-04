@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 export default function LoadingMediaPage() {
     return (
         <div className="flex-col md:flex">
-            <div className="flex-1 space-y-6 p-8 pt-6">
+            <div className="flex-1 space-y-4 md:space-y-6 p-4 md:p-8 pt-4 md:pt-6">
                 <div className="flex items-center justify-between mb-6">
                     <Skeleton className="h-10 w-48 bg-zinc-800" />
                 </div>

@@ -63,12 +63,16 @@ export async function startMonitoring() {
                 });
                 if (openPlayback) {
                     const endedAt = new Date();
+                    const wallClockS = Math.floor((endedAt.getTime() - openPlayback.startedAt.getTime()) / 1000);
                     let durationS: number;
                     if (orphan.positionTicks && BigInt(orphan.positionTicks) > 0n) {
-                        durationS = Math.floor(Number(BigInt(orphan.positionTicks)) / 10_000_000);
+                        const positionS = Math.floor(Number(BigInt(orphan.positionTicks)) / 10_000_000);
+                        // min(wallClock, positionTicks) prevents inflated durations on resume
+                        durationS = Math.min(wallClockS, positionS);
                     } else {
-                        durationS = Math.floor((endedAt.getTime() - openPlayback.startedAt.getTime()) / 1000);
+                        durationS = wallClockS;
                     }
+                    durationS = Math.max(0, Math.min(durationS, 86400)); // Clamp 0..24h
                     await prisma.playbackHistory.update({
                         where: { id: openPlayback.id },
                         data: { endedAt, durationWatched: durationS },
@@ -620,10 +624,12 @@ async function pollJellyfinSessions(): Promise<boolean> {
 
                 if (lastPlayback) {
                     const endedAt = new Date();
-                    // Use positionTicks from the last known ActiveStream state if available
+                    const wallClockS = Math.floor((endedAt.getTime() - lastPlayback.startedAt.getTime()) / 1000);
                     let durationS: number;
                     if (activeStream.positionTicks && BigInt(activeStream.positionTicks) > 0n) {
-                        durationS = Math.floor(Number(BigInt(activeStream.positionTicks)) / 10_000_000);
+                        const positionS = Math.floor(Number(BigInt(activeStream.positionTicks)) / 10_000_000);
+                        // min(wallClock, positionTicks) prevents inflated durations on resume
+                        durationS = Math.min(wallClockS, positionS);
                         // Record stop position as telemetry event
                         const stopPositionMs = BigInt(Math.floor(Number(BigInt(activeStream.positionTicks)) / 10_000));
                         if (stopPositionMs > 0) {
@@ -636,8 +642,9 @@ async function pollJellyfinSessions(): Promise<boolean> {
                             });
                         }
                     } else {
-                        durationS = Math.floor((endedAt.getTime() - lastPlayback.startedAt.getTime()) / 1000);
+                        durationS = wallClockS;
                     }
+                    durationS = Math.max(0, Math.min(durationS, 86400));
                     await prisma.playbackHistory.update({
                         where: { id: lastPlayback.id },
                         data: { endedAt, durationWatched: durationS },
@@ -664,12 +671,15 @@ async function pollJellyfinSessions(): Promise<boolean> {
 
             if (openPlayback) {
                 const endedAt = new Date();
+                const wallClockS = Math.floor((endedAt.getTime() - openPlayback.startedAt.getTime()) / 1000);
                 let durationS: number;
                 if (dbStream.positionTicks && BigInt(dbStream.positionTicks) > 0n) {
-                    durationS = Math.floor(Number(BigInt(dbStream.positionTicks)) / 10_000_000);
+                    const positionS = Math.floor(Number(BigInt(dbStream.positionTicks)) / 10_000_000);
+                    durationS = Math.min(wallClockS, positionS);
                 } else {
-                    durationS = Math.floor((endedAt.getTime() - openPlayback.startedAt.getTime()) / 1000);
+                    durationS = wallClockS;
                 }
+                durationS = Math.max(0, Math.min(durationS, 86400));
                 await prisma.playbackHistory.update({
                     where: { id: openPlayback.id },
                     data: { endedAt, durationWatched: durationS },

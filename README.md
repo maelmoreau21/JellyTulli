@@ -12,8 +12,6 @@ Jellyfin + Tautulli = JellyTulli
 
 JellyTulli est un service autonome d'observabilité pour **Jellyfin** : sessions en direct, historique enrichi, télémétrie de lecture, analyses avancées, backups automatiques et intégration webhook.
 
-Le projet est optimisé pour un déploiement **Docker Compose** (Raspberry Pi / x86) avec image publiée sur **GHCR**.
-
 ### Fonctionnalités clés
 
 | Domaine | Détails |

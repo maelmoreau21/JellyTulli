@@ -27,7 +27,7 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           <AuthProvider>
             <Sidebar />
-            <main className="flex-1 h-screen overflow-y-auto">
+            <main className="flex-1 min-w-0 h-screen overflow-y-auto pt-14 md:pt-0">
               {children}
             </main>
           </AuthProvider>

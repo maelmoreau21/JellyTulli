@@ -196,14 +196,14 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
 
     return (
         <div className="flex-col md:flex">
-            <div className="flex-1 space-y-6 p-8 pt-6">
-                <div className="flex items-center justify-between space-y-2 mb-6">
-                    <div className="flex items-center gap-6">
-                        <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                            <Film className="w-8 h-8 opacity-80" /> {t('title')}
+            <div className="flex-1 space-y-4 md:space-y-6 p-4 md:p-8 pt-4 md:pt-6">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4 md:mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+                        <h2 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
+                            <Film className="w-6 h-6 md:w-8 md:h-8 opacity-80" /> {t('title')}
                         </h2>
-                        <Tabs defaultValue={type || "all"} className="w-[400px]">
-                            <TabsList className="bg-zinc-900 border border-zinc-800">
+                        <Tabs defaultValue={type || "all"} className="w-full sm:w-[400px]">
+                            <TabsList className="bg-zinc-900 border border-zinc-800 w-full sm:w-auto">
                                 <TabsTrigger value="all" asChild><Link href={`/media${sortBy !== 'plays' ? `?sortBy=${sortBy}` : ''}`}>{tc('all')}</Link></TabsTrigger>
                                 <TabsTrigger value="movie" asChild><Link href={`/media?type=movie${sortBy !== 'plays' ? `&sortBy=${sortBy}` : ''}`}>{tc('movies')}</Link></TabsTrigger>
                                 <TabsTrigger value="series" asChild><Link href={`/media?type=series${sortBy !== 'plays' ? `&sortBy=${sortBy}` : ''}`}>{tc('series')}</Link></TabsTrigger>

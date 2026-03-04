@@ -202,21 +202,17 @@ export async function POST(req: Request) {
 
                     if (lastPlayback) {
                         const endedAt = new Date();
+                        const wallClockS = Math.floor((endedAt.getTime() - lastPlayback.startedAt.getTime()) / 1000);
                         let durationS: number;
                         if (positionTicks > 0) {
-                            // If positionTicks equals runTimeTicks (fully watched), use wall clock time as sanity check
-                            if (runTimeTicks > 0 && positionTicks >= runTimeTicks * 0.95) {
-                                // Media was watched to completion - use actual elapsed wall-clock time
-                                const wallClockS = Math.floor((endedAt.getTime() - lastPlayback.startedAt.getTime()) / 1000);
-                                const ticksS = Math.floor(positionTicks / 10_000_000);
-                                // Use the smaller of tick-derived or wall-clock (prevents logging 2h for a 3min rewatch)
-                                durationS = Math.min(ticksS, wallClockS);
-                            } else {
-                                durationS = Math.floor(positionTicks / 10_000_000);
-                            }
+                            const positionS = Math.floor(positionTicks / 10_000_000);
+                            // min(wallClock, position) prevents inflated duration on resume
+                            // (positionTicks is absolute position in media, not session duration)
+                            durationS = Math.min(wallClockS, positionS);
                         } else {
-                            durationS = Math.floor((endedAt.getTime() - lastPlayback.startedAt.getTime()) / 1000);
+                            durationS = wallClockS;
                         }
+                        durationS = Math.max(0, Math.min(durationS, 86400)); // Clamp 0..24h
                         await prisma.playbackHistory.update({
                             where: { id: lastPlayback.id },
                             data: { endedAt, durationWatched: durationS },

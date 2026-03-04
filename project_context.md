@@ -560,12 +560,31 @@ Conversion intégrale de l'interface utilisateur du français codé en dur vers 
   - `HardwareMonitor.tsx` utilise `t('cpuUsage')` et `t('ram', { total })` au lieu de textes anglais codés en dur.
 - **Validation** : build `npm run build` OK, 10/10 locales valides.
 
-### Phase 40.2 — Fix crash logs (server/client boundary) & npm update Docker
-- **Problème initial** : `parseVisibleColumns()` exportée depuis `ColumnToggle.tsx` (`"use client"`) et appelée dans le Server Component `logs/page.tsx` → `Error: Attempted to call parseVisibleColumns() from the server but parseVisibleColumns is on the client`.
-- **Tentative intermédiaire** : extraction dans `columnUtils.ts` partagé (sans `"use client"`) → a causé `ReferenceError: Cannot access 'S' before initialization` dans Turbopack (conflit d'initialisation quand un module est importé simultanément par un Server Component et un Client Component).
-- **Fix final** : suppression de `columnUtils.ts`, duplication des constantes :
-  - `page.tsx` (Server Component) : `parseVisibleColumns`, `ALL_COLUMNS`, `Column`, `DEFAULT_VISIBLE` définis localement.
-  - `ColumnToggle.tsx` (Client Component) : `ALL_COLUMNS` et `Column` définis localement. Aucun import partagé entre serveur et client.
+### Phase 40.2 — Fix crash logs (server/client boundary + TDZ) & npm update Docker
+- **Problème 1** : `parseVisibleColumns()` exportée depuis `ColumnToggle.tsx` (`"use client"`) et appelée dans le Server Component `logs/page.tsx` → `Error: Attempted to call parseVisibleColumns() from the server`.
+- **Fix** : duplication des constantes (`ALL_COLUMNS`, `Column`) dans chaque fichier. `parseVisibleColumns` inliné dans `page.tsx`. Aucun module partagé serveur/client.
+- **Problème 2 (cause racine du crash)** : `const safeLogs` déclaré à la ligne ~237 mais utilisé dès la ligne ~143 (`safeLogs.forEach(...)`) → `ReferenceError: Cannot access 'S' before initialization` (TDZ — Temporal Dead Zone). La variable `S` en minifié est `safeLogs`.
+- **Fix** : déplacement de la déclaration `safeLogs = logs.map(...)` juste après le `findMany()`, avant toute utilisation.
 - **Dockerfile** : ajout `npm install -g npm@latest` dans le stage runner pour supprimer le warning npm.
 - **docker-entrypoint.sh** : remplacement de `npx prisma` par `prisma` (installé globalement) pour éviter le warning npm au démarrage.
 - **Validation** : build `npm run build` OK, toutes les routes générées.
+
+### Phase 40.3 — Fix durée accumulée, sélecteur de langue, responsive mobile
+- **Bug durée accumulée sur reprise de lecture** :
+  - Cause racine : `positionTicks` de Jellyfin = position **absolue** dans le média (ex: 60 min dans un film), pas la durée de la session. Quand un utilisateur reprend à 30 min et regarde 30 min de plus, `positionTicks` = 60 min → le code enregistrait 60 min au lieu de 30 min.
+  - Fix : formule `durationWatched = min(wallClockDuration, positionTicksDuration)` appliquée aux **5 endroits** :
+    1. `monitor.ts` — nettoyage orphelins ActiveStream au démarrage
+    2. `monitor.ts` — fermeture PlaybackHistory orphelins au démarrage
+    3. `monitor.ts` — PlaybackStop (session disparue)
+    4. `monitor.ts` — nettoyage sessions fantômes (cross-validation)
+    5. `webhook/jellyfin/route.ts` — PlaybackStop webhook
+  - Sécurité : `Math.max(0, Math.min(durationS, 86400))` pour borner entre 0 et 24h.
+- **Sélecteur de langue custom dropdown** :
+  - Remplacement du `<select>/<option>` natif (emojis drapeaux mal rendus sur Windows desktop) par un dropdown custom CSS avec des `<button>` qui affichent correctement les emoji drapeaux sur tous les OS/navigateurs.
+  - Ouverture vers le haut (`bottom-full`) pour ne pas être coupé par le bas de la sidebar.
+  - Fermeture automatique au clic extérieur.
+- **Responsive mobile complet** :
+  - `Sidebar.tsx` : sidebar cachée par défaut sur mobile (`-translate-x-full md:translate-x-0`), accessible via bouton hamburger dans un header mobile fixe (`h-14`). Animation slide-over 200ms avec overlay sombre. Fermeture automatique au changement de route.
+  - `layout.tsx` : `pt-14 md:pt-0` sur `<main>` pour compenser le header mobile. Ajout `min-w-0` pour éviter les débordements.
+  - Pages `media/page.tsx`, `media/loading.tsx`, `about/page.tsx` : padding responsive (`p-4 md:p-8`). Titres et tabs adaptés mobile (`text-2xl md:text-3xl`, `w-full sm:w-[400px]`).
+- **Validation** : build `npm run build` OK (12.4s), toutes les routes générées.

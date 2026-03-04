@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
 import {
     LayoutDashboard,
     Film,
@@ -14,7 +15,9 @@ import {
     UserCircle,
     Gift,
     Sparkles,
-    Info
+    Info,
+    Menu,
+    X
 } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 import { SearchBar } from "./SearchBar";
@@ -35,6 +38,12 @@ export function Sidebar() {
     const pathname = usePathname();
     const { data: session } = useSession();
     const t = useTranslations('nav');
+    const [mobileOpen, setMobileOpen] = useState(false);
+
+    // Close mobile sidebar on route change
+    useEffect(() => {
+        setMobileOpen(false);
+    }, [pathname]);
 
     // Hide sidebar on login page only (Wrapped uses fullscreen overlay)
     if (pathname === '/login' || pathname?.startsWith('/wrapped')) {
@@ -52,13 +61,21 @@ export function Sidebar() {
             { name: t('myWrapped'), href: `/wrapped/${jellyfinUserId || ''}`, icon: Gift },
         ];
 
-    return (
-        <div className="flex h-screen w-64 flex-col border-r border-zinc-800 bg-zinc-950/50 backdrop-blur-xl">
+    const sidebarContent = (
+        <>
             <div className="flex h-16 shrink-0 items-center px-6">
                 <Link href={isAdmin ? "/" : `/users/${jellyfinUserId || ''}`} className="text-xl font-bold tracking-tight text-primary flex items-center gap-2 hover:opacity-80 transition-opacity">
                     <PlayCircle className="w-6 h-6 text-primary" />
                     <span>JellyTulli</span>
                 </Link>
+                {/* Close button — mobile only */}
+                <button
+                    onClick={() => setMobileOpen(false)}
+                    className="ml-auto md:hidden p-1 text-zinc-400 hover:text-zinc-200"
+                    aria-label="Close menu"
+                >
+                    <X className="w-5 h-5" />
+                </button>
             </div>
 
             <div className="flex flex-1 flex-col overflow-y-auto px-4 py-4">
@@ -98,6 +115,45 @@ export function Sidebar() {
                     </Link>
                 </div>
             </div>
-        </div>
+        </>
+    );
+
+    return (
+        <>
+            {/* Mobile header bar */}
+            <div className="fixed top-0 left-0 right-0 z-40 flex md:hidden items-center h-14 px-4 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-xl">
+                <button
+                    onClick={() => setMobileOpen(true)}
+                    className="p-1.5 text-zinc-400 hover:text-zinc-200 transition-colors"
+                    aria-label="Open menu"
+                >
+                    <Menu className="w-6 h-6" />
+                </button>
+                <Link href={isAdmin ? "/" : `/users/${jellyfinUserId || ''}`} className="ml-3 text-lg font-bold tracking-tight text-primary flex items-center gap-2">
+                    <PlayCircle className="w-5 h-5 text-primary" />
+                    <span>JellyTulli</span>
+                </Link>
+            </div>
+
+            {/* Mobile overlay */}
+            {mobileOpen && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/60 md:hidden"
+                    onClick={() => setMobileOpen(false)}
+                />
+            )}
+
+            {/* Sidebar — desktop: always visible, mobile: slide-over */}
+            <div
+                className={`
+                    fixed top-0 left-0 z-50 h-screen w-64 flex flex-col border-r border-zinc-800 bg-zinc-950/95 backdrop-blur-xl
+                    transition-transform duration-200 ease-in-out
+                    md:sticky md:translate-x-0
+                    ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+                `}
+            >
+                {sidebarContent}
+            </div>
+        </>
     );
 }
