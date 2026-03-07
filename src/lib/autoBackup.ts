@@ -1,6 +1,8 @@
 import prisma from "@/lib/prisma";
 import { writeFileSync, readdirSync, unlinkSync, existsSync, mkdirSync, statSync } from "fs";
 import path from "path";
+import { loadLibraryRules } from "@/lib/libraryRules";
+import { appendHealthEvent, markBackupFinished, markBackupStarted, readSystemHealthState } from "@/lib/systemHealth";
 
 const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
 const MAX_BACKUPS = 5;
@@ -11,6 +13,9 @@ const MAX_BACKUPS = 5;
  */
 export async function performAutoBackup(): Promise<string> {
     console.log("[Auto-Backup] Starting automated backup...");
+    await markBackupStarted();
+
+    try {
 
     // Ensure directory exists
     if (!existsSync(BACKUP_DIR)) {
@@ -24,6 +29,8 @@ export async function performAutoBackup(): Promise<string> {
     const playbackHistory = await prisma.playbackHistory.findMany();
     const telemetryEvents = await (prisma as any).telemetryEvent.findMany();
     const settings = await prisma.globalSettings.findFirst({ where: { id: "global" } });
+    const libraryRules = await loadLibraryRules();
+    const systemHealth = await readSystemHealthState();
 
     const backupContent = {
         version: "1.0",
@@ -35,6 +42,8 @@ export async function performAutoBackup(): Promise<string> {
             playbackHistory,
             telemetryEvents,
             settings,
+            libraryRules,
+            systemHealth,
         }
     };
 
@@ -74,5 +83,22 @@ export async function performAutoBackup(): Promise<string> {
     }
 
     console.log(`[Auto-Backup] Complete. ${backupFiles.length > MAX_BACKUPS ? MAX_BACKUPS : backupFiles.length} backups retained.`);
+    await markBackupFinished({ success: true, fileName });
+    await appendHealthEvent({
+        source: "backup",
+        kind: "success",
+        message: `Sauvegarde automatique créée: ${fileName}`,
+        details: { fileName },
+    });
     return fileName;
+    } catch (error: any) {
+        await markBackupFinished({ success: false, error: error?.message || "Backup error" });
+        await appendHealthEvent({
+            source: "backup",
+            kind: "error",
+            message: "Échec de sauvegarde automatique.",
+            details: { error: error?.message || "Backup error" },
+        });
+        throw error;
+    }
 }

@@ -29,9 +29,13 @@ import { KillStreamButton } from "@/components/dashboard/KillStreamButton";
 import { LiveStreamsPanel } from "@/components/dashboard/LiveStreamsPanel";
 import { MonthlyWatchTimeChart, MonthlyWatchData } from "@/components/charts/MonthlyWatchTimeChart";
 import { CompletionRatioChart, CompletionData } from "@/components/charts/CompletionRatioChart";
+import { buildExcludedMediaClause, getCompletionMetrics } from "@/lib/mediaPolicy";
+import { loadLibraryRules } from "@/lib/libraryRules";
+import { getLogHealthSnapshot } from "@/lib/logHealth";
 import { ClientCategoryChart, ClientCategoryData } from "@/components/charts/ClientCategoryChart";
 import { LibraryDailyPlaysChart } from "@/components/charts/LibraryDailyPlaysChart";
 import { categorizeClient } from "@/lib/utils";
+import { SystemHealthWidgets } from "@/components/dashboard/SystemHealthWidgets";
 
 // Webhook / Redis types
 type WebhookPayload = {
@@ -77,7 +81,8 @@ export const dynamic = "force-dynamic";
 
 // --- Aggregation Cache Helper ---
 const getDashboardMetrics = unstable_cache(
-  async (type: string | undefined, timeRange: string, excludedLibraries: string[], customFrom?: string, customTo?: string) => {
+  async (type: string | undefined, timeRange: string, excludedLibraries: string[], customFrom?: string, customTo?: string, libraryRulesJson?: string) => {
+    const libraryRules = JSON.parse(libraryRulesJson || '{}');
     // 1. Calculate time windows
     let currentStartDate: Date | undefined;
     let previousStartDate: Date | undefined;
@@ -136,16 +141,8 @@ const getDashboardMetrics = unstable_cache(
     else if (type === 'music') AND.push({ type: { in: ["Audio", "Track"] } });
     else if (type === 'book') AND.push({ type: "Book" });
 
-    if (excludedLibraries.length > 0) {
-      AND.push({
-        NOT: {
-          OR: [
-            { type: { in: excludedLibraries } },
-            ...excludedLibraries.map((lib: string) => ({ collectionType: lib }))
-          ]
-        }
-      });
-    }
+    const excludedClause = buildExcludedMediaClause(excludedLibraries);
+    if (excludedClause) AND.push(excludedClause);
     const mediaWhere = AND.length > 0 ? { AND } : {};
 
     // 3. User & Hours (Current)
@@ -383,20 +380,13 @@ const getDashboardMetrics = unstable_cache(
     // Also load full histories with mediaId for completion calc
     const fullHistories = await prisma.playbackHistory.findMany({
       where: { startedAt: dateFilter, media: mediaWhere },
-      select: { durationWatched: true, media: { select: { title: true, durationMs: true } } },
+      select: { durationWatched: true, media: { select: { title: true, durationMs: true, type: true, collectionType: true } } },
     });
     fullHistories.forEach((h: any) => {
-      const mediaDurS = h.media?.durationMs ? Number(h.media.durationMs) / 1000 : 0;
-      if (mediaDurS <= 0 || h.durationWatched <= 0) {
-        // No duration info: count as partial
-        partial++;
-        return;
-      }
-      const pct = h.durationWatched / mediaDurS;
-      if (pct >= 0.8) completed++;
-      else if (pct >= 0.2) partial++;
-      else if (pct >= 0.1) abandoned++;
-      // pct < 0.1 = "zapped" — excluded from chart
+      const completion = getCompletionMetrics(h.media || {}, h.durationWatched, libraryRules);
+      if (completion.bucket === 'completed') completed++;
+      else if (completion.bucket === 'partial') partial++;
+      else if (completion.bucket === 'abandoned') abandoned++;
     });
     const completionData: CompletionData[] = [
       { name: "completed", value: completed },
@@ -521,8 +511,10 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
 
   const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
   const excludedLibraries = settings?.excludedLibraries || [];
+  const libraryRules = await loadLibraryRules();
 
-  const metrics = await getDashboardMetrics(type, timeRange, excludedLibraries, from, to);
+  const metrics = await getDashboardMetrics(type, timeRange, excludedLibraries, from, to, JSON.stringify(libraryRules));
+  const healthSnapshot = await getLogHealthSnapshot();
 
   const t = await getTranslations('dashboard');
   const tc = await getTranslations('common');
@@ -608,13 +600,13 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
   }
 
   return (
-    <div className="flex-col md:flex">
+    <div className="dashboard-page flex-col md:flex">
       <div className="flex-1 space-y-4 md:space-y-6 p-4 md:p-8 pt-4 md:pt-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
           <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6 min-w-0">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h2>
             <Tabs defaultValue={type || "all"} className="w-full md:w-[380px]">
-              <TabsList className="bg-zinc-900 border border-zinc-800 w-full">
+              <TabsList className="dashboard-tablist w-full">
                 <TabsTrigger value="all" asChild><Link href={`/?timeRange=${timeRange}`}>{tc('all')}</Link></TabsTrigger>
                 <TabsTrigger value="movie" asChild><Link href={`/?type=movie&timeRange=${timeRange}`}>{tc('movies')}</Link></TabsTrigger>
                 <TabsTrigger value="series" asChild><Link href={`/?type=series&timeRange=${timeRange}`}>{tc('series')}</Link></TabsTrigger>
@@ -624,17 +616,19 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
             </Tabs>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
-            <span className="text-xs text-zinc-400 bg-zinc-900/80 px-2 py-1.5 rounded-md border border-zinc-800 hidden sm:block">
+            <span className="dashboard-pill hidden sm:block rounded-md px-2 py-1.5 text-xs text-zinc-300">
               {t('cachedData')}
             </span>
             <TimeRangeSelector />
           </div>
         </div>
 
+        <SystemHealthWidgets initialSnapshot={healthSnapshot} />
+
         <HardwareMonitor />
 
         {/* Today Stats Banner */}
-        <div className="flex flex-wrap items-center gap-2 md:gap-3 px-3 md:px-4 py-3 bg-zinc-900/60 border border-zinc-800/50 rounded-xl backdrop-blur-sm">
+        <div className="dashboard-banner flex flex-wrap items-center gap-2 rounded-xl px-3 py-3 md:gap-3 md:px-4">
           <CalendarDays className="h-5 w-5 text-primary shrink-0" />
           <span className="text-sm font-medium text-zinc-300">{t('today')}</span>
           <div className="flex flex-wrap items-center gap-3 md:gap-6 ml-0 md:ml-2">
@@ -657,7 +651,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="bg-zinc-900 border border-zinc-800">
+          <TabsList className="dashboard-tablist">
             <TabsTrigger value="overview">{t('overviewTab')}</TabsTrigger>
             <TabsTrigger value="analytics">{t('detailedTab')}</TabsTrigger>
             <TabsTrigger value="network">{t('networkTab')}</TabsTrigger>

@@ -4,6 +4,8 @@ import { requireAdmin, isAuthError } from "@/lib/auth";
 import { readFileSync, existsSync } from "fs";
 import path from "path";
 import { apiT } from "@/lib/i18n-api";
+import { saveLibraryRules } from "@/lib/libraryRules";
+import { replaceSystemHealthState } from "@/lib/systemHealth";
 
 export const dynamic = "force-dynamic";
 
@@ -41,11 +43,13 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: await apiT('backupFormatInvalid') }, { status: 400 });
         }
 
-        const { users, media, playbackHistory, telemetryEvents, settings } = backup.data;
+        const { users, media, playbackHistory, telemetryEvents, settings, libraryRules, systemHealth } = backup.data;
 
         // Restore using transaction
         await prisma.$transaction(async (tx) => {
             // Clear existing data
+            await tx.systemHealthEvent.deleteMany();
+            await tx.systemHealthState.deleteMany();
             await tx.playbackHistory.deleteMany();
             await tx.media.deleteMany();
             await tx.user.deleteMany();
@@ -167,6 +171,13 @@ export async function POST(req: NextRequest) {
                 });
             }
         }, { timeout: 120000 });
+
+        if (libraryRules) {
+            await saveLibraryRules(libraryRules);
+        }
+        if (systemHealth) {
+            await replaceSystemHealthState(systemHealth);
+        }
 
         console.log(`[Auto-Backup Restore] Successfully restored from ${sanitized}`);
         return NextResponse.json({ success: true, message: await apiT('restoreSuccess', { fileName: sanitized }) });

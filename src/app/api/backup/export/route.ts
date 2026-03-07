@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin, isAuthError } from "@/lib/auth";
+import { loadLibraryRules } from "@/lib/libraryRules";
+import { readSystemHealthState } from "@/lib/systemHealth";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,8 @@ export async function GET(req: NextRequest) {
         const playbackHistory = await prisma.playbackHistory.findMany();
         const telemetryEvents = await (prisma as any).telemetryEvent.findMany();
         const settings = await prisma.globalSettings.findFirst({ where: { id: "global" } });
+        const libraryRules = await loadLibraryRules();
+        const systemHealth = await readSystemHealthState({ eventLimit: 200 });
 
         const backupContent = {
             version: "1.0",
@@ -25,6 +29,8 @@ export async function GET(req: NextRequest) {
                 playbackHistory,
                 telemetryEvents,
                 settings,
+                libraryRules,
+                systemHealth,
             }
         };
 

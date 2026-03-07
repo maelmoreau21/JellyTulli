@@ -2,13 +2,14 @@
 
 import { useTranslations } from 'next-intl';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { chartItemStyle, chartLabelStyle, chartPalette, chartTooltipStyle } from '@/lib/chartTheme';
 
 interface CategoryData {
     name: string;
     value: number; // in hours
 }
 
-const COLORS = ['#3b82f6', '#22c55e', '#eab308', '#a855f7', '#64748b'];
+const COLORS = chartPalette;
 
 export function CategoryPieChart({ data }: { data: CategoryData[] }) {
     const t = useTranslations('charts');
@@ -35,9 +36,9 @@ export function CategoryPieChart({ data }: { data: CategoryData[] }) {
                     ))}
                 </Pie>
                 <Tooltip
-                    contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }}
-                    labelStyle={{ color: '#a1a1aa' }}
-                    itemStyle={{ color: '#e4e4e7' }}
+                    contentStyle={chartTooltipStyle}
+                    labelStyle={chartLabelStyle}
+                    itemStyle={chartItemStyle}
                     formatter={formatTooltipValue}
                 />
                 <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px' }} />

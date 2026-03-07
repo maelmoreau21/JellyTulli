@@ -1,6 +1,8 @@
 import prisma from "@/lib/prisma";
 import redis from "@/lib/redis";
 import { getGeoLocation } from "@/lib/geoip";
+import { inferLibraryKey, isLibraryExcluded } from "@/lib/mediaPolicy";
+import { appendHealthEvent, markMonitorPoll } from "@/lib/systemHealth";
 
 let isMonitoringStarted = false;
 let monitorTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -82,6 +84,7 @@ export async function startMonitoring() {
                 await redis.del(`stream:${orphan.sessionId}`);
             }
             console.log(`[Monitor] Nettoyage au démarrage terminé.`);
+            await appendHealthEvent({ source: 'monitor', kind: 'startup-orphan-streams', message: `${orphanStreams.length} session(s) active(s) orpheline(s) nettoyée(s) au démarrage.`, details: { count: orphanStreams.length } });
         }
 
         // Also clean any orphan Redis stream keys left from a previous container
@@ -91,6 +94,7 @@ export async function startMonitoring() {
             for (const key of redisStreamKeys) {
                 await redis.del(key);
             }
+            await appendHealthEvent({ source: 'monitor', kind: 'startup-redis-orphans', message: `${redisStreamKeys.length} clé(s) Redis stream orpheline(s) supprimée(s).`, details: { count: redisStreamKeys.length } });
         }
 
         // Close any PlaybackHistory entries that have no endedAt (orphan from crash)
@@ -107,6 +111,7 @@ export async function startMonitoring() {
                     data: { endedAt, durationWatched: Math.min(durationS, 86400) }, // Cap at 24h max
                 });
             }
+            await appendHealthEvent({ source: 'monitor', kind: 'startup-open-playbacks', message: `${orphanPlaybacks.length} lecture(s) ouverte(s) fermée(s) automatiquement au démarrage.`, details: { count: orphanPlaybacks.length } });
         }
     } catch (err) {
         console.error("[Monitor] Erreur nettoyage au démarrage:", err);
@@ -133,10 +138,12 @@ export async function startMonitoring() {
                 // First error: log full detail
                 const msg = error instanceof Error ? error.message : String(error);
                 console.error(`[Monitor] Jellyfin injoignable (${process.env.JELLYFIN_URL}): ${msg}`);
+                await appendHealthEvent({ source: 'monitor', kind: 'error', message: 'Monitor Jellyfin en erreur.', details: { error: msg } });
             } else if (consecutiveErrors % 60 === 0) {
                 // Reminder every ~30 min (60 × 30s)
                 console.warn(`[Monitor] Jellyfin toujours injoignable après ${consecutiveErrors} tentatives.`);
             }
+            await markMonitorPoll({ active: false, sessionCount: 0, consecutiveErrors, error: error instanceof Error ? error.message : String(error), force: true });
             monitorTimeoutId = setTimeout(scheduleNextPoll, POLL_INTERVAL_ERROR);
         }
     }
@@ -160,9 +167,19 @@ async function pollJellyfinSessions(): Promise<boolean> {
     if (!response.ok) return false;
 
     const sessions = await response.json();
+    const settings = await prisma.globalSettings.findUnique({
+        where: { id: 'global' },
+        select: {
+            excludedLibraries: true,
+            discordWebhookUrl: true,
+            discordAlertsEnabled: true,
+            discordAlertCondition: true,
+        }
+    });
+    const excludedLibraries = settings?.excludedLibraries || [];
 
     // Only care about active playing sessions
-    const activeSessions = sessions.filter((s: any) => s.NowPlayingItem && s.PlayState);
+    const rawActiveSessions = sessions.filter((s: any) => s.NowPlayingItem && s.PlayState);
 
     // Fetch existing active streams from Redis to compute deltas
     const activeKeys = await redis.keys("stream:*");
@@ -174,10 +191,10 @@ async function pollJellyfinSessions(): Promise<boolean> {
             .map(s => JSON.parse(s).SessionId)
     );
 
-    const currentSessionIds = new Set(activeSessions.map((s: any) => s.Id));
+    const currentSessionIds = new Set<string>();
 
     // Handle Start & Progress
-    for (const session of activeSessions) {
+    for (const session of rawActiveSessions) {
         const SessionId = session.Id;
         const UserId = session.UserId;
         const UserName = session.UserName;
@@ -185,6 +202,19 @@ async function pollJellyfinSessions(): Promise<boolean> {
         const ItemId = Item?.Id;
         const ItemName = Item?.Name;
         const ItemType = Item?.Type;
+        const existingMedia = ItemId
+            ? await prisma.media.findUnique({
+                where: { jellyfinMediaId: ItemId },
+                select: { collectionType: true, type: true }
+            })
+            : null;
+        const effectiveCollectionType = Item?.CollectionType || existingMedia?.collectionType || inferLibraryKey({ type: ItemType });
+
+        if (isLibraryExcluded({ collectionType: effectiveCollectionType, type: ItemType || existingMedia?.type }, excludedLibraries)) {
+            continue;
+        }
+
+        currentSessionIds.add(SessionId);
         const ClientName = session.Client;
         const DeviceName = session.DeviceName;
         const IpAddress = cleanIpAddress(session.RemoteEndPoint);
@@ -309,6 +339,7 @@ async function pollJellyfinSessions(): Promise<boolean> {
         if (ItemId) {
             const updateData: any = { title: ItemName || "Unknown", type: ItemType || "Unknown" };
             if (DetectedResolution) updateData.resolution = DetectedResolution;
+            if (effectiveCollectionType) updateData.collectionType = effectiveCollectionType;
             await prisma.media.upsert({
                 where: { jellyfinMediaId: ItemId },
                 update: updateData,
@@ -316,6 +347,7 @@ async function pollJellyfinSessions(): Promise<boolean> {
                     jellyfinMediaId: ItemId,
                     title: ItemName || "Unknown",
                     type: ItemType || "Unknown",
+                    collectionType: effectiveCollectionType,
                     resolution: DetectedResolution,
                 },
             });
@@ -551,7 +583,6 @@ async function pollJellyfinSessions(): Promise<boolean> {
 
             // Discord Notifications
             try {
-                const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
                 const webhookUrl = settings?.discordWebhookUrl;
                 const isEnabled = settings?.discordAlertsEnabled;
                 const condition = settings?.discordAlertCondition || "ALL";
@@ -596,6 +627,8 @@ async function pollJellyfinSessions(): Promise<boolean> {
             }
         }
     }
+
+    await markMonitorPoll({ active: currentSessionIds.size > 0, sessionCount: currentSessionIds.size, consecutiveErrors: 0 });
 
     // Handle PlaybackStop (Sessions that disappeared)
     for (const previousSessionId of previousSessionIds) {
@@ -659,6 +692,7 @@ async function pollJellyfinSessions(): Promise<boolean> {
     // Cross-validation: clean DB ActiveStreams that Jellyfin doesn't know about anymore
     // This is the primary defense against ghost sessions after restart
     const allDbStreams = await prisma.activeStream.findMany();
+    let ghostSessionsCleaned = 0;
     for (const dbStream of allDbStreams) {
         if (!currentSessionIds.has(dbStream.sessionId)) {
             // This session is in our DB but NOT in Jellyfin — it's a ghost
@@ -689,7 +723,12 @@ async function pollJellyfinSessions(): Promise<boolean> {
             }
 
             await prisma.activeStream.delete({ where: { id: dbStream.id } });
+            ghostSessionsCleaned++;
         }
+    }
+
+    if (ghostSessionsCleaned > 0) {
+        await appendHealthEvent({ source: 'monitor', kind: 'ghost-cleanup', message: `${ghostSessionsCleaned} session(s) fantôme(s) supprimée(s) pendant le polling.`, details: { count: ghostSessionsCleaned } });
     }
 
     // Also clean orphan Redis stream keys that have no matching DB record
@@ -702,5 +741,5 @@ async function pollJellyfinSessions(): Promise<boolean> {
     }
 
     // Return whether there are active sessions (drives adaptive polling interval)
-    return activeSessions.length > 0;
+    return currentSessionIds.size > 0;
 }

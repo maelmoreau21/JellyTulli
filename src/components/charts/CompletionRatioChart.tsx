@@ -9,6 +9,7 @@ import {
     Tooltip,
     Legend,
 } from "recharts";
+import { chartItemStyle, chartLabelStyle, chartTooltipStyle } from "@/lib/chartTheme";
 
 export interface CompletionData {
     name: string;
@@ -18,8 +19,6 @@ export interface CompletionData {
 interface CompletionRatioChartProps {
     data: CompletionData[];
 }
-
-const ORDERED_COLORS = ["#22c55e", "#ef4444", "#f59e0b"]; // completed, abandoned, partial
 
 export function CompletionRatioChart({ data }: CompletionRatioChartProps) {
     const t = useTranslations('dashboard');
@@ -52,14 +51,9 @@ export function CompletionRatioChart({ data }: CompletionRatioChartProps) {
                     ))}
                 </Pie>
                 <Tooltip
-                    contentStyle={{
-                        backgroundColor: "#18181b",
-                        border: "1px solid #27272a",
-                        borderRadius: "8px",
-                        color: "#f4f4f5",
-                    }}
-                    labelStyle={{ color: "#a1a1aa" }}
-                    itemStyle={{ color: "#e4e4e7" }}
+                    contentStyle={chartTooltipStyle}
+                    labelStyle={chartLabelStyle}
+                    itemStyle={chartItemStyle}
                     formatter={(value: number, name: string) => [
                         `${value} sessions`,
                         name,

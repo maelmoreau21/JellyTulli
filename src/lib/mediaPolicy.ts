@@ -1,0 +1,228 @@
+type MediaLike = {
+    collectionType?: string | null;
+    type?: string | null;
+    durationMs?: number | bigint | null;
+};
+
+export type CompletionBucket = 'completed' | 'partial' | 'abandoned' | 'skipped';
+export type LibraryRule = {
+    completionEnabled: boolean;
+    completedThreshold: number;
+    partialThreshold: number;
+    abandonedThreshold: number;
+};
+export type LibraryRuleMap = Record<string, LibraryRule>;
+
+const LIBRARY_ALIASES: Record<string, string> = {
+    movie: 'movies',
+    movies: 'movies',
+    film: 'movies',
+    films: 'movies',
+    tv: 'tvshows',
+    tvshow: 'tvshows',
+    tvshows: 'tvshows',
+    series: 'tvshows',
+    show: 'tvshows',
+    shows: 'tvshows',
+    music: 'music',
+    musics: 'music',
+    book: 'books',
+    books: 'books',
+    audiobook: 'books',
+    audiobooks: 'books',
+    photo: 'photos',
+    photos: 'photos',
+    homevideo: 'homevideos',
+    homevideos: 'homevideos',
+    livetv: 'livetv',
+};
+
+const LIBRARY_TYPE_MAP: Record<string, string[]> = {
+    movies: ['Movie'],
+    tvshows: ['Series', 'Season', 'Episode'],
+    music: ['Audio', 'Track', 'MusicAlbum'],
+    books: ['Book', 'AudioBook'],
+    photos: ['Photo'],
+    homevideos: ['Video'],
+};
+
+const LIBRARY_ORDER = ['movies', 'tvshows', 'music', 'books', 'homevideos', 'photos', 'livetv'];
+
+function cleanKey(value: string) {
+    return value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+}
+
+export function normalizeLibraryKey(value: string | null | undefined): string | null {
+    if (!value) return null;
+    const cleaned = cleanKey(value);
+    return LIBRARY_ALIASES[cleaned] || cleaned || null;
+}
+
+export function inferLibraryKey(media: MediaLike): string | null {
+    const explicit = normalizeLibraryKey(media.collectionType);
+    if (explicit) return explicit;
+
+    const normalizedType = normalizeLibraryKey(media.type);
+    if (!normalizedType) return null;
+
+    if (['movie'].includes(normalizedType)) return 'movies';
+    if (['series', 'season', 'episode'].includes(normalizedType)) return 'tvshows';
+    if (['audio', 'track', 'musicalbum'].includes(normalizedType)) return 'music';
+    if (['book', 'audiobook'].includes(normalizedType)) return 'books';
+    if (['photo'].includes(normalizedType)) return 'photos';
+    if (['video'].includes(normalizedType)) return 'homevideos';
+
+    return normalizedType;
+}
+
+export function isLibraryExcluded(media: MediaLike, excludedLibraries: string[] | null | undefined): boolean {
+    if (!excludedLibraries || excludedLibraries.length === 0) return false;
+
+    const normalizedExcluded = new Set(
+        excludedLibraries
+            .map((value) => normalizeLibraryKey(value))
+            .filter((value): value is string => Boolean(value))
+    );
+
+    const inferred = inferLibraryKey(media);
+    if (inferred && normalizedExcluded.has(inferred)) return true;
+
+    const explicitCollection = normalizeLibraryKey(media.collectionType);
+    if (explicitCollection && normalizedExcluded.has(explicitCollection)) return true;
+
+    const explicitType = normalizeLibraryKey(media.type);
+    if (explicitType && normalizedExcluded.has(explicitType)) return true;
+
+    return false;
+}
+
+export function buildExcludedMediaClause(excludedLibraries: string[] | null | undefined) {
+    if (!excludedLibraries || excludedLibraries.length === 0) return undefined;
+
+    const originalValues = Array.from(new Set(excludedLibraries.filter(Boolean)));
+    const normalizedValues = Array.from(
+        new Set(
+            excludedLibraries
+                .map((value) => normalizeLibraryKey(value))
+                .filter((value): value is string => Boolean(value))
+        )
+    );
+
+    const typeValues = Array.from(
+        new Set(normalizedValues.flatMap((value) => LIBRARY_TYPE_MAP[value] || []))
+    );
+
+    const orClauses: Array<Record<string, unknown>> = [];
+
+    if (originalValues.length > 0) {
+        orClauses.push({ collectionType: { in: originalValues } });
+        orClauses.push({ type: { in: originalValues } });
+    }
+
+    if (normalizedValues.length > 0) {
+        orClauses.push({ collectionType: { in: normalizedValues } });
+    }
+
+    if (typeValues.length > 0) {
+        orClauses.push({ type: { in: typeValues } });
+    }
+
+    return orClauses.length > 0 ? { NOT: { OR: orClauses } } : undefined;
+}
+
+export function getAvailableLibraryKeys(values: Array<string | null | undefined>) {
+    const normalized = new Set<string>();
+
+    for (const key of LIBRARY_ORDER) {
+        normalized.add(key);
+    }
+
+    values.forEach((value) => {
+        const normalizedValue = normalizeLibraryKey(value);
+        if (normalizedValue) normalized.add(normalizedValue);
+    });
+
+    return Array.from(normalized).sort((left, right) => {
+        const leftIndex = LIBRARY_ORDER.indexOf(left);
+        const rightIndex = LIBRARY_ORDER.indexOf(right);
+
+        if (leftIndex !== -1 && rightIndex !== -1) return leftIndex - rightIndex;
+        if (leftIndex !== -1) return -1;
+        if (rightIndex !== -1) return 1;
+        return left.localeCompare(right);
+    });
+}
+
+function clampCompletion(percent: number) {
+    return Math.max(0, Math.min(100, percent));
+}
+
+export function getDefaultLibraryRule(libraryKey: string | null | undefined): LibraryRule {
+    const normalized = normalizeLibraryKey(libraryKey);
+    if (normalized === 'music') {
+        return {
+            completionEnabled: true,
+            completedThreshold: 60,
+            partialThreshold: 30,
+            abandonedThreshold: 12,
+        };
+    }
+
+    return {
+        completionEnabled: true,
+        completedThreshold: 80,
+        partialThreshold: 20,
+        abandonedThreshold: 10,
+    };
+}
+
+export function sanitizeLibraryRule(input: Partial<LibraryRule> | null | undefined, libraryKey: string | null | undefined): LibraryRule {
+    const defaults = getDefaultLibraryRule(libraryKey);
+    const completedThreshold = Math.max(1, Math.min(100, Number(input?.completedThreshold ?? defaults.completedThreshold)));
+    const partialThreshold = Math.max(1, Math.min(completedThreshold - 1, Number(input?.partialThreshold ?? defaults.partialThreshold)));
+    const abandonedThreshold = Math.max(0, Math.min(partialThreshold - 1, Number(input?.abandonedThreshold ?? defaults.abandonedThreshold)));
+
+    return {
+        completionEnabled: input?.completionEnabled ?? defaults.completionEnabled,
+        completedThreshold,
+        partialThreshold,
+        abandonedThreshold,
+    };
+}
+
+export function sanitizeLibraryRules(input: LibraryRuleMap | null | undefined): LibraryRuleMap {
+    const output: LibraryRuleMap = {};
+    const keys = new Set<string>([...LIBRARY_ORDER, ...Object.keys(input || {})]);
+    for (const key of keys) {
+        const normalized = normalizeLibraryKey(key);
+        if (!normalized) continue;
+        output[normalized] = sanitizeLibraryRule(input?.[key], normalized);
+    }
+    return output;
+}
+
+export function resolveLibraryRule(media: MediaLike, rules?: LibraryRuleMap | null): LibraryRule {
+    const libraryKey = inferLibraryKey(media);
+    if (!libraryKey) return getDefaultLibraryRule(null);
+    if (!rules) return getDefaultLibraryRule(libraryKey);
+    return sanitizeLibraryRule(rules[libraryKey], libraryKey);
+}
+
+export function getCompletionMetrics(media: MediaLike, durationWatched: number, rules?: LibraryRuleMap | null) {
+    const durationSeconds = media.durationMs ? Number(media.durationMs) / 1000 : 0;
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || durationWatched <= 0) {
+        return { percent: 0, bucket: 'skipped' as CompletionBucket };
+    }
+
+    const percent = clampCompletion((durationWatched / durationSeconds) * 100);
+    const rule = resolveLibraryRule(media, rules);
+    if (!rule.completionEnabled) {
+        return { percent, bucket: 'skipped' as CompletionBucket };
+    }
+
+    if (percent >= rule.completedThreshold) return { percent, bucket: 'completed' as CompletionBucket };
+    if (percent >= rule.partialThreshold) return { percent, bucket: 'partial' as CompletionBucket };
+    if (percent >= rule.abandonedThreshold) return { percent, bucket: 'abandoned' as CompletionBucket };
+
+    return { percent, bucket: 'skipped' as CompletionBucket };
+}

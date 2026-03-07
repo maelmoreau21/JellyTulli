@@ -6,9 +6,12 @@ import { StandardAreaChart, StandardBarChart, StandardPieChart } from "@/compone
 import { StackedBarChart, StackedAreaChart } from "@/components/charts/StackedMetricsCharts";
 import { getTranslations, getLocale } from 'next-intl/server';
 import { formatHour } from "@/lib/utils";
+import { getCompletionMetrics } from "@/lib/mediaPolicy";
+import { loadLibraryRules } from "@/lib/libraryRules";
 
 const getGranularData = unstable_cache(
-    async (type: string | undefined, timeRange: string, excludedLibraries: string[], locale: string) => {
+    async (type: string | undefined, timeRange: string, excludedLibraries: string[], locale: string, libraryRulesJson: string) => {
+        const libraryRules = JSON.parse(libraryRulesJson || '{}');
         let currentStartDate = new Date();
         if (timeRange === "24h") currentStartDate.setDate(currentStartDate.getDate() - 1);
         else if (timeRange === "7d") currentStartDate.setDate(currentStartDate.getDate() - 7);
@@ -90,34 +93,25 @@ const getGranularData = unstable_cache(
 
             // Completion Rate Aggregation
             if (h.media.durationMs) {
-                const durationMs = Number(h.media.durationMs);
-                if (durationMs > 0) {
-                    const durationSecs = durationMs / 1000;
-                    let comp = (h.durationWatched / durationSecs) * 100;
-                    if (comp > 100) comp = 100;
+                const completion = getCompletionMetrics(h.media, h.durationWatched, libraryRules);
+                if (!completionMap.has(lib)) {
+                    completionMap.set(lib, { totalCompletion: 0, sessions: 0 });
+                }
+                const compEntry = completionMap.get(lib)!;
+                compEntry.totalCompletion += completion.percent;
+                compEntry.sessions += 1;
 
-                    // 1. Avg per Library
-                    if (!completionMap.has(lib)) {
-                        completionMap.set(lib, { totalCompletion: 0, sessions: 0 });
-                    }
-                    const compEntry = completionMap.get(lib)!;
-                    compEntry.totalCompletion += comp;
-                    compEntry.sessions += 1;
+                if (completion.bucket === 'skipped') dropSkipped++;
+                else if (completion.bucket === 'abandoned') dropAbandoned++;
+                else if (completion.bucket === 'partial') dropAlmost++;
+                else dropFinished++;
 
-                    // 2. Segmentation
-                    if (comp < 10) dropSkipped++;
-                    else if (comp < 50) dropAbandoned++;
-                    else if (comp < 80) dropAlmost++;
-                    else dropFinished++;
-
-                    // 3. Top Abandoned Media Tracker
-                    if (comp < 80) { // Only track those visibly dropped
-                        const mKey = h.media.title;
-                        if (!mediaDropMap.has(mKey)) mediaDropMap.set(mKey, { title: mKey, mediaId: h.media.jellyfinMediaId || '', completion: 0, count: 0 });
-                        const mEntry = mediaDropMap.get(mKey)!;
-                        mEntry.completion += comp;
-                        mEntry.count++;
-                    }
+                if (completion.bucket !== 'completed' && completion.bucket !== 'skipped') {
+                    const mKey = h.media.title;
+                    if (!mediaDropMap.has(mKey)) mediaDropMap.set(mKey, { title: mKey, mediaId: h.media.jellyfinMediaId || '', completion: 0, count: 0 });
+                    const mEntry = mediaDropMap.get(mKey)!;
+                    mEntry.completion += completion.percent;
+                    mEntry.count++;
                 }
             }
 
@@ -195,7 +189,8 @@ const getGranularData = unstable_cache(
 
 export async function GranularAnalysis({ type, timeRange, excludedLibraries }: { type?: string, timeRange: string, excludedLibraries: string[] }) {
     const locale = await getLocale();
-    const data = await getGranularData(type, timeRange, excludedLibraries, locale);
+    const rules = await loadLibraryRules();
+    const data = await getGranularData(type, timeRange, excludedLibraries, locale, JSON.stringify(rules));
     const t = await getTranslations('granular');
 
     return (

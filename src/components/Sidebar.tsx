@@ -17,7 +17,8 @@ import {
     Sparkles,
     Info,
     Menu,
-    X
+    X,
+    HeartPulse
 } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 import { SearchBar } from "./SearchBar";
@@ -29,6 +30,7 @@ const adminNavigationKeys = [
     { key: 'recentlyAdded', href: '/recent', icon: Sparkles },
     { key: 'library', href: '/media', icon: Film },
     { key: 'logs', href: '/logs', icon: ScrollText },
+    { label: 'Santé des logs', href: '/admin/log-health', icon: HeartPulse },
     { key: 'users', href: '/users', icon: Users },
     { key: 'cleanup', href: '/admin/cleanup', icon: Eraser },
     { key: 'settings', href: '/settings', icon: Settings },
@@ -55,7 +57,7 @@ export function Sidebar() {
 
     // Build navigation based on role
     const navigation = isAdmin
-        ? adminNavigationKeys.map(item => ({ name: t(item.key as any), href: item.href, icon: item.icon }))
+        ? adminNavigationKeys.map(item => ({ name: 'key' in item ? t(item.key as any) : item.label, href: item.href, icon: item.icon }))
         : [
             { name: t('myProfile'), href: `/users/${jellyfinUserId || ''}`, icon: UserCircle },
             { name: t('myWrapped'), href: `/wrapped/${jellyfinUserId || ''}`, icon: Gift },
@@ -63,9 +65,11 @@ export function Sidebar() {
 
     const sidebarContent = (
         <>
-            <div className="flex h-16 shrink-0 items-center px-6">
-                <Link href={isAdmin ? "/" : `/users/${jellyfinUserId || ''}`} className="text-xl font-bold tracking-tight text-primary flex items-center gap-2 hover:opacity-80 transition-opacity">
-                    <PlayCircle className="w-6 h-6 text-primary" />
+            <div className="flex h-16 shrink-0 items-center px-6 border-b border-white/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0))]">
+                <Link href={isAdmin ? "/" : `/users/${jellyfinUserId || ''}`} className="text-xl font-bold tracking-tight text-zinc-50 flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[linear-gradient(135deg,rgba(8,145,178,0.24),rgba(245,158,11,0.18))] ring-1 ring-white/10">
+                        <PlayCircle className="w-5 h-5 text-cyan-300" />
+                    </div>
                     <span>JellyTulli</span>
                 </Link>
                 {/* Close button — mobile only */}
@@ -89,13 +93,13 @@ export function Sidebar() {
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`group flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${isActive
-                                    ? "bg-primary/10 text-primary"
-                                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-50"
+                                className={`group flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${isActive
+                                    ? "bg-[linear-gradient(135deg,rgba(8,145,178,0.16),rgba(245,158,11,0.08))] text-zinc-50 ring-1 ring-cyan-400/15"
+                                    : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-50"
                                     }`}
                             >
                                 <item.icon
-                                    className={`mr-3 h-5 w-5 shrink-0 transition-colors ${isActive ? "text-primary" : "text-zinc-500 group-hover:text-zinc-300"
+                                    className={`mr-3 h-5 w-5 shrink-0 transition-colors ${isActive ? "text-cyan-300" : "text-zinc-500 group-hover:text-amber-300"
                                         }`}
                                     aria-hidden="true"
                                 />
@@ -106,7 +110,7 @@ export function Sidebar() {
                 </nav>
             </div>
 
-            <div className="border-t border-zinc-800 p-4 space-y-3">
+            <div className="border-t border-white/5 p-4 space-y-3 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0))]">
                 <LanguageSwitcher />
                 <LogoutButton className="w-full justify-start text-zinc-400 hover:text-zinc-50 hover:bg-zinc-800/50" />
                 <div className="text-center">

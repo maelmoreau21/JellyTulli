@@ -1,8 +1,9 @@
 "use client";
 
 import { ResponsiveContainer, BarChart, Bar, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend, PieChart, Pie, Cell } from "recharts";
+import { chartAxisColor, chartGridColor, chartItemStyle, chartLabelStyle, chartPalette, chartTooltipStyle } from "@/lib/chartTheme";
 
-const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#eab308', '#22c55e'];
+const COLORS = chartPalette;
 
 interface BarChartProps {
     data: any[];
@@ -18,11 +19,17 @@ export function StandardBarChart({ data, dataKey, fill, name, horizontal, xAxisK
         return (
             <ResponsiveContainer width="100%" height={300} minHeight={300}>
                 <BarChart data={data} layout="vertical" margin={{ top: 20, right: 20, left: 40, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#27272a" />
-                    <XAxis type="number" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis dataKey={xAxisKey} type="category" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} width={100} />
-                    <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }} labelStyle={{ color: '#a1a1aa' }} itemStyle={{ color: '#e4e4e7' }} />
-                    <Bar dataKey={dataKey} fill={fill} radius={[0, 4, 4, 0]} name={name} />
+                    <defs>
+                        <linearGradient id="standardBarGradientHorizontal" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor={fill} stopOpacity={0.95} />
+                            <stop offset="100%" stopColor="#e879f9" stopOpacity={0.88} />
+                        </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 7" horizontal={false} stroke={chartGridColor} />
+                    <XAxis type="number" stroke={chartAxisColor} fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis dataKey={xAxisKey} type="category" stroke={chartAxisColor} fontSize={12} tickLine={false} axisLine={false} width={100} />
+                    <Tooltip contentStyle={chartTooltipStyle} labelStyle={chartLabelStyle} itemStyle={chartItemStyle} />
+                    <Bar dataKey={dataKey} fill="url(#standardBarGradientHorizontal)" radius={[0, 10, 10, 0]} name={name} />
                 </BarChart>
             </ResponsiveContainer>
         );
@@ -31,11 +38,17 @@ export function StandardBarChart({ data, dataKey, fill, name, horizontal, xAxisK
     return (
         <ResponsiveContainer width="100%" height={300} minHeight={300}>
             <BarChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
-                <XAxis dataKey={xAxisKey} stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }} labelStyle={{ color: '#a1a1aa' }} itemStyle={{ color: '#e4e4e7' }} />
-                <Bar dataKey={dataKey} fill={fill} radius={[4, 4, 0, 0]} name={name} />
+                <defs>
+                    <linearGradient id="standardBarGradientVertical" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={fill} stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#0f172a" stopOpacity={0.4} />
+                    </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 7" vertical={false} stroke={chartGridColor} />
+                <XAxis dataKey={xAxisKey} stroke={chartAxisColor} fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke={chartAxisColor} fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={chartTooltipStyle} labelStyle={chartLabelStyle} itemStyle={chartItemStyle} />
+                <Bar dataKey={dataKey} fill="url(#standardBarGradientVertical)" radius={[10, 10, 0, 0]} name={name} />
             </BarChart>
         </ResponsiveContainer>
     );
@@ -45,11 +58,17 @@ export function StandardAreaChart({ data, dataKey, stroke, name }: { data: any[]
     return (
         <ResponsiveContainer width="100%" height={300} minHeight={300}>
             <AreaChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
-                <XAxis dataKey="time" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }} labelStyle={{ color: '#a1a1aa' }} itemStyle={{ color: '#e4e4e7' }} />
-                <Area type="monotone" dataKey={dataKey} stroke={stroke} fill={stroke} fillOpacity={0.6} name={name} />
+                <defs>
+                    <linearGradient id="standardAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={stroke} stopOpacity={0.55} />
+                        <stop offset="100%" stopColor={stroke} stopOpacity={0} />
+                    </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 7" vertical={false} stroke={chartGridColor} />
+                <XAxis dataKey="time" stroke={chartAxisColor} fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke={chartAxisColor} fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={chartTooltipStyle} labelStyle={chartLabelStyle} itemStyle={chartItemStyle} />
+                <Area type="monotone" dataKey={dataKey} stroke={stroke} strokeWidth={2.4} fill="url(#standardAreaGradient)" name={name} />
             </AreaChart>
         </ResponsiveContainer>
     );
@@ -82,9 +101,9 @@ export function StandardPieChart({ data, nameKey, dataKey }: { data: any[], name
                     ))}
                 </Pie>
                 <Tooltip
-                    contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }}
-                    labelStyle={{ color: '#a1a1aa' }}
-                    itemStyle={{ color: '#f4f4f5' }}
+                    contentStyle={chartTooltipStyle}
+                    labelStyle={chartLabelStyle}
+                    itemStyle={chartItemStyle}
                 />
                 <Legend
                     wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}

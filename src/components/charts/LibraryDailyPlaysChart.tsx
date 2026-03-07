@@ -12,6 +12,7 @@ import {
     Legend,
     ResponsiveContainer,
 } from 'recharts';
+import { chartAxisColor, chartGridColor, chartItemStyle, chartLabelStyle, chartTooltipStyle } from '@/lib/chartTheme';
 
 interface LibraryPlaysData {
     time: string;
@@ -60,25 +61,25 @@ export function LibraryDailyPlaysChart({ data }: { data: LibraryPlaysData[] }) {
                 data={data}
                 margin={{ top: 20, right: 30, left: -10, bottom: 5 }}
             >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
+                <CartesianGrid strokeDasharray="3 7" vertical={false} stroke={chartGridColor} />
                 <XAxis
                     dataKey="time"
-                    stroke="#52525b"
+                    stroke={chartAxisColor}
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
                 />
                 <YAxis
-                    stroke="#52525b"
+                    stroke={chartAxisColor}
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
                     allowDecimals={false}
                 />
                 <Tooltip
-                    contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }}
-                    labelStyle={{ color: '#a1a1aa' }}
-                    itemStyle={{ color: '#e4e4e7' }}
+                    contentStyle={chartTooltipStyle}
+                    labelStyle={chartLabelStyle}
+                    itemStyle={chartItemStyle}
                     formatter={formatTooltipValue}
                 />
                 <Legend
@@ -93,8 +94,9 @@ export function LibraryDailyPlaysChart({ data }: { data: LibraryPlaysData[] }) {
                             type="monotone"
                             dataKey={s.key}
                             stroke={s.color}
-                            strokeWidth={2}
+                            strokeWidth={2.6}
                             dot={false}
+                            activeDot={{ r: 4, strokeWidth: 0, fill: s.color }}
                             name={t(s.nameKey)}
                             connectNulls
                         />

@@ -9,6 +9,7 @@ import {
     Tooltip,
     Legend
 } from "recharts";
+import { chartItemStyle, chartLabelStyle, chartPalette, chartTooltipStyle } from "@/lib/chartTheme";
 
 export interface PlatformData {
     name: string;
@@ -19,7 +20,7 @@ interface PlatformDistributionChartProps {
     data: PlatformData[];
 }
 
-const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#10b981', '#0ea5e9'];
+const COLORS = chartPalette;
 
 export function PlatformDistributionChart({ data }: PlatformDistributionChartProps) {
     const t = useTranslations('charts');
@@ -50,9 +51,9 @@ export function PlatformDistributionChart({ data }: PlatformDistributionChartPro
                     ))}
                 </Pie>
                 <Tooltip
-                    contentStyle={{ backgroundColor: "#18181b", border: "1px solid #27272a", borderRadius: "8px", color: "#f4f4f5" }}
-                    labelStyle={{ color: "#a1a1aa" }}
-                    itemStyle={{ color: "#e4e4e7" }}
+                    contentStyle={chartTooltipStyle}
+                    labelStyle={chartLabelStyle}
+                    itemStyle={chartItemStyle}
                 />
                 <Legend
                     verticalAlign="bottom"

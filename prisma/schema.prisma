@@ -140,6 +140,7 @@ model GlobalSettings {
   discordAlertCondition String   @default("ALL") // Filtre d'envoi ('ALL', 'TRANSCODE_ONLY', 'NEW_IP_ONLY')
   discordAlertsEnabled  Boolean  @default(false)
   excludedLibraries     String[] @default([]) // Filtre les types de collection (ex: Photo, HomeVideos)
+  libraryRules          Json?
   monitorIntervalActive Int      @default(1000)  // Polling interval when sessions active (ms)
   monitorIntervalIdle   Int      @default(5000)  // Polling interval when idle (ms)
   syncCronHour          Int      @default(3)     // Hour (0-23) for daily full sync
@@ -149,5 +150,29 @@ model GlobalSettings {
   defaultLocale         String   @default("fr")  // Default language for new users (fr, en)
   timeFormat            String   @default("24h") // Time display format: "12h" or "24h"
   updatedAt             DateTime @updatedAt
+}
+
+model SystemHealthState {
+  id        String              @id @default("global")
+  monitor   Json
+  sync      Json
+  backup    Json
+  updatedAt DateTime            @updatedAt
+  events    SystemHealthEvent[]
+}
+
+model SystemHealthEvent {
+  id        String            @id @default(uuid())
+  stateId   String            @default("global")
+  source    String
+  kind      String
+  message   String
+  details   Json?
+  createdAt DateTime          @default(now())
+  state     SystemHealthState @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([source, createdAt])
+  @@index([kind, createdAt])
 }
 

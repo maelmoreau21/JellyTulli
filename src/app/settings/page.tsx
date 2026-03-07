@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations, useLocale } from 'next-intl';
 
+type LibraryRule = {
+    completionEnabled: boolean;
+    completedThreshold: number;
+    partialThreshold: number;
+    abandonedThreshold: number;
+};
+
 export default function SettingsPage() {
     const t = useTranslations('settings');
     const tc = useTranslations('common');
@@ -23,7 +30,9 @@ export default function SettingsPage() {
     const [discordEnabled, setDiscordEnabled] = useState(false);
     const [discordUrl, setDiscordUrl] = useState("");
     const [discordAlertCondition, setDiscordAlertCondition] = useState("ALL");
-    const [excludedLibraries, setExcludedLibraries] = useState("");
+    const [excludedLibraries, setExcludedLibraries] = useState<string[]>([]);
+    const [availableLibraries, setAvailableLibraries] = useState<string[]>([]);
+    const [libraryRules, setLibraryRules] = useState<Record<string, LibraryRule>>({});
 
     // Monitor settings
     const [monitorActive, setMonitorActive] = useState(1000);
@@ -62,7 +71,9 @@ export default function SettingsPage() {
                     setDiscordEnabled(data.discordAlertsEnabled || false);
                     setDiscordUrl(data.discordWebhookUrl || "");
                     setDiscordAlertCondition(data.discordAlertCondition || "ALL");
-                    setExcludedLibraries((data.excludedLibraries || []).join(", "));
+                    setExcludedLibraries(data.excludedLibraries || []);
+                    setAvailableLibraries(data.availableLibraries || []);
+                    setLibraryRules(data.libraryRules || {});
                     setMonitorActive(data.monitorIntervalActive ?? 1000);
                     setMonitorIdle(data.monitorIntervalIdle ?? 5000);
                     setSyncCronHour(data.syncCronHour ?? 3);
@@ -103,7 +114,8 @@ export default function SettingsPage() {
                     discordWebhookUrl: discordUrl,
                     discordAlertCondition: discordAlertCondition,
                     discordAlertsEnabled: discordEnabled,
-                    excludedLibraries: excludedLibraries.split(',').map(s => s.trim()).filter(s => s)
+                    excludedLibraries,
+                    libraryRules,
                 })
             });
             if (res.ok) {
@@ -228,6 +240,39 @@ export default function SettingsPage() {
             setIsRestoring(false);
         }
         if (fileInputRef.current) { fileInputRef.current.value = ""; }
+    };
+
+    const toggleExcludedLibrary = (libraryKey: string) => {
+        setExcludedLibraries((current) => (
+            current.includes(libraryKey)
+                ? current.filter((entry) => entry !== libraryKey)
+                : [...current, libraryKey]
+        ));
+    };
+
+    const formatLibraryLabel = (libraryKey: string) => {
+        const normalized = libraryKey.toLowerCase();
+        if (normalized === 'movies') return tc('movies');
+        if (normalized === 'tvshows') return tc('series');
+        if (normalized === 'music') return tc('music');
+        if (normalized === 'books') return tc('books');
+        if (normalized === 'homevideos') return 'Home Videos';
+        if (normalized === 'photos') return 'Photos';
+        if (normalized === 'livetv') return 'Live TV';
+        return libraryKey.replace(/(^|[-_\s])\w/g, (match) => match.toUpperCase()).replace(/[-_]/g, ' ');
+    };
+
+    const updateRule = (libraryKey: string, patch: Partial<LibraryRule>) => {
+        setLibraryRules((current) => ({
+            ...current,
+            [libraryKey]: {
+                completionEnabled: current[libraryKey]?.completionEnabled ?? true,
+                completedThreshold: current[libraryKey]?.completedThreshold ?? (libraryKey === 'music' ? 60 : 80),
+                partialThreshold: current[libraryKey]?.partialThreshold ?? (libraryKey === 'music' ? 30 : 20),
+                abandonedThreshold: current[libraryKey]?.abandonedThreshold ?? (libraryKey === 'music' ? 12 : 10),
+                ...patch,
+            }
+        }));
     };
 
     return (
@@ -439,7 +484,32 @@ export default function SettingsPage() {
                         <div className="border-t border-zinc-800/50 pt-6 mt-6">
                             <Label htmlFor="excluded-libraries" className="text-base">{t('collectionFilter')}</Label>
                             <p className="text-sm text-muted-foreground mb-4">{t('collectionFilterDesc')}</p>
-                            <Input id="excluded-libraries" placeholder="Photo, HomeVideos" value={excludedLibraries} onChange={(e) => setExcludedLibraries(e.target.value)} className="font-mono text-sm" />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {availableLibraries.map((libraryKey) => {
+                                    const enabled = !excludedLibraries.includes(libraryKey);
+                                    return (
+                                        <button
+                                            key={libraryKey}
+                                            type="button"
+                                            onClick={() => toggleExcludedLibrary(libraryKey)}
+                                            className={`rounded-xl border px-4 py-3 text-left transition-all ${enabled
+                                                ? 'border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/15'
+                                                : 'border-zinc-800 bg-black/30 hover:bg-zinc-900'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <div className="font-medium text-zinc-100">{formatLibraryLabel(libraryKey)}</div>
+                                                    <div className="text-xs text-zinc-400 font-mono mt-1">{libraryKey}</div>
+                                                </div>
+                                                <div className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${enabled ? 'bg-emerald-500/15 text-emerald-300' : 'bg-zinc-800 text-zinc-400'}`}>
+                                                    {enabled ? 'Log actif' : 'Ignoré'}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </CardContent>
                     <CardFooter>
@@ -447,6 +517,55 @@ export default function SettingsPage() {
                             <Save className={`w-4 h-4 ${isSavingSettings ? 'animate-pulse' : ''}`} />
                             {isSavingSettings ? tc('saving') : t('saveSettings')}
                         </button>
+                    </CardFooter>
+                </Card>
+
+                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
+                    <CardHeader>
+                        <CardTitle>Règles par bibliothèque</CardTitle>
+                        <CardDescription>Contrôlez les abandons et le taux de complétion par bibliothèque. Vous pouvez désactiver complètement la complétion pour une bibliothèque, comme la musique.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {availableLibraries.map((libraryKey) => {
+                            const rule = libraryRules[libraryKey] || {
+                                completionEnabled: true,
+                                completedThreshold: libraryKey === 'music' ? 60 : 80,
+                                partialThreshold: libraryKey === 'music' ? 30 : 20,
+                                abandonedThreshold: libraryKey === 'music' ? 12 : 10,
+                            };
+
+                            return (
+                                <div key={libraryKey} className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
+                                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                        <div>
+                                            <div className="font-medium text-zinc-100">{formatLibraryLabel(libraryKey)}</div>
+                                            <div className="mt-1 text-xs text-zinc-500 font-mono">{libraryKey}</div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <Label htmlFor={`rule-${libraryKey}`} className="text-sm text-zinc-300">Analyser la complétion</Label>
+                                            <Switch id={`rule-${libraryKey}`} checked={rule.completionEnabled} onCheckedChange={(checked) => updateRule(libraryKey, { completionEnabled: checked })} />
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                                        <div className="space-y-2">
+                                            <Label>Terminé à partir de (%)</Label>
+                                            <Input type="number" min={1} max={100} disabled={!rule.completionEnabled} value={rule.completedThreshold} onChange={(e) => updateRule(libraryKey, { completedThreshold: parseInt(e.target.value, 10) || 0 })} className="font-mono" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Partiel à partir de (%)</Label>
+                                            <Input type="number" min={1} max={99} disabled={!rule.completionEnabled} value={rule.partialThreshold} onChange={(e) => updateRule(libraryKey, { partialThreshold: parseInt(e.target.value, 10) || 0 })} className="font-mono" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Abandonné à partir de (%)</Label>
+                                            <Input type="number" min={0} max={98} disabled={!rule.completionEnabled} value={rule.abandonedThreshold} onChange={(e) => updateRule(libraryKey, { abandonedThreshold: parseInt(e.target.value, 10) || 0 })} className="font-mono" />
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </CardContent>
+                    <CardFooter>
+                        <p className="text-xs text-zinc-500">Ces seuils s’appliquent au dashboard, aux statistiques utilisateur et au nettoyage des médias abandonnés.</p>
                     </CardFooter>
                 </Card>
 

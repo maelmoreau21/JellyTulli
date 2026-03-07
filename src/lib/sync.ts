@@ -1,4 +1,5 @@
 import prisma from "./prisma";
+import { appendHealthEvent, markSyncFinished, markSyncStarted } from "@/lib/systemHealth";
 
 /**
  * Fonction maîtresse de synchronisation de la librairie Jellyfin.
@@ -9,6 +10,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
     const mode = options?.recentOnly ? 'récente (7 derniers jours)' : 'complète';
     console.log(`[Sync] Démarrage de la synchronisation ${mode} de la librairie Jellyfin...`);
     console.log(`[Sync] JELLYFIN_URL = ${process.env.JELLYFIN_URL || '(not set)'}`);
+    await markSyncStarted(options?.recentOnly ? 'recent' : 'full');
 
     const baseUrl = process.env.JELLYFIN_URL;
     const apiKey = process.env.JELLYFIN_API_KEY;
@@ -128,6 +130,13 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         console.log(`[Sync] ${mediaCount} médias synchronisés.`);
 
         console.log("[Sync] Terminée avec succès.");
+        await markSyncFinished({ success: true, mode: options?.recentOnly ? 'recent' : 'full', users: usersCount, media: mediaCount });
+        await appendHealthEvent({
+            source: 'sync',
+            kind: 'success',
+            message: `Synchronisation ${options?.recentOnly ? 'récente' : 'complète'} terminée.`,
+            details: { users: usersCount, media: mediaCount }
+        });
         return { success: true, users: usersCount, media: mediaCount };
     } catch (e: any) {
         const isConnectionError = e.message === 'fetch failed' || e.cause?.code === 'ECONNREFUSED';
@@ -136,6 +145,13 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         } else {
             console.error("[Sync Error]", e.message);
         }
+        await markSyncFinished({ success: false, mode: options?.recentOnly ? 'recent' : 'full', error: e.message });
+        await appendHealthEvent({
+            source: 'sync',
+            kind: 'error',
+            message: `Échec de synchronisation ${options?.recentOnly ? 'récente' : 'complète'}.`,
+            details: { error: e.message }
+        });
         return { success: false, error: e.message };
     }
 }

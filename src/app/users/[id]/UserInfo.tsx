@@ -2,6 +2,8 @@ import { Clock, Monitor, Smartphone, PlayCircle, Hash, Film, BarChart3, Calendar
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import prisma from "@/lib/prisma";
 import { getTranslations } from 'next-intl/server';
+import { getCompletionMetrics } from "@/lib/mediaPolicy";
+import { loadLibraryRules } from "@/lib/libraryRules";
 
 export default async function UserInfo({ userId }: { userId: string }) {
     const user = await prisma.user.findUnique({
@@ -25,6 +27,7 @@ export default async function UserInfo({ userId }: { userId: string }) {
     if (!user) return null;
 
     const t = await getTranslations('userProfile');
+    const rules = await loadLibraryRules();
 
     const clientCounts = new Map<string, number>();
     const deviceCounts = new Map<string, number>();
@@ -78,12 +81,9 @@ export default async function UserInfo({ userId }: { userId: string }) {
 
         // Completion rate
         if (session.media?.durationMs) {
-            const durationSec = Number(session.media.durationMs) / 1000;
-            if (durationSec > 0) {
-                const comp = Math.min(100, (session.durationWatched / durationSec) * 100);
-                totalCompletions += comp;
-                completionCount++;
-            }
+            const completion = getCompletionMetrics(session.media, session.durationWatched, rules);
+            totalCompletions += completion.percent;
+            completionCount++;
         }
     });
 

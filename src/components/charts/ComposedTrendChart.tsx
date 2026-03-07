@@ -15,6 +15,7 @@ import {
     Legend,
     ResponsiveContainer,
 } from 'recharts';
+import { chartAxisColor, chartGridColor, chartItemStyle, chartLabelStyle, chartTooltipStyle } from '@/lib/chartTheme';
 
 interface TrendData {
     time: string;
@@ -58,11 +59,11 @@ export function ComposedTrendChart({ data, series }: { data: TrendData[], series
                 data={data}
                 margin={{ top: 20, right: 30, left: -10, bottom: 5 }}
             >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
+                <CartesianGrid strokeDasharray="3 7" vertical={false} stroke={chartGridColor} />
 
                 <XAxis
                     dataKey="time"
-                    stroke="#52525b"
+                    stroke={chartAxisColor}
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
@@ -70,7 +71,7 @@ export function ComposedTrendChart({ data, series }: { data: TrendData[], series
 
                 <YAxis
                     yAxisId="left"
-                    stroke="#52525b"
+                    stroke={chartAxisColor}
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
@@ -79,16 +80,16 @@ export function ComposedTrendChart({ data, series }: { data: TrendData[], series
                 <YAxis
                     yAxisId="right"
                     orientation="right"
-                    stroke="#52525b"
+                    stroke={chartAxisColor}
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
                 />
 
                 <Tooltip
-                    contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }}
-                    labelStyle={{ color: '#a1a1aa' }}
-                    itemStyle={{ color: '#e4e4e7' }}
+                    contentStyle={chartTooltipStyle}
+                    labelStyle={chartLabelStyle}
+                    itemStyle={chartItemStyle}
                     formatter={formatTooltipValue}
                 />
                 <Legend onClick={toggleLegend} wrapperStyle={{ fontSize: '12px', paddingTop: '10px', cursor: 'pointer' }} />
@@ -101,15 +102,15 @@ export function ComposedTrendChart({ data, series }: { data: TrendData[], series
                         if (s.type === "bar") {
                             return <Bar key={s.key} hide={hidden.has(s.key)} yAxisId={s.yAxisId || "left"} dataKey={s.key} barSize={20} fill={s.color} radius={[4, 4, 0, 0]} name={s.name} />;
                         }
-                        return <Area key={s.key} hide={hidden.has(s.key)} yAxisId={s.yAxisId || "left"} type="monotone" dataKey={s.key} stackId="1" stroke={s.color} fill={s.color} fillOpacity={0.25} name={s.name} />;
+                        return <Area key={s.key} hide={hidden.has(s.key)} yAxisId={s.yAxisId || "left"} type="monotone" dataKey={s.key} stackId="1" stroke={s.color} strokeWidth={2.2} fill={s.color} fillOpacity={0.2} name={s.name} />;
                     })
                 ) : (
                     <>
                         {/* Stacked areas with lower opacity for clarity */}
-                        <Area hide={hidden.has("movieVolume")} yAxisId="left" type="monotone" dataKey="movieVolume" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25} name={t('movies')} />
-                        <Area hide={hidden.has("seriesVolume")} yAxisId="left" type="monotone" dataKey="seriesVolume" stackId="1" stroke="#22c55e" fill="#22c55e" fillOpacity={0.25} name={t('series')} />
-                        <Area hide={hidden.has("musicVolume")} yAxisId="left" type="monotone" dataKey="musicVolume" stackId="1" stroke="#eab308" fill="#eab308" fillOpacity={0.25} name={t('music')} />
-                        <Area hide={hidden.has("booksVolume")} yAxisId="left" type="monotone" dataKey="booksVolume" stackId="1" stroke="#a855f7" fill="#a855f7" fillOpacity={0.25} name={t('books')} />
+                        <Area hide={hidden.has("movieVolume")} yAxisId="left" type="monotone" dataKey="movieVolume" stackId="1" stroke="#38bdf8" strokeWidth={2.2} fill="#38bdf8" fillOpacity={0.18} name={t('movies')} />
+                        <Area hide={hidden.has("seriesVolume")} yAxisId="left" type="monotone" dataKey="seriesVolume" stackId="1" stroke="#22c55e" strokeWidth={2.2} fill="#22c55e" fillOpacity={0.18} name={t('series')} />
+                        <Area hide={hidden.has("musicVolume")} yAxisId="left" type="monotone" dataKey="musicVolume" stackId="1" stroke="#f59e0b" strokeWidth={2.2} fill="#f59e0b" fillOpacity={0.18} name={t('music')} />
+                        <Area hide={hidden.has("booksVolume")} yAxisId="left" type="monotone" dataKey="booksVolume" stackId="1" stroke="#a855f7" strokeWidth={2.2} fill="#a855f7" fillOpacity={0.18} name={t('books')} />
                     </>
                 )}
 

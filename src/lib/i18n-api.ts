@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { AVAILABLE_LOCALES, DEFAULT_LOCALE, isSupportedLocale } from "@/i18n/locales";
 
 /**
  * Lightweight i18n helper for API Route Handlers.
@@ -27,7 +28,7 @@ const messages: Record<string, Record<string, string>> = {
     syncCronMinuteRange: "syncCronMinute doit être entre 0 et 59.",
     backupCronHourRange: "backupCronHour doit être entre 0 et 23.",
     backupCronMinuteRange: "backupCronMinute doit être entre 0 et 59.",
-    localeInvalid: "Langue invalide. Valeurs acceptées: fr, en",
+    localeInvalid: `Langue invalide. Valeurs acceptées: ${AVAILABLE_LOCALES.map((locale) => locale.code).join(', ')}`,
     // Kill stream
     jellyfinNotConfigured: "JELLYFIN_URL ou JELLYFIN_API_KEY non configurées.",
     killStreamFailed: "Echec de l'arrêt du flux côté serveur Jellyfin.",
@@ -76,7 +77,7 @@ const messages: Record<string, Record<string, string>> = {
     syncCronMinuteRange: "syncCronMinute must be between 0 and 59.",
     backupCronHourRange: "backupCronHour must be between 0 and 23.",
     backupCronMinuteRange: "backupCronMinute must be between 0 and 59.",
-    localeInvalid: "Invalid language. Accepted values: fr, en",
+    localeInvalid: `Invalid language. Accepted values: ${AVAILABLE_LOCALES.map((locale) => locale.code).join(', ')}`,
     // Kill stream
     jellyfinNotConfigured: "JELLYFIN_URL or JELLYFIN_API_KEY not configured.",
     killStreamFailed: "Failed to stop stream on Jellyfin server.",
@@ -114,9 +115,10 @@ const messages: Record<string, Record<string, string>> = {
 export async function getApiLocale(): Promise<string> {
   try {
     const cookieStore = await cookies();
-    return cookieStore.get("locale")?.value || "fr";
+    const value = cookieStore.get("locale")?.value;
+    return isSupportedLocale(value) ? value : DEFAULT_LOCALE;
   } catch {
-    return "fr";
+    return DEFAULT_LOCALE;
   }
 }
 

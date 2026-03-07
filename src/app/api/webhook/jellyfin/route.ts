@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import redis from "@/lib/redis";
 import { getGeoLocation } from "@/lib/geoip";
 import { apiT } from "@/lib/i18n-api";
+import { inferLibraryKey, isLibraryExcluded } from "@/lib/mediaPolicy";
 
 /**
  * SECURITY: Webhook authentication via shared secret.
@@ -81,6 +82,23 @@ export async function POST(req: Request) {
             const type = payload.ItemType || payload.Type || "Unknown";
             const clientName = payload.ClientName || payload.Client || "Unknown";
             const deviceName = payload.DeviceName || payload.Device || "Unknown";
+            const existingMedia = jellyfinMediaId
+                ? await prisma.media.findUnique({
+                    where: { jellyfinMediaId },
+                    select: { collectionType: true, type: true }
+                })
+                : null;
+            const settings = await prisma.globalSettings.findUnique({
+                where: { id: "global" },
+                select: {
+                    excludedLibraries: true,
+                    discordAlertsEnabled: true,
+                    discordWebhookUrl: true,
+                    discordAlertCondition: true,
+                }
+            });
+            const effectiveCollectionType = payload.CollectionType || existingMedia?.collectionType || inferLibraryKey({ type });
+            const shouldIgnoreLibrary = isLibraryExcluded({ collectionType: effectiveCollectionType, type: type || existingMedia?.type }, settings?.excludedLibraries || []);
 
             // Prefer real IP from proxy headers, then webhook payload, then fallback
             const ipAddress = resolveIp(realIpHeader || payload.IpAddress || payload.ClientIp);
@@ -100,9 +118,13 @@ export async function POST(req: Request) {
             // 2. Mise à jour ou création du média
             await prisma.media.upsert({
                 where: { jellyfinMediaId: jellyfinMediaId },
-                update: { title, type },
-                create: { jellyfinMediaId, title, type }
+                update: { title, type, collectionType: effectiveCollectionType || undefined },
+                create: { jellyfinMediaId, title, type, collectionType: effectiveCollectionType }
             });
+
+            if (shouldIgnoreLibrary) {
+                return NextResponse.json({ success: true, ignored: true, message: await apiT('eventProcessed', { eventType }) });
+            }
 
             // 3. Create PlaybackHistory if no open session exists for this user+media (dedup guard)
             // This ensures short tracks (e.g. music < 5s) are logged even if the monitor misses them
@@ -131,8 +153,6 @@ export async function POST(req: Request) {
 
             // 4. Envoi de la notification Discord
             try {
-                const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
-
                 if (settings?.discordAlertsEnabled && settings?.discordWebhookUrl) {
                     const condition = settings.discordAlertCondition || "ALL";
                     let shouldSend = true;

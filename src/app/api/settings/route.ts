@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin, isAuthError } from "@/lib/auth";
 import { apiT } from "@/lib/i18n-api";
+import { AVAILABLE_LOCALES } from "@/i18n/locales";
+import { getAvailableLibraryKeys } from "@/lib/mediaPolicy";
+import { loadLibraryRules, saveLibraryRules } from "@/lib/libraryRules";
+import { revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +34,19 @@ export async function GET(req: NextRequest) {
             });
         }
 
-        return NextResponse.json(settings, { status: 200 });
+        const mediaLibraries = await prisma.media.findMany({
+            distinct: ["collectionType"],
+            where: { collectionType: { not: null } },
+            select: { collectionType: true }
+        });
+
+        const libraryRules = await loadLibraryRules();
+        const availableLibraries = getAvailableLibraryKeys([
+            ...mediaLibraries.map((entry) => entry.collectionType),
+            ...Object.keys(libraryRules),
+        ]);
+
+        return NextResponse.json({ ...settings, availableLibraries, libraryRules }, { status: 200 });
     } catch (error) {
         console.error("Failed to fetch settings:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
@@ -44,7 +60,7 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { discordWebhookUrl, discordAlertCondition, discordAlertsEnabled, excludedLibraries, monitorIntervalActive, monitorIntervalIdle, syncCronHour, syncCronMinute, backupCronHour, backupCronMinute, defaultLocale } = body;
+        const { discordWebhookUrl, discordAlertCondition, discordAlertsEnabled, excludedLibraries, monitorIntervalActive, monitorIntervalIdle, syncCronHour, syncCronMinute, backupCronHour, backupCronMinute, defaultLocale, libraryRules } = body;
 
         // Input validation — Discord webhook URL must be a valid Discord URL or null
         if (discordWebhookUrl !== undefined && discordWebhookUrl !== null && discordWebhookUrl !== "") {
@@ -98,7 +114,8 @@ export async function POST(req: NextRequest) {
             const val = Number(backupCronMinute);
             if (isNaN(val) || val < 0 || val > 59) return NextResponse.json({ error: await apiT('backupCronMinuteRange') }, { status: 400 });
         }
-        if (defaultLocale !== undefined && !['fr', 'en'].includes(defaultLocale)) {
+        const validLocales = AVAILABLE_LOCALES.map((locale) => locale.code);
+        if (defaultLocale !== undefined && !validLocales.includes(defaultLocale)) {
             return NextResponse.json({ error: await apiT('localeInvalid') }, { status: 400 });
         }
 
@@ -160,6 +177,15 @@ export async function POST(req: NextRequest) {
                 console.warn("[Settings] Could not reschedule cron jobs:", err);
             }
         }
+
+        if (libraryRules !== undefined) {
+            await saveLibraryRules(libraryRules);
+        }
+
+        revalidatePath('/');
+        revalidatePath('/settings');
+        revalidatePath('/admin/cleanup');
+        revalidatePath('/admin/log-health');
 
         return NextResponse.json(updated, { status: 200 });
     } catch (error) {

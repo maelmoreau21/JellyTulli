@@ -3,10 +3,13 @@ import prisma from "@/lib/prisma";
 import CleanupClient from "./CleanupClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getTranslations } from 'next-intl/server';
+import { getCompletionMetrics } from "@/lib/mediaPolicy";
+import { loadLibraryRules } from "@/lib/libraryRules";
 
 export const dynamic = "force-dynamic";
 
 async function getCleanupData() {
+    const rules = await loadLibraryRules();
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
     // 1. Ghost Media: parent-level items (Movie, Series, MusicAlbum) with 0 plays on themselves or children
@@ -120,13 +123,13 @@ async function getCleanupData() {
         let lastPlayed = new Date(0);
 
         for (const history of media.playbackHistory) {
-            const completion = (history.durationWatched / maxDurationSecs) * 100;
+            const completion = getCompletionMetrics({ type: media.type, durationMs: media.durationMs }, history.durationWatched, rules).percent;
             if (completion > maxCompletionPercentage) maxCompletionPercentage = completion;
             if (history.startedAt > lastPlayed) lastPlayed = history.startedAt;
         }
 
-        // If even the best session didn't reach 80%, it's abandoned
-        if (maxCompletionPercentage > 0 && maxCompletionPercentage < 80) {
+        const bestBucket = getCompletionMetrics({ type: media.type, durationMs: media.durationMs }, Math.round((maxCompletionPercentage / 100) * maxDurationSecs), rules).bucket;
+        if (maxCompletionPercentage > 0 && bestBucket !== 'completed') {
             abandonedMedia.push({
                 ...media,
                 title: getEnrichedTitle(media),

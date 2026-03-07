@@ -136,6 +136,10 @@ export default async function LogsPage({
         skip: (safePage - 1) * LOGS_PER_PAGE,
         take: LOGS_PER_PAGE,
     });
+    const activePairs = await prisma.activeStream.findMany({
+        select: { userId: true, mediaId: true }
+    });
+    const activePairSet = new Set(activePairs.map((entry) => `${entry.userId}:${entry.mediaId}`));
 
     // Sanitize logs to plain objects (avoids BigInt/Date serialization issues in RSC)
     const safeLogs = logs.map((log: any) => ({
@@ -293,6 +297,7 @@ export default async function LogsPage({
                                     ) : (
                                         safeLogs.map((log: any) => {
                                             const isTranscode = log.playMethod?.toLowerCase().includes("transcode");
+                                            const isActuallyActive = !log.endedAt && activePairSet.has(`${log.userId}:${log.mediaId}`);
                                             const partyId = watchPartyMap.get(log.id);
                                             const isParty = !!partyId;
                                             const party = partyId ? partyInfo.get(partyId) : null;
@@ -461,11 +466,13 @@ export default async function LogsPage({
                                                         {/* Durée */}
                                                         {visibleColumns.includes('duration') && (
                                                         <TableCell className="text-right whitespace-nowrap hidden md:table-cell">
-                                                            {log.durationWatched
-                                                                ? `${Math.floor(log.durationWatched / 60)} min`
-                                                                : (
+                                                            {isActuallyActive
+                                                                ? (
                                                                     <span className="text-amber-500/80 animate-pulse text-xs uppercase tracking-wider font-semibold flex flex-row items-center justify-end gap-1"><span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>{tc('active')}</span>
                                                                 )
+                                                                : log.durationWatched > 0
+                                                                    ? `${Math.floor(log.durationWatched / 60)} min`
+                                                                    : '0 min'
                                                             }
                                                         </TableCell>
                                                         )}
