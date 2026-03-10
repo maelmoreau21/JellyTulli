@@ -3,18 +3,17 @@ import prisma from "@/lib/prisma";
 import { requireAdmin, isAuthError } from "@/lib/auth";
 import { apiT } from "@/lib/i18n-api";
 import { AVAILABLE_LOCALES } from "@/i18n/locales";
-import { getAvailableLibraryKeys, normalizeLibraryKey } from "@/lib/mediaPolicy";
 import { loadLibraryRules, saveLibraryRules } from "@/lib/libraryRules";
 import { revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
-async function fetchJellyfinLibraryKeys() {
+async function fetchJellyfinLibraryNames() {
     const jellyfinUrl = process.env.JELLYFIN_URL;
     const jellyfinApiKey = process.env.JELLYFIN_API_KEY;
 
     if (!jellyfinUrl || !jellyfinApiKey) {
-        return { keys: [] as string[], source: "database" as const, error: "Jellyfin env vars missing" };
+        return { names: [] as string[], source: "database" as const, error: "Jellyfin env vars missing" };
     }
 
     try {
@@ -27,23 +26,23 @@ async function fetchJellyfinLibraryKeys() {
         });
 
         if (!response.ok) {
-            return { keys: [] as string[], source: "database" as const, error: `Jellyfin returned ${response.status}` };
+            return { names: [] as string[], source: "database" as const, error: `Jellyfin returned ${response.status}` };
         }
 
         const payload = await response.json();
         const folders = Array.isArray(payload) ? payload : [];
 
-        const keys = folders
-            .map((folder: any) => normalizeLibraryKey(folder?.CollectionType))
+        const names = folders
+            .map((folder: any) => folder?.Name)
             .filter((value: string | null): value is string => Boolean(value));
 
         return {
-            keys: Array.from(new Set(keys)),
+            names: Array.from(new Set(names)),
             source: "jellyfin" as const,
             error: null,
         };
     } catch {
-        return { keys: [] as string[], source: "database" as const, error: "Jellyfin fetch failed" };
+        return { names: [] as string[], source: "database" as const, error: "Jellyfin fetch failed" };
     }
 }
 
@@ -72,21 +71,23 @@ export async function GET() {
             });
         }
 
-        const [mediaLibraries, jellyfinScan] = await Promise.all([
+        const [mediaLibraryNames, jellyfinScan] = await Promise.all([
             prisma.media.findMany({
-            distinct: ["collectionType"],
-            where: { collectionType: { not: null } },
-            select: { collectionType: true }
+                distinct: ["libraryName"],
+                where: { libraryName: { not: null } },
+                select: { libraryName: true }
             }),
-            fetchJellyfinLibraryKeys(),
+            fetchJellyfinLibraryNames(),
         ]);
 
         const libraryRules = await loadLibraryRules();
-        const availableLibraries = getAvailableLibraryKeys([
-            ...jellyfinScan.keys,
-            ...mediaLibraries.map((entry) => entry.collectionType),
-            ...Object.keys(libraryRules),
+
+        // Build available libraries: prefer Jellyfin names, fallback to DB libraryNames
+        const allNames = new Set<string>([
+            ...jellyfinScan.names,
+            ...mediaLibraryNames.map((entry) => entry.libraryName).filter((n): n is string => Boolean(n)),
         ]);
+        const availableLibraries = Array.from(allNames).sort((a, b) => a.localeCompare(b));
 
         return NextResponse.json({
             ...settings,

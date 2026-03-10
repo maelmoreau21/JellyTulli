@@ -1,0 +1,27 @@
+node_modules
+.next
+.git
+.github
+.vscode
+.env*
+
+# Documentation (not needed in Docker image)
+*.md
+!README.md
+
+# IDE/editor files
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test and dev files
+*.test.*
+*.spec.*
+__tests__
+coverage
+.eslintcache

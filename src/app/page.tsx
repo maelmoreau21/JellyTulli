@@ -15,26 +15,38 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { getTranslations } from 'next-intl/server';
 
-// Charts
-import { ActivityByHourChart, ActivityHourData } from "@/components/charts/ActivityByHourChart";
-import { DayOfWeekChart, DayOfWeekData } from "@/components/charts/DayOfWeekChart";
-import { PlatformDistributionChart, PlatformData } from "@/components/charts/PlatformDistributionChart";
+// Charts — lazy-loaded for performance (recharts is heavy)
+import { LazyComposedTrendChart as ComposedTrendChart } from "@/components/charts/LazyCharts";
+import { LazyCategoryPieChart as CategoryPieChart } from "@/components/charts/LazyCharts";
+import { LazyLibraryDailyPlaysChart as LibraryDailyPlaysChart } from "@/components/charts/LazyCharts";
+import { LazyActivityByHourChart as ActivityByHourChart } from "@/components/charts/LazyCharts";
+import { LazyDayOfWeekChart as DayOfWeekChart } from "@/components/charts/LazyCharts";
+import { LazyMonthlyWatchTimeChart as MonthlyWatchTimeChart } from "@/components/charts/LazyCharts";
+import { LazyCompletionRatioChart as CompletionRatioChart } from "@/components/charts/LazyCharts";
+import { LazyClientCategoryChart as ClientCategoryChart } from "@/components/charts/LazyCharts";
+import { LazyPlatformDistributionChart as PlatformDistributionChart } from "@/components/charts/LazyCharts";
+
+// Type-only imports (zero-cost at runtime)
+import type { ActivityHourData } from "@/components/charts/ActivityByHourChart";
+import type { DayOfWeekData } from "@/components/charts/DayOfWeekChart";
+import type { PlatformData } from "@/components/charts/PlatformDistributionChart";
+import type { MonthlyWatchData } from "@/components/charts/MonthlyWatchTimeChart";
+import type { CompletionData } from "@/components/charts/CompletionRatioChart";
+import type { ClientCategoryData } from "@/components/charts/ClientCategoryChart";
+import type { HeatmapData } from "@/components/charts/YearlyHeatmap";
+
 import { TimeRangeSelector } from "@/components/TimeRangeSelector";
-import { ComposedTrendChart } from "@/components/charts/ComposedTrendChart";
-import { CategoryPieChart } from "@/components/charts/CategoryPieChart";
-import { YearlyHeatmap, HeatmapData } from "@/components/charts/YearlyHeatmap";
+import { YearlyHeatmap } from "@/components/charts/YearlyHeatmap";
 import { DraggableDashboard } from "@/components/dashboard/DraggableDashboard";
 import { HardwareMonitor } from "@/components/dashboard/HardwareMonitor";
 import { LiveStreamsPanel } from "@/components/dashboard/LiveStreamsPanel";
-import { MonthlyWatchTimeChart, MonthlyWatchData } from "@/components/charts/MonthlyWatchTimeChart";
-import { CompletionRatioChart, CompletionData } from "@/components/charts/CompletionRatioChart";
 import { buildExcludedMediaClause, getCompletionMetrics } from "@/lib/mediaPolicy";
 import { loadLibraryRules } from "@/lib/libraryRules";
 import { getLogHealthSnapshot } from "@/lib/logHealth";
-import { ClientCategoryChart, ClientCategoryData } from "@/components/charts/ClientCategoryChart";
-import { LibraryDailyPlaysChart } from "@/components/charts/LibraryDailyPlaysChart";
 import { categorizeClient } from "@/lib/utils";
 import { SystemHealthWidgets } from "@/components/dashboard/SystemHealthWidgets";
+import { CollapsibleCard } from "@/components/dashboard/CollapsibleCard";
+
 
 type LiveStream = {
   sessionId: string;
@@ -320,20 +332,12 @@ const getDashboardMetrics = unstable_cache(
       peakStreams: serverLoadMap.get(v.time) || 0
     }));
 
-    // Monthly watch time (last 12 months)
+    // Monthly watch time — all data grouped by year_monthIndex (e.g., "2026_0" = Jan 2026)
     const monthlyMap = new Map<string, number>();
-    const nowMonth = new Date();
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(nowMonth.getFullYear(), nowMonth.getMonth() - i, 1);
-      const key = `${d.getMonth()}_${d.getFullYear().toString().slice(-2)}`;
-      monthlyMap.set(key, 0);
-    }
     histories.forEach((h: any) => {
       const d = new Date(h.startedAt);
-      const key = `${d.getMonth()}_${d.getFullYear().toString().slice(-2)}`;
-      if (monthlyMap.has(key)) {
-        monthlyMap.set(key, (monthlyMap.get(key) || 0) + h.durationWatched / 3600);
-      }
+      const key = `${d.getFullYear()}_${d.getMonth()}`;
+      monthlyMap.set(key, (monthlyMap.get(key) || 0) + h.durationWatched / 3600);
     });
     const monthlyWatchData: MonthlyWatchData[] = Array.from(monthlyMap.entries()).map(([month, hours]) => ({
       month, hours: parseFloat(hours.toFixed(1))
@@ -498,21 +502,15 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
   // Post-process cached data with translations
   const DAY_NAMES = t('dayNames').split(',');
   const MONTH_NAMES = t('monthNames').split(',');
-  
+
   // Translate day of week labels
   metrics.dayOfWeekChartData = metrics.dayOfWeekChartData.map((d: any) => ({
     ...d,
     day: DAY_NAMES[parseInt(d.day)] || d.day,
   }));
-  
-  // Translate monthly watch data labels  
-  metrics.monthlyWatchData = metrics.monthlyWatchData.map((d: any) => {
-    const parts = d.month.split('_');
-    const monthIdx = parseInt(parts[0]);
-    const yearSuffix = parts[1];
-    return { ...d, month: `${MONTH_NAMES[monthIdx]} ${yearSuffix}` };
-  });
-  
+
+  // Monthly data: pass MONTH_NAMES to chart component for client-side year navigation
+
   // Translate completion data labels  
   const completionLabels: Record<string, string> = {
     completed: t('completed'),
@@ -683,26 +681,26 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                 </Card>
 
                 <Link href="/logs" className="block group">
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm transition-colors group-hover:border-orange-500/40 cursor-pointer">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{t('globalTime')}</CardTitle>
-                    <Clock className="h-4 w-4 text-orange-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2">
-                      <div className="text-2xl font-bold">{metrics.hoursWatched.toLocaleString()}h</div>
-                      {timeRange !== "all" && (
-                        <div className={`flex items-center text-xs font-semibold px-1.5 py-0.5 rounded-full ${metrics.hoursGrowth >= 0 ? 'text-emerald-500 bg-emerald-500/10' : 'text-red-500 bg-red-500/10'}`}>
-                          {metrics.hoursGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-                          {metrics.hoursGrowth > 0 ? "+" : ""}{metrics.hoursGrowth.toFixed(1)}%
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1 text-ellipsis overflow-hidden whitespace-nowrap">
-                      {timeRange !== "all" ? t('cumulVsPrev', { count: metrics.previousHoursWatched }) : t('cumulAllTime', { count: metrics.totalUsers })}
-                    </p>
-                  </CardContent>
-                </Card>
+                  <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm transition-colors group-hover:border-orange-500/40 cursor-pointer">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">{t('globalTime')}</CardTitle>
+                      <Clock className="h-4 w-4 text-orange-500" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-2">
+                        <div className="text-2xl font-bold">{metrics.hoursWatched.toLocaleString()}h</div>
+                        {timeRange !== "all" && (
+                          <div className={`flex items-center text-xs font-semibold px-1.5 py-0.5 rounded-full ${metrics.hoursGrowth >= 0 ? 'text-emerald-500 bg-emerald-500/10' : 'text-red-500 bg-red-500/10'}`}>
+                            {metrics.hoursGrowth >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                            {metrics.hoursGrowth > 0 ? "+" : ""}{metrics.hoursGrowth.toFixed(1)}%
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 text-ellipsis overflow-hidden whitespace-nowrap">
+                        {timeRange !== "all" ? t('cumulVsPrev', { count: metrics.previousHoursWatched }) : t('cumulAllTime', { count: metrics.totalUsers })}
+                      </p>
+                    </CardContent>
+                  </Card>
                 </Link>
 
                 <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
@@ -878,92 +876,56 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
 
               /* Third Row Analytics - Hourly + Day of Week */
               <div key="hourly" className="grid gap-4 md:grid-cols-2">
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-                  <CardHeader>
-                    <CardTitle>{t('hourlyActivity')}</CardTitle>
-                    <CardDescription>{t('hourlyActivityDesc')}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pl-0 pb-4">
-                    <div className="h-[250px] min-h-[250px] w-full overflow-hidden">
-                      <ActivityByHourChart data={metrics.hourlyChartData} />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-                  <CardHeader>
-                    <CardTitle>{t('dayOfWeekActivity')}</CardTitle>
-                    <CardDescription>{t('dayOfWeekActivityDesc')}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pl-0 pb-4">
-                    <div className="h-[250px] min-h-[250px] w-full overflow-hidden">
-                      <DayOfWeekChart data={metrics.dayOfWeekChartData} />
-                    </div>
-                  </CardContent>
-                </Card>
+                <CollapsibleCard storageKey="hourly" title={t('hourlyActivity')} description={t('hourlyActivityDesc')} contentClassName="pl-0 pb-4">
+                  <div className="h-[250px] min-h-[250px] w-full overflow-hidden">
+                    <ActivityByHourChart data={metrics.hourlyChartData} />
+                  </div>
+                </CollapsibleCard>
+                <CollapsibleCard storageKey="dayOfWeek" title={t('dayOfWeekActivity')} description={t('dayOfWeekActivityDesc')} contentClassName="pl-0 pb-4">
+                  <div className="h-[250px] min-h-[250px] w-full overflow-hidden">
+                    <DayOfWeekChart data={metrics.dayOfWeekChartData} />
+                  </div>
+                </CollapsibleCard>
               </div>,
 
               /* Monthly Watch Time + Completion Ratio + Client Categories */
               <div key="new-stats" className="grid gap-4 md:grid-cols-3">
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-                  <CardHeader>
-                    <CardTitle>{t('monthlyTime')}</CardTitle>
-                    <CardDescription>{t('monthlyTimeDesc')}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pl-0 pb-4">
-                    <div className="h-[300px] w-full overflow-hidden">
-                      {metrics.monthlyWatchData.length > 0 ? (
-                        <MonthlyWatchTimeChart data={metrics.monthlyWatchData} />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">{tc('noData')}</div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                <CollapsibleCard storageKey="monthly" title={t('monthlyTime')} description={t('monthlyTimeDesc')} contentClassName="pl-0 pb-4">
+                  <div className="h-[320px] w-full overflow-hidden">
+                    {metrics.monthlyWatchData.length > 0 ? (
+                      <MonthlyWatchTimeChart data={metrics.monthlyWatchData} monthNames={MONTH_NAMES} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">{tc('noData')}</div>
+                    )}
+                  </div>
+                </CollapsibleCard>
 
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-                  <CardHeader>
-                    <CardTitle>{t('completionRate')}</CardTitle>
-                    <CardDescription>{t('completionRateDesc')}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[280px] w-full overflow-hidden">
-                      {metrics.completionData.length > 0 ? (
-                        <CompletionRatioChart data={metrics.completionData} />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">{t('noDurationData')}</div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                <CollapsibleCard storageKey="completion" title={t('completionRate')} description={t('completionRateDesc')}>
+                  <div className="h-[280px] w-full overflow-hidden">
+                    {metrics.completionData.length > 0 ? (
+                      <CompletionRatioChart data={metrics.completionData} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">{t('noDurationData')}</div>
+                    )}
+                  </div>
+                </CollapsibleCard>
 
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-                  <CardHeader>
-                    <CardTitle>{t('clientFamilies')}</CardTitle>
-                    <CardDescription>{t('clientFamiliesDesc')}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[280px] w-full overflow-hidden">
-                      {metrics.clientCategoryData.length > 0 ? (
-                        <ClientCategoryChart data={metrics.clientCategoryData} />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">{t('noClient')}</div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                <CollapsibleCard storageKey="clientFamilies" title={t('clientFamilies')} description={t('clientFamiliesDesc')}>
+                  <div className="h-[280px] w-full overflow-hidden">
+                    {metrics.clientCategoryData.length > 0 ? (
+                      <ClientCategoryChart data={metrics.clientCategoryData} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">{t('noClient')}</div>
+                    )}
+                  </div>
+                </CollapsibleCard>
               </div>,
 
               /* Expansion: Server Load Timeline */
               <div key="server-load" className="grid gap-4 md:grid-cols-1">
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
-                  <CardHeader>
-                    <CardTitle>{t('serverLoad')}</CardTitle>
-                    <CardDescription>{t('serverLoadDesc')}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ComposedTrendChart data={metrics.serverLoadData} series={[{ key: "peakStreams", color: "#ef4444", name: t('activeStreams'), type: "line" }]} />
-                  </CardContent>
-                </Card>
+                <CollapsibleCard storageKey="serverLoad" title={t('serverLoad')} description={t('serverLoadDesc')}>
+                  <ComposedTrendChart data={metrics.serverLoadData} series={[{ key: "peakStreams", color: "#ef4444", name: t('activeStreams'), type: "line" }]} />
+                </CollapsibleCard>
               </div>
             ]} />
           </TabsContent>

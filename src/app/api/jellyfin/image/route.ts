@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchJellyfinImage } from "@/lib/jellyfin";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 // Allowed image types for the Jellyfin image proxy (prevent path traversal)
 const ALLOWED_IMAGE_TYPES = ["Primary", "Thumb", "Backdrop", "Banner", "Logo", "Art"];
@@ -7,6 +9,12 @@ const ALLOWED_IMAGE_TYPES = ["Primary", "Thumb", "Backdrop", "Banner", "Logo", "
 const UUID_PATTERN = /^[a-f0-9]{32}$/i;
 
 export async function GET(req: NextRequest) {
+    // SECURITY: Require authentication (defense-in-depth, middleware also checks)
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const itemId = searchParams.get("itemId");
     const type = searchParams.get("type") || "Primary";

@@ -16,8 +16,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-
-
 # Environment variables for build time
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -25,30 +23,35 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma generate
 
 # Provide dummy variables so Next.js build doesn't crash trying to connect to a real DB
-# Use non-sensitive build placeholders and avoid secret-like ARG names
 ARG DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
 ENV DATABASE_URL=${DATABASE_URL}
 
 # Build Next.js project
 RUN NEXTAUTH_SECRET=build-placeholder npm run build
 
+# ── Clean up Prisma engines: keep only linux-musl (Alpine), remove all others ──
+# This saves ~50-60MB by removing Windows, macOS, Debian, etc. engine binaries
+RUN find /app/node_modules/.prisma -name "libquery_engine-*" ! -name "*linux-musl*" -delete 2>/dev/null || true && \
+    find /app/node_modules/@prisma/engines -name "libquery_engine-*" ! -name "*linux-musl*" -delete 2>/dev/null || true && \
+    find /app/node_modules/@prisma/engines -name "query_engine-*" ! -name "*linux-musl*" -delete 2>/dev/null || true && \
+    find /app/node_modules/prisma -name "libquery_engine-*" ! -name "*linux-musl*" -delete 2>/dev/null || true && \
+    find /app/node_modules/prisma -name "query_engine-*" ! -name "*linux-musl*" -delete 2>/dev/null || true && \
+    # Remove Prisma CLI's bundled engines (schema-engine, migration-engine) — we only use db push
+    find /app/node_modules -name "schema-engine-*" ! -name "*linux-musl*" -delete 2>/dev/null || true && \
+    find /app/node_modules -name "migration-engine-*" ! -name "*linux-musl*" -delete 2>/dev/null || true
+
 # 3. Production image, copy all the files and run next
 FROM base AS runner
-RUN apk add --no-cache openssl dos2unix su-exec shadow
+RUN apk add --no-cache openssl su-exec shadow
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Update npm to latest to silence "New major version" notice
-RUN npm install -g npm@latest && npm install -g prisma@5
-
 # Default user/group (overridden at runtime via PUID/PGID)
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Create backup directory
-RUN mkdir -p /data/backups
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs && \
+    mkdir -p /data/backups
 
 COPY --from=builder /app/public ./public
 
@@ -56,25 +59,22 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# We need the Prisma schema to execute migrate deploy
+# Prisma: schema + client + CLI (already stripped of non-linux engines in builder)
 COPY --from=builder /app/prisma ./prisma
-# Copy prisma related dependencies to be able to run migrations in entrypoint
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/package.json ./package.json
 
-# Force copy geoip-country to standalone
+# Force copy serverExternalPackages (not bundled by Next.js standalone)
 COPY --from=builder /app/node_modules/geoip-country ./node_modules/geoip-country
-
-# Force copy node-cron to standalone (serverExternalPackages = not bundled by Next.js)
 COPY --from=builder /app/node_modules/node-cron ./node_modules/node-cron
 
-# OCI labels — links the GHCR package to the GitHub repo + enables automatic visibility inheritance
+# OCI labels — links the GHCR package to the GitHub repo
 LABEL org.opencontainers.image.source="https://github.com/MaelMoreau21/JellyTulli"
 LABEL org.opencontainers.image.description="JellyTulli — Dashboard analytique pour Jellyfin"
 LABEL org.opencontainers.image.licenses="MIT"
-
 
 # Expose port and configure entrypoint
 EXPOSE 3000
@@ -83,6 +83,6 @@ ENV HOSTNAME="0.0.0.0"
 
 # Copy the entrypoint script (runs as root initially, then drops to PUID/PGID)
 COPY docker-entrypoint.sh ./
-RUN dos2unix ./docker-entrypoint.sh && chmod +x ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
 ENTRYPOINT ["./docker-entrypoint.sh"]

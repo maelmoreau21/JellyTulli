@@ -11,6 +11,11 @@ let pollIntervalIdle   = 5000;   // 5s when idle (mutable, configurable via sett
 const POLL_INTERVAL_ERROR  = 30000;  // 30s backoff when Jellyfin is unreachable
 let consecutiveErrors = 0;
 
+// Jellystat-style dedup: merge sessions of the same user+media that resume within this window
+const MERGE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+// Skip accidental zaps below this threshold at stop time
+const MIN_PLAYBACK_SECONDS = 10;
+
 /** Update monitor polling intervals at runtime (called from settings API) */
 export function updateMonitorIntervals(active: number, idle: number) {
     pollIntervalActive = Math.max(500, active);
@@ -549,16 +554,42 @@ async function pollJellyfinSessions(): Promise<boolean> {
             });
             const isNewIp = pastIpCount === 0;
 
-            // Dedup guard: only create PlaybackHistory if no open session exists for this user+media
-            // (the webhook PlaybackStart may have already created one)
+            // Dedup guard: only create PlaybackHistory if no open/recent session exists for this user+media
             const user = await prisma.user.findUnique({ where: { jellyfinUserId: UserId } });
             const media = await prisma.media.findUnique({ where: { jellyfinMediaId: ItemId } });
             let alreadyExists = false;
             if (user && media) {
+                // 1. Check for an already-open session (original guard)
                 const existingOpen = await prisma.playbackHistory.findFirst({
                     where: { userId: user.id, mediaId: media.id, endedAt: null },
                 });
-                alreadyExists = !!existingOpen;
+                if (existingOpen) {
+                    alreadyExists = true;
+                }
+
+                // 2. Jellystat-style merge: if a recently-closed session exists for the
+                //    same user+media (within MERGE_WINDOW_MS), reopen it instead of
+                //    creating a duplicate. This prevents music play/pause/replay floods.
+                if (!alreadyExists) {
+                    const mergeWindow = new Date(Date.now() - MERGE_WINDOW_MS);
+                    const recentClosed = await prisma.playbackHistory.findFirst({
+                        where: {
+                            userId: user.id,
+                            mediaId: media.id,
+                            endedAt: { not: null, gte: mergeWindow },
+                        },
+                        orderBy: { endedAt: 'desc' },
+                    });
+                    if (recentClosed) {
+                        // Reopen the session — clear endedAt so it becomes the active one
+                        await prisma.playbackHistory.update({
+                            where: { id: recentClosed.id },
+                            data: { endedAt: null },
+                        });
+                        alreadyExists = true;
+                        console.log(`[Monitor] Merged session for ${UserName}/${ItemName} (reopened ${recentClosed.id} closed ${Math.round((Date.now() - recentClosed.endedAt!.getTime()) / 1000)}s ago)`);
+                    }
+                }
             }
 
             if (!alreadyExists) {
@@ -680,10 +711,17 @@ async function pollJellyfinSessions(): Promise<boolean> {
                         durationS = wallClockS;
                     }
                     durationS = Math.max(0, Math.min(durationS, 86400));
-                    await prisma.playbackHistory.update({
-                        where: { id: lastPlayback.id },
-                        data: { endedAt, durationWatched: durationS },
-                    });
+
+                    // Skip very short plays (< MIN_PLAYBACK_SECONDS = accidental zap)
+                    if (durationS < MIN_PLAYBACK_SECONDS) {
+                        await prisma.playbackHistory.delete({ where: { id: lastPlayback.id } });
+                        console.log(`[Monitor] Deleted zap session ${lastPlayback.id} (${durationS}s < ${MIN_PLAYBACK_SECONDS}s threshold)`);
+                    } else {
+                        await prisma.playbackHistory.update({
+                            where: { id: lastPlayback.id },
+                            data: { endedAt, durationWatched: durationS },
+                        });
+                    }
                 }
             }
         }

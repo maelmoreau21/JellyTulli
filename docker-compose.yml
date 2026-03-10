@@ -27,7 +27,7 @@ services:
       # ─── Authentification ───
       ADMIN_PASSWORD: supersecretadmin             # ← À changer !
       NEXTAUTH_SECRET: your-generated-random-secret # ← À changer ! (openssl rand -base64 32)
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000} # ← adapter au port externe APP_PORT
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000} # ← Pour HTTPS: https://your-domain.com
       # ─── Divers ───
       PUID: 1000
       PGID: 1000
@@ -42,6 +42,37 @@ services:
     networks:
       - jellytulli_net
     restart: unless-stopped
+    # ─── HTTPS via Reverse Proxy (Traefik) ───────────────────────────────────
+    # Pour activer HTTPS avec Traefik :
+    # 1. Décommentez les labels ci-dessous
+    # 2. Ajoutez un réseau Traefik (ex: traefik_proxy)
+    # 3. Supprimez ou commentez la section "ports:" ci-dessus
+    # 4. Changez NEXTAUTH_URL pour https://your-domain.com
+    #
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.jellytulli.rule=Host(`jellytulli.your-domain.com`)"
+    #   - "traefik.http.routers.jellytulli.entrypoints=websecure"
+    #   - "traefik.http.routers.jellytulli.tls.certresolver=letsencrypt"
+    #   - "traefik.http.services.jellytulli.loadbalancer.server.port=3000"
+    #
+    # Alternative : NGINX reverse proxy (dans un fichier séparé) :
+    #   server {
+    #     listen 443 ssl;
+    #     server_name jellytulli.your-domain.com;
+    #     ssl_certificate /path/to/cert.pem;
+    #     ssl_certificate_key /path/to/key.pem;
+    #     location / {
+    #       proxy_pass http://jellytulli:3000;
+    #       proxy_set_header Host $host;
+    #       proxy_set_header X-Real-IP $remote_addr;
+    #       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    #       proxy_set_header X-Forwarded-Proto $scheme;
+    #       proxy_http_version 1.1;
+    #       proxy_set_header Upgrade $http_upgrade;
+    #       proxy_set_header Connection "upgrade";
+    #     }
+    #   }
 
   postgres:
     image: postgres:18-alpine

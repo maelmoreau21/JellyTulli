@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LogFilters } from "./LogFilters";
+import { LogTypeFilter } from "./LogTypeFilter";
 import { ColumnToggle } from "./ColumnToggle";
 import { FallbackImage } from "@/components/FallbackImage";
 import prisma from "@/lib/prisma";
@@ -242,6 +243,8 @@ export default async function LogsPage({
                     </div>
                 </div>
 
+                <LogTypeFilter currentType={typeFilter} />
+
                 <Card className="app-surface">
                     <CardHeader>
                         <CardTitle>{tl('searchFilters')}</CardTitle>
@@ -326,148 +329,148 @@ export default async function LogsPage({
                                                     <TableRow key={log.id} className={`even:bg-slate-900/35 hover:bg-slate-800/55 border-zinc-700/50 transition-colors ${isParty ? 'border-l-2 border-l-violet-500/40' : ''}`}>
                                                         {/* Date */}
                                                         {visibleColumns.includes('date') && (
-                                                        <TableCell className="font-medium whitespace-nowrap">
-                                                            <div className="flex items-center gap-1.5">
-                                                                {isParty && (
-                                                                    <Users className="w-3.5 h-3.5 text-violet-400 shrink-0" />
-                                                                )}
-                                                                <span>
-                                                                    {(() => {
-                                                                        try {
-                                                                            const d = new Date(log.startedAt);
-                                                                            if (isNaN(d.getTime())) return tc('unknown');
-                                                                            return d.toLocaleString(safeLocale, {
-                                                                                day: '2-digit', month: '2-digit', year: 'numeric',
-                                                                                hour: '2-digit', minute: '2-digit'
-                                                                            });
-                                                                        } catch { return tc('unknown'); }
-                                                                    })()}
-                                                                </span>
-                                                            </div>
-                                                        </TableCell>
+                                                            <TableCell className="font-medium whitespace-nowrap">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    {isParty && (
+                                                                        <Users className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                                                                    )}
+                                                                    <span>
+                                                                        {(() => {
+                                                                            try {
+                                                                                const d = new Date(log.startedAt);
+                                                                                if (isNaN(d.getTime())) return tc('unknown');
+                                                                                return d.toLocaleString(safeLocale, {
+                                                                                    day: '2-digit', month: '2-digit', year: 'numeric',
+                                                                                    hour: '2-digit', minute: '2-digit'
+                                                                                });
+                                                                            } catch { return tc('unknown'); }
+                                                                        })()}
+                                                                    </span>
+                                                                </div>
+                                                            </TableCell>
                                                         )}
 
                                                         {/* Utilisateur */}
                                                         {visibleColumns.includes('user') && (
-                                                        <TableCell className="font-semibold text-primary">
-                                                            {log.user ? (
-                                                                <Link href={`/users/${log.user.jellyfinUserId}`} className="hover:underline">{log.user.username}</Link>
-                                                            ) : tc('deletedUser')}
-                                                        </TableCell>
+                                                            <TableCell className="font-semibold text-primary">
+                                                                {log.user ? (
+                                                                    <Link href={`/users/${log.user.jellyfinUserId}`} className="hover:underline">{log.user.username}</Link>
+                                                                ) : tc('deletedUser')}
+                                                            </TableCell>
                                                         )}
 
                                                         {/* Média */}
                                                         {visibleColumns.includes('media') && (
-                                                        <TableCell className="overflow-hidden">
-                                                            <div className="flex items-center gap-2 md:gap-3 w-full overflow-hidden" title={log.media?.title || tc('unknownMedia')}>
-                                                                <div className="relative w-10 md:w-12 aspect-[2/3] bg-muted rounded-md shrink-0 overflow-hidden ring-1 ring-white/10">
-                                                                    {log.media?.jellyfinMediaId ? (
-                                                                        <FallbackImage
-                                                                            src={`/api/jellyfin/image?itemId=${log.media.jellyfinMediaId}&type=Primary${log.media.parentId ? `&fallbackId=${log.media.parentId}` : ''}`}
-                                                                            alt={log.media?.title || tc('unknownMedia')}
-                                                                            fill
-                                                                            className="object-cover"
-                                                                        />
-                                                                    ) : (
-                                                                        <FallbackImage
-                                                                            src={undefined}
-                                                                            alt={tc('unknownMedia')}
-                                                                            fill
-                                                                            className="object-cover"
-                                                                        />
-                                                                    )}
-                                                                </div>
-                                                                <div className="flex flex-col min-w-0 flex-1">
-                                                                    {log.media?.jellyfinMediaId ? (
-                                                                        <Link href={`/media/${log.media.jellyfinMediaId}`} className="truncate font-medium text-zinc-100 hover:underline" title={log.media?.title || tc('unknownMedia')}>
-                                                                            {log.media?.title || tc('unknownMedia')}
-                                                                        </Link>
-                                                                    ) : (
-                                                                        <span className="truncate font-medium text-zinc-400" title={tc('unknownMedia')}>
-                                                                            {tc('unknownMedia')}
-                                                                        </span>
-                                                                    )}
-                                                                    {(() => {
-                                                                        const subtitle = getMediaSubtitle(log.media);
-                                                                        const typeInfo = getMediaTypeLabel(log.media?.type);
-                                                                        if (subtitle) {
-                                                                            return (
-                                                                                <span className="text-xs text-zinc-400 truncate flex items-center gap-1" title={subtitle}>
-                                                                                    {typeInfo && <span>{typeInfo.icon}</span>}
-                                                                                    {subtitle}
-                                                                                </span>
-                                                                            );
-                                                                        }
-                                                                        return typeInfo
-                                                                            ? <span className="text-xs text-zinc-500">{typeInfo.icon} {typeInfo.label}</span>
-                                                                            : <span className="text-xs text-zinc-500">{log.media?.type || tc('unknown')}</span>;
-                                                                    })()}
+                                                            <TableCell className="overflow-hidden">
+                                                                <div className="flex items-center gap-2 md:gap-3 w-full overflow-hidden" title={log.media?.title || tc('unknownMedia')}>
+                                                                    <div className="relative w-10 md:w-12 aspect-[2/3] bg-muted rounded-md shrink-0 overflow-hidden ring-1 ring-white/10">
+                                                                        {log.media?.jellyfinMediaId ? (
+                                                                            <FallbackImage
+                                                                                src={`/api/jellyfin/image?itemId=${log.media.jellyfinMediaId}&type=Primary${log.media.parentId ? `&fallbackId=${log.media.parentId}` : ''}`}
+                                                                                alt={log.media?.title || tc('unknownMedia')}
+                                                                                fill
+                                                                                className="object-cover"
+                                                                            />
+                                                                        ) : (
+                                                                            <FallbackImage
+                                                                                src={undefined}
+                                                                                alt={tc('unknownMedia')}
+                                                                                fill
+                                                                                className="object-cover"
+                                                                            />
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex flex-col min-w-0 flex-1">
+                                                                        {log.media?.jellyfinMediaId ? (
+                                                                            <Link href={`/media/${log.media.jellyfinMediaId}`} className="truncate font-medium text-zinc-100 hover:underline" title={log.media?.title || tc('unknownMedia')}>
+                                                                                {log.media?.title || tc('unknownMedia')}
+                                                                            </Link>
+                                                                        ) : (
+                                                                            <span className="truncate font-medium text-zinc-400" title={tc('unknownMedia')}>
+                                                                                {tc('unknownMedia')}
+                                                                            </span>
+                                                                        )}
+                                                                        {(() => {
+                                                                            const subtitle = getMediaSubtitle(log.media);
+                                                                            const typeInfo = getMediaTypeLabel(log.media?.type);
+                                                                            if (subtitle) {
+                                                                                return (
+                                                                                    <span className="text-xs text-zinc-400 truncate flex items-center gap-1" title={subtitle}>
+                                                                                        {typeInfo && <span>{typeInfo.icon}</span>}
+                                                                                        {subtitle}
+                                                                                    </span>
+                                                                                );
+                                                                            }
+                                                                            return typeInfo
+                                                                                ? <span className="text-xs text-zinc-500">{typeInfo.icon} {typeInfo.label}</span>
+                                                                                : <span className="text-xs text-zinc-500">{log.media?.type || tc('unknown')}</span>;
+                                                                        })()}
 
-                                                                    <div className="md:hidden mt-1 flex items-center gap-1.5 text-[10px] text-zinc-400 truncate">
-                                                                        <span className={`px-1.5 py-0.5 rounded ${isTranscode ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
-                                                                            {log.playMethod || 'DirectPlay'}
-                                                                        </span>
-                                                                        <span className="truncate">{log.clientName || tc('unknown')}</span>
-                                                                        <span className="text-zinc-500">·</span>
-                                                                        <span>{Math.floor((log.durationWatched || 0) / 60)} min</span>
+                                                                        <div className="md:hidden mt-1 flex items-center gap-1.5 text-[10px] text-zinc-400 truncate">
+                                                                            <span className={`px-1.5 py-0.5 rounded ${isTranscode ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                                                                                {log.playMethod || 'DirectPlay'}
+                                                                            </span>
+                                                                            <span className="truncate">{log.clientName || tc('unknown')}</span>
+                                                                            <span className="text-zinc-500">·</span>
+                                                                            <span>{Math.floor((log.durationWatched || 0) / 60)} min</span>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        </TableCell>
+                                                            </TableCell>
                                                         )}
 
                                                         {/* Client & IP */}
                                                         {visibleColumns.includes('clientIp') && (
-                                                        <TableCell className="hidden lg:table-cell">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-sm font-semibold">{log.clientName || tc('unknown')}</span>
-                                                                <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded-sm w-fit mt-0.5">
-                                                                    {log.ipAddress || tc('local')}
-                                                                </span>
-                                                                {log.country && log.country !== "Unknown" && (
-                                                                    <span className="text-xs text-muted-foreground mt-0.5">
-                                                                        {log.city}, {log.country}
+                                                            <TableCell className="hidden lg:table-cell">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-sm font-semibold">{log.clientName || tc('unknown')}</span>
+                                                                    <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded-sm w-fit mt-0.5">
+                                                                        {log.ipAddress || tc('local')}
                                                                     </span>
-                                                                )}
-                                                            </div>
-                                                        </TableCell>
+                                                                    {log.country && log.country !== "Unknown" && (
+                                                                        <span className="text-xs text-muted-foreground mt-0.5">
+                                                                            {log.city}, {log.country}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </TableCell>
                                                         )}
 
                                                         {/* Statut (Méthode) */}
                                                         {visibleColumns.includes('status') && (
-                                                        <TableCell className="hidden md:table-cell">
-                                                            <Badge variant={isTranscode ? "destructive" : "default"} className={`shadow-sm ${isTranscode ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'}`}>
-                                                                {log.playMethod || "DirectPlay"}
-                                                            </Badge>
-                                                        </TableCell>
+                                                            <TableCell className="hidden md:table-cell">
+                                                                <Badge variant={isTranscode ? "destructive" : "default"} className={`shadow-sm ${isTranscode ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'}`}>
+                                                                    {log.playMethod || "DirectPlay"}
+                                                                </Badge>
+                                                            </TableCell>
                                                         )}
 
                                                         {/* Codecs */}
                                                         {visibleColumns.includes('codecs') && (
-                                                        <TableCell className="hidden lg:table-cell">
-                                                            {isTranscode && log.videoCodec ? (
-                                                                <div className="flex flex-col text-xs text-muted-foreground font-mono">
-                                                                    <span>V: {log.videoCodec}</span>
-                                                                    {log.audioCodec && <span>A: {log.audioCodec}</span>}
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-xs text-muted-foreground italic">{tc('source')}</span>
-                                                            )}
-                                                        </TableCell>
+                                                            <TableCell className="hidden lg:table-cell">
+                                                                {isTranscode && log.videoCodec ? (
+                                                                    <div className="flex flex-col text-xs text-muted-foreground font-mono">
+                                                                        <span>V: {log.videoCodec}</span>
+                                                                        {log.audioCodec && <span>A: {log.audioCodec}</span>}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-xs text-muted-foreground italic">{tc('source')}</span>
+                                                                )}
+                                                            </TableCell>
                                                         )}
 
                                                         {/* Durée */}
                                                         {visibleColumns.includes('duration') && (
-                                                        <TableCell className="text-right whitespace-nowrap hidden md:table-cell">
-                                                            {isActuallyActive
-                                                                ? (
-                                                                    <span className="text-amber-500/80 animate-pulse text-xs uppercase tracking-wider font-semibold flex flex-row items-center justify-end gap-1"><span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>{tc('active')}</span>
-                                                                )
-                                                                : log.durationWatched > 0
-                                                                    ? `${Math.floor(log.durationWatched / 60)} min`
-                                                                    : '0 min'
-                                                            }
-                                                        </TableCell>
+                                                            <TableCell className="text-right whitespace-nowrap hidden md:table-cell">
+                                                                {isActuallyActive
+                                                                    ? (
+                                                                        <span className="text-amber-500/80 animate-pulse text-xs uppercase tracking-wider font-semibold flex flex-row items-center justify-end gap-1"><span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>{tc('active')}</span>
+                                                                    )
+                                                                    : log.durationWatched > 0
+                                                                        ? `${Math.floor(log.durationWatched / 60)} min`
+                                                                        : '0 min'
+                                                                }
+                                                            </TableCell>
                                                         )}
                                                     </TableRow>
                                                 </Fragment>
@@ -501,11 +504,10 @@ export default async function LogsPage({
                                                 <Link
                                                     key={item}
                                                     href={buildPageUrl(item as number)}
-                                                    className={`px-2.5 md:px-3 py-1.5 rounded-md text-xs md:text-sm font-medium transition-colors ${
-                                                        item === safePage
+                                                    className={`px-2.5 md:px-3 py-1.5 rounded-md text-xs md:text-sm font-medium transition-colors ${item === safePage
                                                             ? "bg-primary text-primary-foreground"
                                                             : "text-zinc-300 hover:bg-slate-700/50 hover:text-zinc-100"
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {item}
                                                 </Link>

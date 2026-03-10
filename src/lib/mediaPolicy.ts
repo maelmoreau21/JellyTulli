@@ -99,35 +99,34 @@ export function isLibraryExcluded(media: MediaLike, excludedLibraries: string[] 
 export function buildExcludedMediaClause(excludedLibraries: string[] | null | undefined) {
     if (!excludedLibraries || excludedLibraries.length === 0) return undefined;
 
-    const originalValues = Array.from(new Set(excludedLibraries.filter(Boolean)));
+    const values = Array.from(new Set(excludedLibraries.filter(Boolean)));
+    if (values.length === 0) return undefined;
+
+    // Excluded libraries are now actual Jellyfin library names (e.g., "film-2", "Séries TV")
+    // We filter by libraryName primarily, with fallback to collectionType for backward compat
+    const orClauses: Array<Record<string, unknown>> = [
+        { libraryName: { in: values } },
+    ];
+
+    // Also try to match as collectionType keys (backward compat with old data)
     const normalizedValues = Array.from(
         new Set(
-            excludedLibraries
+            values
                 .map((value) => normalizeLibraryKey(value))
                 .filter((value): value is string => Boolean(value))
         )
     );
-
-    const typeValues = Array.from(
-        new Set(normalizedValues.flatMap((value) => LIBRARY_TYPE_MAP[value] || []))
-    );
-
-    const orClauses: Array<Record<string, unknown>> = [];
-
-    if (originalValues.length > 0) {
-        orClauses.push({ collectionType: { in: originalValues } });
-        orClauses.push({ type: { in: originalValues } });
-    }
-
     if (normalizedValues.length > 0) {
         orClauses.push({ collectionType: { in: normalizedValues } });
+        const typeValues = Array.from(
+            new Set(normalizedValues.flatMap((value) => LIBRARY_TYPE_MAP[value] || []))
+        );
+        if (typeValues.length > 0) {
+            orClauses.push({ type: { in: typeValues } });
+        }
     }
 
-    if (typeValues.length > 0) {
-        orClauses.push({ type: { in: typeValues } });
-    }
-
-    return orClauses.length > 0 ? { NOT: { OR: orClauses } } : undefined;
+    return { NOT: { OR: orClauses } };
 }
 
 export function getAvailableLibraryKeys(values: Array<string | null | undefined>) {

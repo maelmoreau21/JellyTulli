@@ -58,7 +58,7 @@ export default function SettingsPage() {
     const [cronMsg, setCronMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     // Auto-backup state
-    const [autoBackups, setAutoBackups] = useState<{name: string, sizeMb: string, date: string}[]>([]);
+    const [autoBackups, setAutoBackups] = useState<{ name: string, sizeMb: string, date: string }[]>([]);
     const [isRestoringAuto, setIsRestoringAuto] = useState<string | null>(null);
     const [isDeletingAuto, setIsDeletingAuto] = useState<string | null>(null);
     const [isTriggering, setIsTriggering] = useState(false);
@@ -255,15 +255,7 @@ export default function SettingsPage() {
     };
 
     const formatLibraryLabel = (libraryKey: string) => {
-        const normalized = libraryKey.toLowerCase();
-        if (normalized === 'movies') return tc('movies');
-        if (normalized === 'tvshows') return tc('series');
-        if (normalized === 'music') return tc('music');
-        if (normalized === 'books') return tc('books');
-        if (normalized === 'homevideos') return 'Home Videos';
-        if (normalized === 'photos') return 'Photos';
-        if (normalized === 'livetv') return 'Live TV';
-        return libraryKey.replace(/(^|[-_\s])\w/g, (match) => match.toUpperCase()).replace(/[-_]/g, ' ');
+        return libraryKey;
     };
 
     const updateRule = (libraryKey: string, patch: Partial<LibraryRule>) => {
@@ -509,11 +501,11 @@ export default function SettingsPage() {
                                             className={`rounded-xl border px-4 py-3 text-left transition-all ${enabled
                                                 ? 'border-emerald-400/30 bg-emerald-400/12 hover:bg-emerald-400/16'
                                                 : 'app-surface-soft hover:border-slate-400/30'
-                                            }`}
+                                                }`}
                                         >
                                             <div className="flex items-center justify-between gap-3">
                                                 <div>
-                                                    <div className="font-medium text-zinc-100">{formatLibraryLabel(libraryKey)}</div>
+                                                    <div className="font-medium text-zinc-100">{libraryKey}</div>
                                                     <div className="text-xs text-zinc-400 font-mono mt-1">{libraryKey}</div>
                                                 </div>
                                                 <div className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${enabled ? 'app-chip-success' : 'app-chip'}`}>

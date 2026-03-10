@@ -126,8 +126,8 @@ export async function POST(req: Request) {
                 return NextResponse.json({ success: true, ignored: true, message: await apiT('eventProcessed', { eventType }) });
             }
 
-            // 3. Create PlaybackHistory if no open session exists for this user+media (dedup guard)
-            // This ensures short tracks (e.g. music < 5s) are logged even if the monitor misses them
+            // 3. Dedup guard: reuse open or recently-closed session (merge window = 1h, like Jellystat)
+            const WEBHOOK_MERGE_WINDOW_MS = 60 * 60 * 1000;
             const dbUser = await prisma.user.findUnique({ where: { jellyfinUserId: jellyfinUserId } });
             const dbMedia = await prisma.media.findUnique({ where: { jellyfinMediaId: jellyfinMediaId } });
             if (dbUser && dbMedia) {
@@ -135,19 +135,36 @@ export async function POST(req: Request) {
                     where: { userId: dbUser.id, mediaId: dbMedia.id, endedAt: null },
                 });
                 if (!existingOpen) {
-                    await prisma.playbackHistory.create({
-                        data: {
-                            user: { connect: { jellyfinUserId: jellyfinUserId } },
-                            media: { connect: { jellyfinMediaId: jellyfinMediaId } },
-                            playMethod: payload.PlayMethod || "Unknown",
-                            clientName: clientName,
-                            deviceName: deviceName,
-                            ipAddress: ipAddress,
-                            country: geoData.country,
-                            city: geoData.city,
+                    // Check for recently-closed session to reopen instead of creating duplicate
+                    const mergeWindow = new Date(Date.now() - WEBHOOK_MERGE_WINDOW_MS);
+                    const recentClosed = await prisma.playbackHistory.findFirst({
+                        where: {
+                            userId: dbUser.id, mediaId: dbMedia.id,
+                            endedAt: { not: null, gte: mergeWindow },
                         },
+                        orderBy: { endedAt: 'desc' },
                     });
-                    console.log(`[Webhook] PlaybackStart: Created PlaybackHistory for ${title}`);
+                    if (recentClosed) {
+                        await prisma.playbackHistory.update({
+                            where: { id: recentClosed.id },
+                            data: { endedAt: null },
+                        });
+                        console.log(`[Webhook] Merged session for ${title} (reopened ${recentClosed.id})`);
+                    } else {
+                        await prisma.playbackHistory.create({
+                            data: {
+                                user: { connect: { jellyfinUserId: jellyfinUserId } },
+                                media: { connect: { jellyfinMediaId: jellyfinMediaId } },
+                                playMethod: payload.PlayMethod || "Unknown",
+                                clientName: clientName,
+                                deviceName: deviceName,
+                                ipAddress: ipAddress,
+                                country: geoData.country,
+                                city: geoData.city,
+                            },
+                        });
+                        console.log(`[Webhook] PlaybackStart: Created PlaybackHistory for ${title}`);
+                    }
                 }
             }
 

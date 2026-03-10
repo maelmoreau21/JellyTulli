@@ -608,3 +608,43 @@ Conversion intégrale de l'interface utilisateur du français codé en dur vers 
    - Layout : utilisation de `100dvh` pour éviter les artefacts de viewport mobile, `overflow-x-hidden` global pour supprimer les débordements horizontaux.
    - Pages `newsletter` et `about` : hiérarchie typographique et paddings rendus responsive (`p-4 md:p-8`, tailles titres adaptées mobile).
 - **Validation** : build `npm run build` OK (Next.js 16.1.6), toutes les routes générées.
+
+### Phase 41 — Réduction Image Docker & Correction des Lags Frontend
+- **`.dockerignore` créé** : Exclut `node_modules/`, `.git/`, `.next/`, `*.md` (sauf README), `.github/`, `.vscode/`, `.env*` du contexte Docker → build plus rapide, contexte plus léger.
+- **9 dépendances fantômes supprimées de `package.json`** : `JSONStream`, `stream-json`, `stream-chain`, `papaparse`, `geoip-lite` + `@types/papaparse`, `@types/stream-chain`, `@types/stream-json`, `@types/geoip-lite` — vestiges des routes d'import supprimées en Phase 25 (jamais retirées du package.json). Économie estimée : ~15-25 MB dans `node_modules`.
+- **Dockerfile optimisé** :
+  - Stage runner : `dos2unix` retiré (fichier entrypoint géré en LF dans le repo).
+  - `npm install -g npm@latest && npm install -g prisma@5` supprimé (~70 MB économisés). Prisma est utilisé via `npx prisma` depuis les `node_modules` déjà copiés.
+  - **Stripping des engines Prisma** : Un `find ... -delete` dans le builder stage supprime tous les binaires d'engines Prisma non-`linux-musl` (Windows, macOS, Debian, etc.) **avant** la copie vers le runner. Économie : ~50-60 MB.
+  - Copie sélective `@prisma/client` et `@prisma/engines` au lieu de tout `@prisma/` (skip des sous-packages inutilisés).
+  - Couches RUN combinées (`addgroup` + `adduser` + `mkdir` en une seule couche).
+- **`docker-entrypoint.sh` optimisé** :
+  - `chown -R /app` (lent, touche des milliers de fichiers) remplacé par `chown -R` ciblé sur `/data/backups` et `/app/.next/cache` uniquement.
+  - `prisma` remplacé par `npx prisma` (plus de dépendance à l'installation globale).
+- **Lazy-loading des graphiques Recharts** : Nouveau fichier `src/components/charts/LazyCharts.tsx` avec 9 wrappers `next/dynamic` (`ssr: false`) : `ComposedTrendChart`, `CategoryPieChart`, `LibraryDailyPlaysChart`, `ActivityByHourChart`, `DayOfWeekChart`, `MonthlyWatchTimeChart`, `CompletionRatioChart`, `ClientCategoryChart`, `PlatformDistributionChart`. Les graphiques sont chargés **après** le rendu HTML initial → la page Dashboard devient interactive plus vite. Skeleton animé affiché pendant le chargement.
+- **4 squelettes `loading.tsx` créés** : `src/app/loading.tsx` (Dashboard), `src/app/logs/loading.tsx`, `src/app/users/loading.tsx`, `src/app/settings/loading.tsx`. Affichent des placeholders animés pendant le chargement SSR, éliminant l'écran blanc lors des navigations entre pages.
+- **Dashboard `page.tsx` rewired** : Les imports statiques des 9 composants graphiques remplacés par des imports lazy via `LazyCharts.tsx`. Les imports de types restent statiques (coût zéro au runtime).
+- **Validation** : build `npm run build` OK, toutes les routes générées.
+
+### Phase 43 — Sélecteur de Langue Login & Correction Doublons Playback
+- **Sélecteur de langue sur l'écran de connexion** :
+  - Nouveau composant `src/app/login/LoginLanguageSwitcher.tsx` : dropdown compact affichant drapeau + nom de la langue courante, avec les 10 langues disponibles.
+  - Intégré dans `login/page.tsx` sous la Card de connexion (centré, style discret).
+  - Utilise le même mécanisme cookie (`document.cookie = locale=...`) que le `LanguageSwitcher` principal.
+- **Correction robuste des doublons de sessions (inspiré Jellystat)** dans `src/server/monitor.ts` :
+  - **Merge window (1h)** : constante `MERGE_WINDOW_MS = 3600000`. Quand un utilisateur lance un média, le système cherche d'abord une session récemment fermée (< 1h) du même user+media. Si trouvée → la session est **rouverte** (`endedAt = null`) au lieu de créer un doublon. Log console : `[Monitor] Merged session for ...`.
+  - **Seuil minimum (10s)** : constante `MIN_PLAYBACK_SECONDS = 10`. Au stop, les sessions dont la durée est < 10s sont **supprimées** automatiquement (zaps accidentels). Log console : `[Monitor] Deleted zap session ...`.
+  - Résout le problème des multiples entrées de log pour une seule écoute musicale (play/pause/replay rapide).
+- **Validation** : build `npm run build` OK.
+
+### Phase 44 — Interactivité Dashboard & Audit Sécurité
+- **Cards collapsibles sur le Dashboard** :
+  - Nouveau composant `src/components/dashboard/CollapsibleCard.tsx` : header cliquable avec chevron animé, état persisté dans `localStorage` via `storageKey`.
+  - Intégré sur 6 cartes analytiques : Activité par heure, Jour de la semaine, Temps mensuel, Taux de complétion, Familles de clients, Charge serveur.
+  - Les stat cards (Films, Séries, Musique, Livres) étaient déjà cliquables via `<Link>` vers `/logs?type=XXX`.
+- **Audit Sécurité — Corrections** :
+  - **Headers de sécurité** ajoutés dans `next.config.ts` : `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-XSS-Protection: 1`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`.
+  - **Webhook dedup merge window** : même fix que `monitor.ts` appliqué au webhook PlaybackStart (`src/app/api/webhook/jellyfin/route.ts`) — réouverture des sessions < 1h au lieu de créer des doublons.
+  - **Image proxy auth** : ajout de `getServerSession(authOptions)` dans `src/app/api/jellyfin/image/route.ts` + suppression de l'exclusion dans le matcher de `proxy.ts` → defense-in-depth.
+  - **Audit constat** : le `proxy.ts` existant (Next.js 16) couvre déjà l'authentification sur toutes les routes via `withAuth`. Rate limiting ✓, JWT 7j max ✓, webhook secret ✓, validation d'entrée ✓.
+- **Validation** : build `npm run build` OK.

@@ -32,12 +32,13 @@ if [ "$(id -u nextjs)" != "$PUID" ]; then
     usermod -o -u "$PUID" nextjs 2>/dev/null || true
 fi
 
-# Fix ownership of critical directories
-chown -R "$PUID:$PGID" /app /data/backups 2>/dev/null || true
+# Fix ownership of runtime-writable directories only (not all of /app — avoids slow chown -R)
+chown -R "$PUID:$PGID" /data/backups 2>/dev/null || true
+chown -R "$PUID:$PGID" /app/.next/cache 2>/dev/null || true
 
 # ─── Prisma Migration ──────────────────────────────────────────────
 echo "Running Prisma db push..."
-su-exec "$PUID:$PGID" prisma db push --accept-data-loss --skip-generate
+su-exec "$PUID:$PGID" npx prisma db push --accept-data-loss --skip-generate
 
 echo "Prisma schema pushed successfully."
 

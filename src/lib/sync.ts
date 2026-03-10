@@ -47,11 +47,15 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         console.log("[Sync] Fetching Library Views...");
         const viewsRes = await fetch(`${baseUrl}/Library/VirtualFolders`, { headers: jellyfinHeaders });
         const libraryCollectionMap = new Map<string, string>();
+        const libraryNameMap = new Map<string, string>();
         if (viewsRes.ok) {
             const views = await viewsRes.json();
             for (const view of views) {
                 if (view.ItemId && view.CollectionType) {
                     libraryCollectionMap.set(view.ItemId, view.CollectionType);
+                }
+                if (view.ItemId && view.Name) {
+                    libraryNameMap.set(view.ItemId, view.Name);
                 }
             }
         }
@@ -59,11 +63,15 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         // Also fetch user views for parent mapping
         const userViewsRes = await fetch(`${baseUrl}/UserViews`, { headers: jellyfinHeaders });
         const parentCollectionMap = new Map<string, string>();
+        const parentNameMap = new Map<string, string>();
         if (userViewsRes.ok) {
             const userViews = await userViewsRes.json();
             for (const v of (userViews.Items || [])) {
                 if (v.Id && v.CollectionType) {
                     parentCollectionMap.set(v.Id, v.CollectionType);
+                }
+                if (v.Id && v.Name) {
+                    parentNameMap.set(v.Id, v.Name);
                 }
             }
         }
@@ -90,9 +98,9 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
             if (item.CollectionType) {
                 collectionType = item.CollectionType;
             } else {
-                const parentId = item.ParentId || item.SeasonId || item.SeriesId;
-                if (parentId) {
-                    collectionType = parentCollectionMap.get(parentId) || libraryCollectionMap.get(parentId) || null;
+                const libParentId = item.ParentId || item.SeasonId || item.SeriesId;
+                if (libParentId) {
+                    collectionType = parentCollectionMap.get(libParentId) || libraryCollectionMap.get(libParentId) || null;
                 }
             }
             // Infer from item type if still unknown
@@ -100,6 +108,15 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
                 if (item.Type === 'Movie') collectionType = 'movies';
                 else if (['Series', 'Episode'].includes(item.Type)) collectionType = 'tvshows';
                 else if (['Audio', 'MusicAlbum'].includes(item.Type)) collectionType = 'music';
+            }
+
+            // Resolve actual Jellyfin library name from parent chain
+            let libraryName: string | null = null;
+            {
+                const libParentId = item.ParentId || item.SeasonId || item.SeriesId;
+                if (libParentId) {
+                    libraryName = parentNameMap.get(libParentId) || libraryNameMap.get(libParentId) || null;
+                }
             }
 
             let resolution = null;
@@ -122,8 +139,8 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
 
             await prisma.media.upsert({
                 where: { jellyfinMediaId: item.Id },
-                update: { title: item.Name, type: item.Type, genres, resolution, collectionType, durationMs, parentId, artist, dateAdded },
-                create: { jellyfinMediaId: item.Id, title: item.Name, type: item.Type, genres, resolution, collectionType, durationMs, parentId, artist, dateAdded },
+                update: { title: item.Name, type: item.Type, genres, resolution, collectionType, durationMs, parentId, artist, dateAdded, libraryName },
+                create: { jellyfinMediaId: item.Id, title: item.Name, type: item.Type, genres, resolution, collectionType, durationMs, parentId, artist, dateAdded, libraryName },
             });
             mediaCount++;
         }
