@@ -2,8 +2,13 @@ name: Build & Push Docker Image (Multi-Arch)
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch: # Permet de lancer manuellement depuis l'onglet Actions
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Tag de l'image (ex: latest, unstable)"
+        required: true
+        default: "unstable"
 
 env:
   REGISTRY: ghcr.io
@@ -48,7 +53,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=unstable,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=${{ github.event.inputs.tag_name }},enable=${{ github.event_name == 'workflow_dispatch' }}
             type=sha,prefix=,format=short
 
       # 6. Build & Push — Multi-arch (amd64 pour PC/serveurs + arm64 pour Raspberry Pi)
