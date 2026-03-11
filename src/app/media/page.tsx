@@ -29,7 +29,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
     const type = sParams.type;
     const currentPage = Math.max(1, parseInt(sParams.page || "1", 10) || 1);
 
-    // 0. RÃ©cupÃ©rer les Settings globaux
+    // 0. Récupérer les Settings globaux
     const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
     const excludedLibraries = settings?.excludedLibraries || [];
 
@@ -141,7 +141,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
         return { ...media, plays, durationHours, qualityPercent, childCount };
     });
 
-    // 3. Extraction des Stats Globales (Genres et RÃ©solution)
+    // 3. Extraction des Stats Globales (Genres et Résolution)
     const genreCounts = new Map<string, number>();
     const resolutionCounts = new Map<string, number>();
 
@@ -170,10 +170,10 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
     if (sortBy === "duration") {
         processedMedia.sort((a: any, b: any) => b.durationHours - a.durationHours);
     } else if (sortBy === "quality") {
-        // Trie par qualitÃ© dÃ©croissante (ceux qui ont le plus gros % de DirectPlay)
+        // Trie par qualité décroissante (ceux qui ont le plus gros % de DirectPlay)
         processedMedia.sort((a: any, b: any) => b.qualityPercent - a.qualityPercent);
     } else {
-        // DÃ©faut: Tri par nombre de vues "plays"
+        // Défaut: Tri par nombre de vues "plays"
         processedMedia.sort((a: any, b: any) => b.plays - a.plays);
     }
 
@@ -213,7 +213,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                     </div>
                 </div>
 
-                {/* Section Stats BibliothÃ¨que */}
+                {/* Section Stats Bibliothèque */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
                     <Card className="col-span-2 app-surface">
                         <CardHeader>
@@ -332,7 +332,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                             </div>
                                         </div>
                                         <div className="flex flex-col px-1">
-                                            <span className="font-semibold text-sm truncate text-zinc-100" title={media.title}>{media.title}</span>
+                                            <span className="font-semibold text-sm truncate text-zinc-800 dark:text-zinc-100" title={media.title}>{media.title}</span>
                                             {media.childCount > 0 && (
                                                 <span className="text-xs text-zinc-500">
                                                     {media.childCount} {media.type === 'Series' ? tc('episodes') : tc('tracks')}
@@ -348,7 +348,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                             </div>
                         )}
                         {totalPages > 1 && (
-                            <div className="flex items-center justify-center gap-2 mt-8 pt-4 border-t border-zinc-700/50">
+                            <div className="flex items-center justify-center gap-2 mt-8 pt-4 border-t border-zinc-200/50 dark:border-zinc-700/50">
                                 {safePage > 1 && (
                                     <Link href={buildPageUrl(safePage - 1)} className="app-field flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-slate-700/50">
                                         <ChevronLeft className="w-4 h-4" /> {tc('previous')}
@@ -372,7 +372,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                                     className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                                                         item === safePage
                                                             ? "bg-primary text-primary-foreground"
-                                                            : "text-zinc-300 hover:bg-slate-700/50 hover:text-zinc-100"
+                                                            : "text-zinc-300 hover:bg-slate-700/50 hover:text-zinc-800 dark:text-zinc-100"
                                                     }`}
                                                 >
                                                     {item}
@@ -386,7 +386,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                     </Link>
                                 )}
                                 <span className="text-xs text-muted-foreground ml-4">
-                                    {startIndex + 1}â€“{Math.min(startIndex + ITEMS_PER_PAGE, totalItems)} {tc('on')} {totalItems}
+                                    {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, totalItems)} {tc('on')} {totalItems}
                                 </span>
                             </div>
                         )}

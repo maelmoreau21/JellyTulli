@@ -82,7 +82,7 @@ export function SearchBar() {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => { if (hasResults) setIsOpen(true); }}
           placeholder={t('placeholder')}
-          className="w-full bg-zinc-800/50 border border-zinc-700/50 rounded-lg pl-9 pr-8 py-2 text-sm text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+          className="w-full bg-zinc-100/60 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-700/50 rounded-lg pl-9 pr-8 py-2 text-sm text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
         />
         {query && (
           <button onClick={close} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors">
@@ -93,7 +93,7 @@ export function SearchBar() {
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 bg-zinc-900 border border-zinc-700/50 rounded-lg shadow-xl z-50 max-h-[400px] overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700/50 rounded-lg shadow-xl z-50 max-h-[400px] overflow-y-auto">
           {isLoading && (
             <div className="px-4 py-3 text-xs text-zinc-500">{t('searching')}</div>
           )}
@@ -104,7 +104,7 @@ export function SearchBar() {
 
           {results.media.length > 0 && (
             <div>
-              <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 bg-zinc-800/50">
+              <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 bg-zinc-200/50 dark:bg-zinc-800/50">
                 {t('mediaSection')}
               </div>
               {results.media.map((m) => (
@@ -112,7 +112,7 @@ export function SearchBar() {
                   key={m.jellyfinMediaId}
                   href={`/media/${m.jellyfinMediaId}`}
                   onClick={close}
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-800/70 transition-colors"
+                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800/70 transition-colors"
                 >
                   {getTypeIcon(m.type)}
                   <span className="text-sm text-zinc-200 truncate">{m.title}</span>
@@ -123,7 +123,7 @@ export function SearchBar() {
 
           {results.users.length > 0 && (
             <div>
-              <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 bg-zinc-800/50">
+              <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 bg-zinc-200/50 dark:bg-zinc-800/50">
                 {t('usersSection')}
               </div>
               {results.users.map((u) => (
@@ -131,7 +131,7 @@ export function SearchBar() {
                   key={u.jellyfinUserId}
                   href={`/users/${u.jellyfinUserId}`}
                   onClick={close}
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-800/70 transition-colors"
+                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800/70 transition-colors"
                 >
                   <User className="w-4 h-4 text-purple-400" />
                   <span className="text-sm text-zinc-200 truncate">{u.username}</span>

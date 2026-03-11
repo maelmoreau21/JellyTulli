@@ -12,7 +12,7 @@ import dynamic from "next/dynamic";
 
 const ChartSkeleton = ({ height = 300 }: { height?: number }) => (
     <div
-        className="animate-pulse bg-zinc-800/50 rounded-lg w-full"
+        className="animate-pulse bg-zinc-200/50 dark:bg-zinc-800/50 rounded-lg w-full"
         style={{ height }}
     />
 );

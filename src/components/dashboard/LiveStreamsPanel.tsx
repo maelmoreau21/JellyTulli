@@ -34,7 +34,7 @@ function getImageUrl(itemId: string, type: string = 'Primary', fallbackId?: stri
 
 function StreamCard({ stream }: { stream: LiveStream }) {
     return (
-        <div className="flex items-center gap-4 p-3 border rounded-lg border-zinc-800 bg-zinc-950/50">
+        <div className="flex items-center gap-4 p-3 border rounded-lg border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/50">
             {stream.itemId ? (
                 <div className="relative w-12 aspect-[2/3] bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10">
                     <FallbackImage
@@ -58,31 +58,31 @@ function StreamCard({ stream }: { stream: LiveStream }) {
                     <p className="text-[11px] text-zinc-400 truncate">{stream.mediaSubtitle}</p>
                 )}
                 <p className="text-xs text-muted-foreground flex flex-col gap-0.5">
-                    <span className="truncate">{stream.user} â€¢ {stream.device}</span>
+                    <span className="truncate">{stream.user} . {stream.device}</span>
                     {(stream.audioLanguage || stream.subtitleLanguage) && (
                         <span className="text-[10px] opacity-70 truncate">
-                            {stream.audioLanguage ? `ðŸ”Š ${stream.audioLanguage.toUpperCase()}` : ''}
+                            {stream.audioLanguage ? `?? ${stream.audioLanguage.toUpperCase()}` : ''}
                             {stream.audioCodec ? ` (${stream.audioCodec})` : ''}
-                            {stream.subtitleLanguage ? ` â€¢ ðŸ’¬ ${stream.subtitleLanguage.toUpperCase()}` : ''}
+                            {stream.subtitleLanguage ? ` . ?? ${stream.subtitleLanguage.toUpperCase()}` : ''}
                             {stream.subtitleCodec ? ` (${stream.subtitleCodec})` : ''}
                         </span>
                     )}
                     {(stream.city !== "Unknown" || stream.country !== "Unknown") && (
                         <span className="text-[10px] opacity-70 truncate">
-                            ðŸ“ {stream.city !== "Unknown" ? `${stream.city}, ` : ''}{stream.country}
+                            ?? {stream.city !== "Unknown" ? `${stream.city}, ` : ''}{stream.country}
                         </span>
                     )}
                 </p>
                 {stream.progressPercent > 0 && (
                     <div className="flex items-center gap-2 mt-1">
-                        <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                        <div className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                             <div
                                 className={`h-full rounded-full transition-all ${stream.isPaused ? 'bg-yellow-500' : 'bg-purple-500'}`}
                                 style={{ width: `${stream.progressPercent}%` }}
                             />
                         </div>
                         <span className="text-[10px] text-zinc-500 w-8 text-right shrink-0">
-                            {stream.isPaused ? 'â¸' : ''}{stream.progressPercent}%
+                            {stream.isPaused ? '⏸' : ''}{stream.progressPercent}%
                         </span>
                     </div>
                 )}
@@ -135,7 +135,7 @@ function StreamTimeline({ stream, colorIndex }: { stream: LiveStream; colorIndex
                         <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${stream.playMethod === "Transcode" ? "bg-orange-500/10 text-orange-400" : "bg-emerald-500/10 text-emerald-400"}`}>
                             {stream.playMethod === "Transcode" ? "TC" : "DP"}
                         </span>
-                        {stream.isPaused && <span className="text-[10px] text-yellow-500">â¸</span>}
+                        {stream.isPaused && <span className="text-[10px] text-yellow-500">⏸</span>}
                         <span className="text-[10px] text-zinc-500">{stream.progressPercent}%</span>
                         <KillStreamButton sessionId={stream.sessionId} mediaTitle={stream.mediaTitle} />
                     </div>
@@ -179,7 +179,7 @@ export function LiveStreamsPanel({ initialStreams, initialBandwidth }: { initial
     const useTimeline = streams.length >= 3 && !forceCards;
 
     return (
-        <Card className="col-span-3 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+        <Card className="col-span-3 bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
             <CardHeader>
                 <div className="flex items-center justify-between">
                     <div>
@@ -191,7 +191,7 @@ export function LiveStreamsPanel({ initialStreams, initialBandwidth }: { initial
                     {streams.length >= 3 && (
                         <button
                             onClick={() => setForceCards(!forceCards)}
-                            className="p-1.5 rounded-md border border-zinc-700/50 bg-zinc-800/50 hover:bg-zinc-700/50 transition-colors"
+                            className="p-1.5 rounded-md border border-zinc-200/50 dark:border-zinc-700/50 bg-zinc-100/50 dark:bg-zinc-800/50 hover:bg-zinc-700/50 transition-colors"
                             title={forceCards ? "Vue Timeline" : "Vue Cartes"}
                         >
                             {forceCards ? <Rows3 className="w-4 h-4 text-zinc-400" /> : <LayoutList className="w-4 h-4 text-zinc-400" />}

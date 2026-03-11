@@ -24,7 +24,7 @@ interface PlatformDistributionChartProps {
 
 const COLORS = chartPalette;
 
-/* Animated active shape â€” sector expands + center label */
+/* Animated active shape — sector expands + center label */
 function renderActiveShape(props: any) {
     const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, value, percent } = props;
     return (

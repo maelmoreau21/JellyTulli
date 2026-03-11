@@ -134,8 +134,8 @@ export default function MediaTimelineChart({ events, durationMs, buckets = 50, s
                                 onClick={() => toggleType(type)}
                                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all ${
                                     activeTypes.has(type)
-                                        ? "border-zinc-600 bg-zinc-800"
-                                        : "border-zinc-800 bg-zinc-900/50 opacity-40"
+                                        ? "border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800"
+                                        : "border-zinc-200 dark:border-zinc-800 bg-zinc-900/50 opacity-40"
                                 }`}
                             >
                                 <span
@@ -152,7 +152,7 @@ export default function MediaTimelineChart({ events, durationMs, buckets = 50, s
                         <select
                             value={selectedUser}
                             onChange={(e) => setSelectedUser(e.target.value)}
-                            className="text-xs bg-zinc-900 border border-zinc-700 rounded-md px-2 py-1.5 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                            className="text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1.5 text-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-500"
                         >
                             <option value="all">{t("allUsers")}</option>
                             {uniqueUsers.map(([uid, name]) => (
@@ -165,7 +165,7 @@ export default function MediaTimelineChart({ events, durationMs, buckets = 50, s
                 {/* Timeline chart */}
                 <div className="relative w-full">
                     {/* Progress bar background */}
-                    <div className="w-full h-2 bg-zinc-800 rounded-full mb-1" />
+                    <div className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full mb-1" />
 
                     {/* Stacked bar chart */}
                     <div className="flex w-full gap-px" style={{ height: "120px" }}>
@@ -212,9 +212,9 @@ export default function MediaTimelineChart({ events, durationMs, buckets = 50, s
                                         </div>
                                     </TooltipTrigger>
                                     {total > 0 && (
-                                        <TooltipContent className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs space-y-1">
+                                        <TooltipContent className="bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 border-zinc-200 dark:border-zinc-700 text-xs space-y-1">
                                             <p className="font-semibold text-zinc-300">
-                                                {formatMs(bucket.startMs)} â€“ {formatMs(bucket.endMs)}
+                                                {formatMs(bucket.startMs)} – {formatMs(bucket.endMs)}
                                             </p>
                                             {segments.map(seg => (
                                                 <div key={seg.type} className="flex items-center gap-1.5">
@@ -241,7 +241,7 @@ export default function MediaTimelineChart({ events, durationMs, buckets = 50, s
 
                 {/* Per-session detail timelines */}
                 {sessions.length > 0 && filteredSessions.length > 0 && (
-                    <div className="space-y-1.5 mt-3 pt-3 border-t border-zinc-800/50">
+                    <div className="space-y-1.5 mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800/50">
                         <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2">
                             {t("sessionDetail")} ({filteredSessions.length})
                         </h4>
@@ -254,13 +254,13 @@ export default function MediaTimelineChart({ events, durationMs, buckets = 50, s
                                                 {session.username}
                                             </span>
                                         </TooltipTrigger>
-                                        <TooltipContent className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs">
+                                        <TooltipContent className="bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 border-zinc-200 dark:border-zinc-700 text-xs">
                                             <p>{session.username}</p>
                                             <p className="text-zinc-400">{new Date(session.startedAt).toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "numeric" })}</p>
-                                            <p className="text-zinc-400">{Math.round(session.durationWatched / 60)} min â€¢ {session.events.length} {t("eventsCount")}</p>
+                                            <p className="text-zinc-400">{Math.round(session.durationWatched / 60)} min • {session.events.length} {t("eventsCount")}</p>
                                         </TooltipContent>
                                     </Tooltip>
-                                    <div className="relative flex-1 h-5 bg-zinc-800/30 rounded border border-zinc-800/50 group-hover:border-zinc-700/50 transition-colors">
+                                    <div className="relative flex-1 h-5 bg-zinc-800/30 rounded border border-zinc-200 dark:border-zinc-800/50 group-hover:border-zinc-700/50 transition-colors">
                                         {/* Watched progress overlay */}
                                         <div
                                             className="absolute inset-y-0 left-0 bg-zinc-700/20 rounded-l"
@@ -280,7 +280,7 @@ export default function MediaTimelineChart({ events, durationMs, buckets = 50, s
                                                                 style={{ left: `${pct}%`, backgroundColor: color, opacity: 0.85 }}
                                                             />
                                                         </TooltipTrigger>
-                                                        <TooltipContent className="bg-zinc-800 text-zinc-100 border-zinc-700 text-xs">
+                                                        <TooltipContent className="bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 border-zinc-200 dark:border-zinc-700 text-xs">
                                                             {EVENT_ICONS[evt.eventType]} {t(`timeline_${evt.eventType}` as any)} @ {formatMs(evt.positionMs)}
                                                         </TooltipContent>
                                                     </Tooltip>

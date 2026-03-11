@@ -608,17 +608,17 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
           <div className="flex flex-wrap items-center gap-3 md:gap-6 ml-0 md:ml-2">
             <div className="flex items-center gap-1.5">
               <PlayCircle className="h-3.5 w-3.5 text-blue-400" />
-              <span className="text-sm font-semibold text-white">{metrics.todayPlays}</span>
+              <span className="text-sm font-semibold text-zinc-900 dark:text-white">{metrics.todayPlays}</span>
               <span className="text-xs text-zinc-500">{t('readings')}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5 text-orange-400" />
-              <span className="text-sm font-semibold text-white">{metrics.todayHours}h</span>
+              <span className="text-sm font-semibold text-zinc-900 dark:text-white">{metrics.todayHours}h</span>
               <span className="text-xs text-zinc-500">{t('watched')}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Users className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="text-sm font-semibold text-white">{metrics.todayActiveUsers}</span>
+              <span className="text-sm font-semibold text-zinc-900 dark:text-white">{metrics.todayActiveUsers}</span>
               <span className="text-xs text-zinc-500">{t('activeUsers')}</span>
             </div>
           </div>
@@ -635,7 +635,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
             <DraggableDashboard blocks={[
               /* Global Metrics Row 1 */
               <div key="metrics" className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">{t('activeStreams')}</CardTitle>
                     <Activity className="h-4 w-4 text-emerald-500" />
@@ -648,7 +648,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                   </CardContent>
                 </Card>
 
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">{t('totalPlays')}</CardTitle>
                     <PlayCircle className="h-4 w-4 text-cyan-500" />
@@ -669,7 +669,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                   </CardContent>
                 </Card>
 
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">{t('directPlay')}</CardTitle>
                     <MonitorPlay className="h-4 w-4 text-purple-500" />
@@ -681,7 +681,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                 </Card>
 
                 <Link href="/logs" className="block group">
-                  <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm transition-colors group-hover:border-orange-500/40 cursor-pointer">
+                  <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm transition-colors group-hover:border-orange-500/40 cursor-pointer">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">{t('globalTime')}</CardTitle>
                       <Clock className="h-4 w-4 text-orange-500" />
@@ -703,7 +703,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                   </Card>
                 </Link>
 
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">{t('activeUsersTitle')}</CardTitle>
                     <Users className="h-4 w-4 text-red-500" />
@@ -728,52 +728,52 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
               /* Analytics Breadcrumb - Ultimate Expansion */
               <div key="breadcrumb" className="grid gap-4 md:grid-cols-4">
                 <Link href="/logs?type=Movie" className="block group">
-                  <Card className="bg-zinc-900/30 border-zinc-800/40 transition-colors group-hover:border-blue-500/40 group-hover:bg-zinc-900/50 cursor-pointer">
+                  <Card className="bg-white/60 dark:bg-zinc-900/30 border-zinc-200/40 dark:border-zinc-800/40 transition-colors group-hover:border-blue-500/40 group-hover:bg-zinc-900/50 cursor-pointer">
                     <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
                       <CardTitle className="text-sm font-medium text-zinc-400">{t('moviesCard')}</CardTitle>
                       <Film className="h-4 w-4 text-blue-500" />
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
-                      <div className="text-2xl font-bold text-white">{metrics.breakdown.movieViews} <span className="text-sm font-normal text-zinc-500">{t('moviesViews')}</span></div>
+                      <div className="text-2xl font-bold text-zinc-900 dark:text-white">{metrics.breakdown.movieViews} <span className="text-sm font-normal text-zinc-500">{t('moviesViews')}</span></div>
                       <p className="text-xs text-blue-500 font-medium">{metrics.breakdown.movieHours}h {t('moviesWatched')}</p>
                     </CardContent>
                   </Card>
                 </Link>
 
                 <Link href="/logs?type=Episode" className="block group">
-                  <Card className="bg-zinc-900/30 border-zinc-800/40 transition-colors group-hover:border-green-500/40 group-hover:bg-zinc-900/50 cursor-pointer">
+                  <Card className="bg-white/60 dark:bg-zinc-900/30 border-zinc-200/40 dark:border-zinc-800/40 transition-colors group-hover:border-green-500/40 group-hover:bg-zinc-900/50 cursor-pointer">
                     <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
                       <CardTitle className="text-sm font-medium text-zinc-400">{t('seriesCard')}</CardTitle>
                       <Tv className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
-                      <div className="text-2xl font-bold text-white">{metrics.breakdown.seriesViews} <span className="text-sm font-normal text-zinc-500">{t('seriesPlays')}</span></div>
+                      <div className="text-2xl font-bold text-zinc-900 dark:text-white">{metrics.breakdown.seriesViews} <span className="text-sm font-normal text-zinc-500">{t('seriesPlays')}</span></div>
                       <p className="text-xs text-green-500 font-medium">{metrics.breakdown.seriesHours}h {t('seriesWatched')}</p>
                     </CardContent>
                   </Card>
                 </Link>
 
                 <Link href="/logs?type=Audio" className="block group">
-                  <Card className="bg-zinc-900/30 border-zinc-800/40 transition-colors group-hover:border-yellow-500/40 group-hover:bg-zinc-900/50 cursor-pointer">
+                  <Card className="bg-white/60 dark:bg-zinc-900/30 border-zinc-200/40 dark:border-zinc-800/40 transition-colors group-hover:border-yellow-500/40 group-hover:bg-zinc-900/50 cursor-pointer">
                     <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
                       <CardTitle className="text-sm font-medium text-zinc-400">{t('musicCard')}</CardTitle>
                       <Music className="h-4 w-4 text-yellow-500" />
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
-                      <div className="text-2xl font-bold text-white">{metrics.breakdown.musicViews} <span className="text-sm font-normal text-zinc-500">{t('musicTitles')}</span></div>
+                      <div className="text-2xl font-bold text-zinc-900 dark:text-white">{metrics.breakdown.musicViews} <span className="text-sm font-normal text-zinc-500">{t('musicTitles')}</span></div>
                       <p className="text-xs text-yellow-500 font-medium">{metrics.breakdown.musicHours}h {t('musicListened')}</p>
                     </CardContent>
                   </Card>
                 </Link>
 
                 <Link href="/logs?type=AudioBook" className="block group">
-                  <Card className="bg-zinc-900/30 border-zinc-800/40 transition-colors group-hover:border-purple-500/40 group-hover:bg-zinc-900/50 cursor-pointer">
+                  <Card className="bg-white/60 dark:bg-zinc-900/30 border-zinc-200/40 dark:border-zinc-800/40 transition-colors group-hover:border-purple-500/40 group-hover:bg-zinc-900/50 cursor-pointer">
                     <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
                       <CardTitle className="text-sm font-medium text-zinc-400">{t('booksCard')}</CardTitle>
                       <BookOpen className="h-4 w-4 text-purple-500" />
                     </CardHeader>
                     <CardContent className="p-4 pt-0">
-                      <div className="text-2xl font-bold text-white">{metrics.breakdown.booksViews} <span className="text-sm font-normal text-zinc-500">{t('booksOpened')}</span></div>
+                      <div className="text-2xl font-bold text-zinc-900 dark:text-white">{metrics.breakdown.booksViews} <span className="text-sm font-normal text-zinc-500">{t('booksOpened')}</span></div>
                       <p className="text-xs text-purple-500 font-medium">{metrics.breakdown.booksHours}h {t('booksSpent')}</p>
                     </CardContent>
                   </Card>
@@ -782,7 +782,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
 
               /* Dataviz Row : Multi-Axis Volume & PieChart */
               <div key="volumes" className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 min-w-0">
-                <Card className="col-span-1 lg:col-span-5 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="col-span-1 lg:col-span-5 bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                   <CardHeader className="pb-1">
                     <CardTitle>{t('volumeHistory')}</CardTitle>
                     <CardDescription>{t('volumeHistoryDesc')}</CardDescription>
@@ -794,7 +794,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                   </CardContent>
                 </Card>
 
-                <Card className="col-span-1 lg:col-span-2 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="col-span-1 lg:col-span-2 bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                   <CardHeader>
                     <CardTitle>{t('categoryBreakdown')}</CardTitle>
                     <CardDescription>{t('categoryBreakdownDesc')}</CardDescription>
@@ -814,7 +814,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
               </div>,
 
               /* Daily Plays by Library */
-              <Card key="libraryPlays" className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+              <Card key="libraryPlays" className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                 <CardHeader className="pb-1">
                   <CardTitle>{t('libraryPlays')}</CardTitle>
                   <CardDescription>{t('libraryPlaysDesc')}</CardDescription>
@@ -834,7 +834,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
               /* Dataviz Row : Plateformes + Top Users + Live */
               <div key="platforms" className="grid gap-4 md:grid-cols-2 lg:grid-cols-8 min-w-0">
 
-                <Card className="col-span-2 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="col-span-2 bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                   <CardHeader>
                     <CardTitle className="flex gap-2"><Award className="w-5 h-5 text-yellow-500" /> {t('loyalUsers')}</CardTitle>
                     <CardDescription>{t('loyalUsersDesc')}</CardDescription>
@@ -843,7 +843,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                     <div className="space-y-6 mt-4">
                       {metrics.topUsers.length === 0 && <span className="text-muted-foreground text-sm">{t('noActivity')}</span>}
                       {metrics.topUsers.map((u, i) => (
-                        <Link key={i} href={`/users/${u.jellyfinUserId}`} className="flex items-center gap-4 group hover:bg-zinc-800/50 rounded-lg p-1 -m-1 transition-colors">
+                        <Link key={i} href={`/users/${u.jellyfinUserId}`} className="flex items-center gap-4 group hover:bg-zinc-200 dark:hover:bg-zinc-800/50 rounded-lg p-1 -m-1 transition-colors">
                           <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-sm">
                             #{i + 1}
                           </div>
@@ -859,7 +859,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                   </CardContent>
                 </Card>
 
-                <Card className="col-span-3 bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="col-span-3 bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                   <CardHeader>
                     <CardTitle>{t('clientEcosystem')}</CardTitle>
                     <CardDescription>{t('clientEcosystemDesc')}</CardDescription>

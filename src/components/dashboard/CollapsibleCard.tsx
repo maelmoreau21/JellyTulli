@@ -47,7 +47,7 @@ export function CollapsibleCard({
     const showContent = !mounted || isOpen;
 
     return (
-        <Card className={`bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm ${className}`}>
+        <Card className={`bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm ${className}`}>
             <CardHeader
                 className={`cursor-pointer select-none group ${headerClassName}`}
                 onClick={toggle}

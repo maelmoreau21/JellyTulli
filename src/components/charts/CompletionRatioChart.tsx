@@ -22,7 +22,7 @@ interface CompletionRatioChartProps {
     data: CompletionData[];
 }
 
-/* Active shape â€” expanded sector with glow + center label */
+/* Active shape — expanded sector with glow + center label */
 function renderActiveShape(props: any) {
     const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, value, percent } = props;
     return (

@@ -110,7 +110,7 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
             </TabsList>
 
             <TabsContent value="ghosts" className="mt-6">
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle className="text-red-400">{t('ghostMedia')}</CardTitle>
                         <CardDescription>
@@ -124,17 +124,17 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                                 { key: "MusicAlbum", label: `${t('albumsFilter')} (${ghostTypeCounts.MusicAlbum})` },
                             ].map(f => (
                                 <button key={f.key} onClick={() => setGhostFilter(f.key)}
-                                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${ghostFilter === f.key ? 'bg-red-500/20 border-red-500/40 text-red-300' : 'border-zinc-700 text-zinc-400 hover:bg-zinc-800'}`}>
+                                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${ghostFilter === f.key ? 'bg-red-500/20 border-red-500/40 text-red-300' : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
                                     {f.label}
                                 </button>
                             ))}
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="rounded-md border border-zinc-800">
+                        <div className="rounded-md border border-zinc-200 dark:border-zinc-800">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="border-zinc-800 hover:bg-zinc-800/50">
+                                    <TableRow className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800/50">
                                         <TableHead>{t('colTitle')}</TableHead>
                                         <TableHead className="w-[100px]">{t('colType')}</TableHead>
                                         <TableHead className="w-[150px]">{t('colAdded')}</TableHead>
@@ -149,10 +149,10 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                                         </TableRow>
                                     )}
                                     {filteredGhosts.map((media) => (
-                                        <TableRow key={media.id} className="border-zinc-800 hover:bg-zinc-800/20">
+                                        <TableRow key={media.id} className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800/20">
                                             <TableCell className="font-medium text-zinc-200">{media.title}</TableCell>
                                             <TableCell>
-                                                <Badge variant="outline" className="border-zinc-700 flex items-center gap-1.5 w-fit">
+                                                <Badge variant="outline" className="border-zinc-200 dark:border-zinc-700 flex items-center gap-1.5 w-fit">
                                                     {getTypeIcon(media.type)}
                                                     {getTypeLabel(media.type, t)}
                                                 </Badge>
@@ -173,7 +173,7 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
             </TabsContent>
 
             <TabsContent value="abandoned" className="mt-6">
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle className="text-orange-400">{t('abandonedMedia')}</CardTitle>
                         <CardDescription>
@@ -187,17 +187,17 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                                 { key: "Audio", label: `${t('musicFilter')} (${abandonTypeCounts.Audio})` },
                             ].map(f => (
                                 <button key={f.key} onClick={() => setAbandonFilter(f.key)}
-                                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${abandonFilter === f.key ? 'bg-orange-500/20 border-orange-500/40 text-orange-300' : 'border-zinc-700 text-zinc-400 hover:bg-zinc-800'}`}>
+                                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${abandonFilter === f.key ? 'bg-orange-500/20 border-orange-500/40 text-orange-300' : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
                                     {f.label}
                                 </button>
                             ))}
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="rounded-md border border-zinc-800">
+                        <div className="rounded-md border border-zinc-200 dark:border-zinc-800">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="border-zinc-800 hover:bg-zinc-800/50">
+                                    <TableRow className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800/50">
                                         <TableHead>{t('colTitle')}</TableHead>
                                         <TableHead className="w-[100px]">{t('colType')}</TableHead>
                                         <TableHead className="w-[180px]">{t('colMaxCompletion')}</TableHead>
@@ -213,17 +213,17 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                                         </TableRow>
                                     )}
                                     {filteredAbandoned.map((media) => (
-                                        <TableRow key={media.id} className="border-zinc-800 hover:bg-zinc-800/20">
+                                        <TableRow key={media.id} className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800/20">
                                             <TableCell className="font-medium text-zinc-200 max-w-[300px] truncate" title={media.title}>{media.title}</TableCell>
                                             <TableCell>
-                                                <Badge variant="outline" className="border-zinc-700 flex items-center gap-1.5 w-fit">
+                                                <Badge variant="outline" className="border-zinc-200 dark:border-zinc-700 flex items-center gap-1.5 w-fit">
                                                     {getTypeIcon(media.type)}
                                                     {getTypeLabel(media.type, t)}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-24 h-2 bg-zinc-800 rounded-full overflow-hidden">
+                                                    <div className="w-24 h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                                                         <div
                                                             className="h-full bg-orange-500 rounded-full"
                                                             style={{ width: `${Math.min(media.maxCompletion, 100)}%` }}

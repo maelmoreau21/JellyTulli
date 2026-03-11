@@ -5,7 +5,7 @@ export async function register() {
 
         console.log("[Instrumentation] Démarrage des tâches de fond...");
 
-        // Lire la planification des tÃ¢ches depuis la BDD
+        // Lire la planification des tâches depuis la BDD
         let syncCronHour = 3, syncCronMinute = 0, backupCronHour = 3, backupCronMinute = 30;
         try {
             const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
@@ -16,10 +16,10 @@ export async function register() {
                 backupCronMinute = settings.backupCronMinute ?? 30;
             }
         } catch (err) {
-            console.warn("[Instrumentation] Impossible de lire les paramÃ¨tres cron, utilisation des valeurs par dÃ©faut:", err);
+            console.warn("[Instrumentation] Impossible de lire les paramètres cron, utilisation des valeurs par défaut:", err);
         }
 
-        // Initialiser les tÃ¢ches cron avec la planification configurÃ©e
+        // Initialiser les tâches cron avec la planification configurée
         await initCronJobs({ syncCronHour, syncCronMinute, backupCronHour, backupCronMinute });
     }
 }

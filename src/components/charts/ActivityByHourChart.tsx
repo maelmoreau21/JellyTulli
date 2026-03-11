@@ -51,7 +51,7 @@ export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
                     <span className="text-zinc-400">
                         ({selectedEntry.count > avg ? '+' : ''}{selectedEntry.count - avg} vs moy.)
                     </span>
-                    <button onClick={() => setSelectedHour(null)} className="ml-auto text-zinc-400 hover:text-zinc-200 text-lg leading-none">Ã—</button>
+                    <button onClick={() => setSelectedHour(null)} className="ml-auto text-zinc-400 hover:text-zinc-200 text-lg leading-none">×</button>
                 </div>
             )}
 
@@ -100,7 +100,7 @@ export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
                         labelStyle={chartLabelStyle}
                         itemStyle={chartItemStyle}
                         cursor={{ fill: 'rgba(56, 189, 248, 0.06)', radius: 4 }}
-                        formatter={(value: any) => [`${value} sessions`, "ActivitÃ©"]}
+                        formatter={(value: any) => [`${value} sessions`, "Activité"]}
                         animationDuration={200}
                     />
                     {/* Average reference line */}

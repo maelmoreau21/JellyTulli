@@ -30,7 +30,7 @@ const adminNavigationKeys = [
     { key: 'recentlyAdded', href: '/recent', icon: Sparkles },
     { key: 'library', href: '/media', icon: Film },
     { key: 'logs', href: '/logs', icon: ScrollText },
-    { label: 'SantÃ© des logs', href: '/admin/log-health', icon: HeartPulse },
+    { label: 'Santé des logs', href: '/admin/log-health', icon: HeartPulse },
     { key: 'users', href: '/users', icon: Users },
     { key: 'cleanup', href: '/admin/cleanup', icon: Eraser },
     { key: 'settings', href: '/settings', icon: Settings },
@@ -72,7 +72,7 @@ export function Sidebar() {
                     </div>
                     <span>JellyTrack</span>
                 </Link>
-                {/* Close button â€” mobile only */}
+                {/* Close button — mobile only */}
                 <button
                     onClick={() => setMobileOpen(false)}
                     className="ml-auto md:hidden p-1 text-zinc-400 hover:text-zinc-200"
@@ -111,10 +111,8 @@ export function Sidebar() {
             </div>
 
             <div className="border-t border-zinc-200 dark:border-white/5 p-4 space-y-3 bg-white/30 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0))]">
-                <div className="flex items-center gap-2">
-                    <div className="flex-1"><LanguageSwitcher /></div>
-                    <ThemeToggle />
-                </div>
+                <LanguageSwitcher />
+                <ThemeToggle />
                 <LogoutButton className="w-full justify-start text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50" />
                 <div className="text-center">
                     <Link href="/about" className="text-[11px] text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors">
@@ -150,7 +148,7 @@ export function Sidebar() {
                 />
             )}
 
-            {/* Sidebar â€” desktop: always visible, mobile: slide-over */}
+            {/* Sidebar — desktop: always visible, mobile: slide-over */}
             <div
                 className={`
                     fixed top-0 left-0 z-50 h-screen w-[86vw] max-w-72 md:w-64 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl shadow-2xl md:shadow-none

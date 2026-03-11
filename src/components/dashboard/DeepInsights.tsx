@@ -280,7 +280,7 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
     const t = await getTranslations('deepInsights');
 
     const renderCategory = (title: string, items: any[], empty: string) => (
-        <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+        <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
             <CardHeader className="pb-2">
                 <CardTitle className="text-md">{title}</CardTitle>
             </CardHeader>
@@ -293,7 +293,7 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
                                 <span className="text-zinc-500 w-4 inline-block">{i + 1}.</span>
                                 {m.title}
                             </div>
-                            <div className="font-semibold text-xs bg-zinc-800/50 px-2 py-1 rounded">{m.plays} {t('views')}</div>
+                            <div className="font-semibold text-xs bg-zinc-200/50 dark:bg-zinc-800/50 px-2 py-1 rounded">{m.plays} {t('views')}</div>
                         </div>
                     ))}
                 </div>
@@ -312,7 +312,7 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
 
             {/* Top Genres */}
             {data.topGenres.length > 0 && (
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-md">Top Genres</CardTitle>
                         <CardDescription>{t('genresDesc')}</CardDescription>
@@ -331,7 +331,7 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
                                                 <span className="truncate">{g.name}</span>
                                                 <span className="text-xs text-zinc-400 shrink-0 ml-2">{g.plays} {t('views')} · {g.duration}h</span>
                                             </div>
-                                            <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                            <div className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                                                 <div className={`h-full rounded-full ${colors[i % colors.length]}`} style={{ width: `${pct}%` }} />
                                             </div>
                                         </div>
@@ -345,7 +345,7 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
 
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle>{t('topClients')}</CardTitle>
                         <CardDescription>{t('topClientsDesc')}</CardDescription>
@@ -362,7 +362,7 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
                     </CardContent>
                 </Card>
 
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle>{t('streamMethods')}</CardTitle>
                         <CardDescription>{t('streamMethodsDesc')}</CardDescription>
@@ -375,7 +375,7 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
 
             {/* Pro Telemetry Section */}
             <div className="grid gap-4 md:grid-cols-2">
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle>{t('resolutionMatrix')}</CardTitle>
                         <CardDescription>{t('resolutionMatrixDesc')}</CardDescription>
@@ -389,7 +389,7 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
                     </CardContent>
                 </Card>
 
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle>{t('deviceEcosystem')}</CardTitle>
                         <CardDescription>{t('deviceEcosystemDesc')}</CardDescription>

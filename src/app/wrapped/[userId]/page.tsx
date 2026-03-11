@@ -47,7 +47,7 @@ export default async function WrappedPage({ params }: WrappedPageProps) {
         }
     });
 
-    // Fallback : si aucune session cette annÃ©e, charger toutes les donnÃ©es (all-time)
+    // Fallback : si aucune session cette année, charger toutes les données (all-time)
     if (user && user.playbackHistory.length === 0) {
         user = await prisma.user.findUnique({
             where: { jellyfinUserId: userId },

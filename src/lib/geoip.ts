@@ -1,6 +1,6 @@
 /**
- * Lit les informations gÃ©ographiques depuis une IP.
- * ExÃ©cutÃ© uniquement cÃ´tÃ© serveur Node.js natif.
+ * Lit les informations géographiques depuis une IP.
+ * Exécuté uniquement côté serveur Node.js natif.
  */
 export function getGeoLocation(ip: string | null | undefined) {
     if (!ip) return { country: "Unknown", city: "Unknown" };
@@ -11,7 +11,7 @@ export function getGeoLocation(ip: string | null | undefined) {
     }
 
     try {
-        // Chargement diffÃ©rÃ© pour esquiver l'analyse statique Next.js "ENOENT data" du Build
+        // Chargement différé pour esquiver l'analyse statique Next.js "ENOENT data" du Build
         const geoip = require("geoip-country");
 
         const lookup = geoip.lookup(ip);

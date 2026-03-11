@@ -2,13 +2,13 @@ import prisma from "./prisma";
 import { appendHealthEvent, markSyncFinished, markSyncStarted } from "@/lib/systemHealth";
 
 /**
- * Fonction maÃ®tresse de synchronisation de la librairie Jellyfin.
- * Interroge l'API Jellyfin pour rÃ©cupÃ©rer les Utilisateurs et les MÃ©dias (Films, SÃ©ries, Ã‰pisodes),
+ * Fonction maîtresse de synchronisation de la librairie Jellyfin.
+ * Interroge l'API Jellyfin pour récupérer les Utilisateurs et les Médias (Films, Séries, Épisodes),
  * et effectue un Upsert massif dans la base PostgreSQL via Prisma.
  */
 export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
-    const mode = options?.recentOnly ? 'rÃ©cente (7 derniers jours)' : 'complÃ¨te';
-    console.log(`[Sync] DÃ©marrage de la synchronisation ${mode} de la librairie Jellyfin...`);
+    const mode = options?.recentOnly ? 'récente (7 derniers jours)' : 'complète';
+    console.log(`[Sync] Démarrage de la synchronisation ${mode} de la librairie Jellyfin...`);
     console.log(`[Sync] JELLYFIN_URL = ${process.env.JELLYFIN_URL || '(not set)'}`);
     await markSyncStarted(options?.recentOnly ? 'recent' : 'full');
 
@@ -28,7 +28,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         // 1. Synchronisation des Utilisateurs
         console.log("[Sync] Fetching Users...");
         const usersRes = await fetch(`${baseUrl}/Users`, { headers: jellyfinHeaders });
-        if (!usersRes.ok) throw new Error("Erreur de rÃ©cupÃ©ration des utilisateurs");
+        if (!usersRes.ok) throw new Error("Erreur de récupération des utilisateurs");
         const users = await usersRes.json();
 
         // Upsert massifs utilisateurs
@@ -41,7 +41,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
             });
             usersCount++;
         }
-        console.log(`[Sync] ${usersCount} utilisateurs synchronisÃ©s.`);
+        console.log(`[Sync] ${usersCount} utilisateurs synchronisés.`);
 
         // 2. Fetch library views to map CollectionType per library
         console.log("[Sync] Fetching Library Views...");
@@ -85,7 +85,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         }
         console.log(`[Sync] Fetching Media Items${options?.recentOnly ? ' (recent only)' : ''}...`);
         const itemsRes = await fetch(itemsUrl, { headers: jellyfinHeaders });
-        if (!itemsRes.ok) throw new Error("Erreur de rÃ©cupÃ©ration des mÃ©dias");
+        if (!itemsRes.ok) throw new Error("Erreur de récupération des médias");
         const itemsData = await itemsRes.json();
         const items = itemsData.Items || [];
 
@@ -144,21 +144,21 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
             });
             mediaCount++;
         }
-        console.log(`[Sync] ${mediaCount} mÃ©dias synchronisÃ©s.`);
+        console.log(`[Sync] ${mediaCount} médias synchronisés.`);
 
-        console.log("[Sync] TerminÃ©e avec succÃ¨s.");
+        console.log("[Sync] Terminée avec succès.");
         await markSyncFinished({ success: true, mode: options?.recentOnly ? 'recent' : 'full', users: usersCount, media: mediaCount });
         await appendHealthEvent({
             source: 'sync',
             kind: 'success',
-            message: `Synchronisation ${options?.recentOnly ? 'rÃ©cente' : 'complÃ¨te'} terminÃ©e.`,
+            message: `Synchronisation ${options?.recentOnly ? 'récente' : 'complète'} terminée.`,
             details: { users: usersCount, media: mediaCount }
         });
         return { success: true, users: usersCount, media: mediaCount };
     } catch (e: any) {
         const isConnectionError = e.message === 'fetch failed' || e.cause?.code === 'ECONNREFUSED';
         if (isConnectionError) {
-            console.error(`[Sync Error] Jellyfin injoignable (${baseUrl}). VÃ©rifiez JELLYFIN_URL â€” dans Docker, utilisez l'IP rÃ©elle du serveur (pas localhost/127.0.0.1).`);
+            console.error(`[Sync Error] Jellyfin injoignable (${baseUrl}). Vérifiez JELLYFIN_URL — dans Docker, utilisez l'IP réelle du serveur (pas localhost/127.0.0.1).`);
         } else {
             console.error("[Sync Error]", e.message);
         }
@@ -166,7 +166,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         await appendHealthEvent({
             source: 'sync',
             kind: 'error',
-            message: `Ã‰chec de synchronisation ${options?.recentOnly ? 'rÃ©cente' : 'complÃ¨te'}.`,
+            message: `Échec de synchronisation ${options?.recentOnly ? 'récente' : 'complète'}.`,
             details: { error: e.message }
         });
         return { success: false, error: e.message };

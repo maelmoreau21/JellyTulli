@@ -19,7 +19,7 @@ type Snapshot = {
 function formatRelative(dateString: string | null) {
     if (!dateString) return "Jamais";
     const deltaMinutes = Math.max(0, Math.round((Date.now() - new Date(dateString).getTime()) / 60000));
-    if (deltaMinutes < 1) return "Ã  lâ€™instant";
+    if (deltaMinutes < 1) return "à l’instant";
     if (deltaMinutes < 60) return `il y a ${deltaMinutes} min`;
     const deltaHours = Math.round(deltaMinutes / 60);
     if (deltaHours < 24) return `il y a ${deltaHours} h`;
@@ -66,35 +66,35 @@ export function SystemHealthWidgets({ initialSnapshot }: { initialSnapshot: Snap
                 </div>
                 <div className="dashboard-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-zinc-300">
                     <RefreshCw className="h-3.5 w-3.5 text-amber-300" />
-                    DerniÃ¨re synchro: {formatRelative(snapshot.status.sync.lastSuccessAt)}
+                    Dernière synchro: {formatRelative(snapshot.status.sync.lastSuccessAt)}
                 </div>
                 <div className="dashboard-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-zinc-300">
                     <DatabaseBackup className="h-3.5 w-3.5 text-emerald-300" />
-                    DerniÃ¨re sauvegarde: {formatRelative(snapshot.status.backup.lastSuccessAt)}
+                    Dernière sauvegarde: {formatRelative(snapshot.status.backup.lastSuccessAt)}
                 </div>
                 <Link href="/admin/log-health" className="ml-auto inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-cyan-200 hover:bg-cyan-400/15">
                     <HeartPulse className="h-3.5 w-3.5" />
-                    SantÃ© des logs
+                    Santé des logs
                 </Link>
             </div>
 
             <Card className="border-white/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
                 <CardContent className="grid gap-4 p-5 md:grid-cols-4">
-                    <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
+                    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-black/20 p-4">
                         <div className="flex items-center gap-2 text-sm text-zinc-400"><CheckCircle2 className="h-4 w-4 text-emerald-400" /> Streams actifs</div>
-                        <div className="mt-2 text-3xl font-bold text-white">{snapshot.counts.activeStreams}</div>
+                        <div className="mt-2 text-3xl font-bold text-zinc-900 dark:text-white">{snapshot.counts.activeStreams}</div>
                     </div>
-                    <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
+                    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-black/20 p-4">
                         <div className="flex items-center gap-2 text-sm text-zinc-400"><ShieldAlert className="h-4 w-4 text-orange-400" /> Lectures orphelines</div>
-                        <div className="mt-2 text-3xl font-bold text-white">{snapshot.counts.openPlaybackOrphans}</div>
+                        <div className="mt-2 text-3xl font-bold text-zinc-900 dark:text-white">{snapshot.counts.openPlaybackOrphans}</div>
                     </div>
-                    <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
+                    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-black/20 p-4">
                         <div className="flex items-center gap-2 text-sm text-zinc-400"><AlertTriangle className="h-4 w-4 text-red-400" /> DB sans Redis</div>
-                        <div className="mt-2 text-3xl font-bold text-white">{snapshot.counts.dbStreamsWithoutRedis}</div>
+                        <div className="mt-2 text-3xl font-bold text-zinc-900 dark:text-white">{snapshot.counts.dbStreamsWithoutRedis}</div>
                     </div>
-                    <div className="rounded-2xl border border-zinc-800 bg-black/20 p-4">
-                        <div className="flex items-center gap-2 text-sm text-zinc-400"><HeartPulse className="h-4 w-4 text-cyan-400" /> BibliothÃ¨ques exclues</div>
-                        <div className="mt-2 text-3xl font-bold text-white">{snapshot.excludedLibraries.length}</div>
+                    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-black/20 p-4">
+                        <div className="flex items-center gap-2 text-sm text-zinc-400"><HeartPulse className="h-4 w-4 text-cyan-400" /> Bibliothèques exclues</div>
+                        <div className="mt-2 text-3xl font-bold text-zinc-900 dark:text-white">{snapshot.excludedLibraries.length}</div>
                     </div>
                 </CardContent>
             </Card>

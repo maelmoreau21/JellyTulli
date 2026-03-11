@@ -8,7 +8,7 @@ export default async function UserActivity({ userId }: { userId: string }) {
     last30Days.setDate(last30Days.getDate() - 29);
     last30Days.setHours(0, 0, 0, 0);
 
-    // RequÃªte Prisma limitÃ©e aux 30 derniers jours pour Ã©viter de surcharger
+    // Requête Prisma limitée aux 30 derniers jours pour éviter de surcharger
     const user = await prisma.user.findUnique({
         where: { jellyfinUserId: userId },
         include: {
@@ -44,7 +44,7 @@ export default async function UserActivity({ userId }: { userId: string }) {
     }));
 
     return (
-        <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
+        <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm mt-6">
             <CardHeader className="pb-2">
                 <CardTitle>{t('activity30d')}</CardTitle>
                 <CardDescription>{t('activity30dDesc')}</CardDescription>

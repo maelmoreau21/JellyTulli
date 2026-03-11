@@ -69,7 +69,7 @@ export default async function UserStatsCharts({ userId }: { userId: string }) {
 
     return (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mt-6">
-            <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+            <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                 <CardHeader>
                     <CardTitle>{td('dayOfWeekActivity')}</CardTitle>
                     <CardDescription>{td('dayOfWeekActivityDesc')}</CardDescription>
@@ -81,7 +81,7 @@ export default async function UserStatsCharts({ userId }: { userId: string }) {
                 </CardContent>
             </Card>
 
-            <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+            <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                 <CardHeader>
                     <CardTitle>{td('completionRate')}</CardTitle>
                     <CardDescription>{td('completionRateDesc')}</CardDescription>
@@ -97,7 +97,7 @@ export default async function UserStatsCharts({ userId }: { userId: string }) {
                 </CardContent>
             </Card>
 
-            <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm md:col-span-2 xl:col-span-1">
+            <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm md:col-span-2 xl:col-span-1">
                 <CardHeader>
                     <CardTitle>{td('hourlyActivity')}</CardTitle>
                     <CardDescription>{td('hourlyActivityDesc')}</CardDescription>

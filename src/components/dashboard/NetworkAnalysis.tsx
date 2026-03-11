@@ -194,7 +194,7 @@ export async function NetworkAnalysis({ type, timeRange, excludedLibraries }: { 
         <div className="space-y-6">
             {/* Stats row */}
             <div className="grid gap-4 md:grid-cols-4">
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium text-zinc-400">{t('totalSessions')}</CardTitle>
                     </CardHeader>
@@ -203,7 +203,7 @@ export async function NetworkAnalysis({ type, timeRange, excludedLibraries }: { 
                         <p className="text-xs text-emerald-500 font-medium mt-1">{data.stats.directPlaySessions} DirectPlay</p>
                     </CardContent>
                 </Card>
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium text-zinc-400">{t('transcodeRate')}</CardTitle>
                     </CardHeader>
@@ -212,7 +212,7 @@ export async function NetworkAnalysis({ type, timeRange, excludedLibraries }: { 
                         <p className="text-xs text-muted-foreground mt-1">{data.stats.transcodeSessions} {t('transcodedSessions')}</p>
                     </CardContent>
                 </Card>
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium text-zinc-400">DirectStream</CardTitle>
                     </CardHeader>
@@ -221,7 +221,7 @@ export async function NetworkAnalysis({ type, timeRange, excludedLibraries }: { 
                         <p className="text-xs text-muted-foreground mt-1">{t('remuxed')}</p>
                     </CardContent>
                 </Card>
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium text-zinc-400">{t('transcodeDuration')}</CardTitle>
                     </CardHeader>
@@ -234,7 +234,7 @@ export async function NetworkAnalysis({ type, timeRange, excludedLibraries }: { 
 
             {/* Charts Row */}
             <div className="grid gap-4 md:grid-cols-2">
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle>{t('directVsTranscodeByHour')}</CardTitle>
                         <CardDescription>{t('directVsTranscodeByHourDesc')}</CardDescription>
@@ -244,7 +244,7 @@ export async function NetworkAnalysis({ type, timeRange, excludedLibraries }: { 
                     </CardContent>
                 </Card>
 
-                <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+                <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
                         <CardTitle>{t('transcodeByClient')}</CardTitle>
                         <CardDescription>{t('transcodeByClientDesc')}</CardDescription>
@@ -263,7 +263,7 @@ export async function NetworkAnalysis({ type, timeRange, excludedLibraries }: { 
             </div>
 
             {/* Coupable Table */}
-            <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm">
+            <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <span>??</span> {t('mostTranscoded')}
@@ -288,7 +288,7 @@ export async function NetworkAnalysis({ type, timeRange, excludedLibraries }: { 
                                 </TableHeader>
                                 <TableBody>
                                     {data.coupableTable.map((row, i) => (
-                                        <TableRow key={i} className="even:bg-zinc-900/30 hover:bg-zinc-800/50 border-zinc-800/50">
+                                        <TableRow key={i} className="even:bg-zinc-100/50 dark:even:bg-zinc-900/30 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 border-zinc-200/50 dark:border-zinc-800/50">
                                             <TableCell className="font-medium" title={row.fullTitle}>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-zinc-500 text-xs w-4">{i + 1}.</span>

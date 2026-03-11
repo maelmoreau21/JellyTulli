@@ -161,6 +161,19 @@
 
 @layer components {
     .app-surface {
+      border-color: rgba(228, 228, 231, 0.6);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(250, 250, 252, 0.85)),
+        radial-gradient(circle at top right, rgba(8, 145, 178, 0.06), transparent 34%),
+        radial-gradient(circle at bottom left, rgba(245, 158, 11, 0.04), transparent 28%),
+        rgba(255, 255, 255, 0.92);
+      box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(14px);
+    }
+
+    .dark .app-surface {
       border-color: rgba(148, 163, 184, 0.22);
       background:
         linear-gradient(180deg, rgba(30, 41, 59, 0.46), rgba(15, 23, 42, 0.42)),
@@ -170,27 +183,49 @@
       box-shadow:
         0 16px 40px rgba(0, 0, 0, 0.25),
         inset 0 1px 0 rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(14px);
     }
 
     .app-surface-soft {
+      border-color: rgba(228, 228, 231, 0.5);
+      background: rgba(255, 255, 255, 0.7);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .dark .app-surface-soft {
       border-color: rgba(148, 163, 184, 0.2);
       background: rgba(15, 23, 42, 0.56);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     }
 
     .app-field {
+      border-color: rgba(212, 212, 216, 0.6);
+      background: rgba(255, 255, 255, 0.8);
+    }
+
+    .dark .app-field {
       border-color: rgba(148, 163, 184, 0.28);
       background: rgba(15, 23, 42, 0.72);
     }
 
     .app-chip {
+      border: 1px solid rgba(212, 212, 216, 0.5);
+      background: rgba(244, 244, 245, 0.8);
+      color: rgba(39, 39, 42, 0.9);
+    }
+
+    .dark .app-chip {
       border: 1px solid rgba(148, 163, 184, 0.28);
       background: rgba(15, 23, 42, 0.68);
       color: rgba(226, 232, 240, 0.94);
     }
 
     .app-chip-success {
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.1);
+      color: #059669;
+    }
+
+    .dark .app-chip-success {
       border: 1px solid rgba(16, 185, 129, 0.35);
       background: rgba(16, 185, 129, 0.14);
       color: #6ee7b7;
@@ -206,11 +241,19 @@
       inset: 0;
       pointer-events: none;
       background:
+        radial-gradient(circle at 12% 18%, rgba(6, 182, 212, 0.05), transparent 24%),
+        radial-gradient(circle at 88% 14%, rgba(249, 115, 22, 0.05), transparent 20%),
+        radial-gradient(circle at 50% 78%, rgba(168, 85, 247, 0.05), transparent 26%);
+      opacity: 0.7;
+      z-index: 0;
+    }
+
+    .dark .dashboard-page::before {
+      background:
         radial-gradient(circle at 12% 18%, rgba(6, 182, 212, 0.08), transparent 24%),
         radial-gradient(circle at 88% 14%, rgba(249, 115, 22, 0.08), transparent 20%),
         radial-gradient(circle at 50% 78%, rgba(168, 85, 247, 0.08), transparent 26%);
       opacity: 0.9;
-      z-index: 0;
     }
 
     .dashboard-page > * {
@@ -221,6 +264,19 @@
     .dashboard-page [data-slot="card"] {
       position: relative;
       overflow: hidden;
+      border-color: rgba(212, 212, 216, 0.45);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(250, 250, 252, 0.9)),
+        radial-gradient(circle at top right, rgba(8, 145, 178, 0.06), transparent 34%),
+        radial-gradient(circle at bottom left, rgba(249, 115, 22, 0.04), transparent 30%),
+        rgba(255, 255, 255, 0.92);
+      box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(18px);
+    }
+
+    .dark .dashboard-page [data-slot="card"] {
       border-color: rgba(255, 255, 255, 0.08);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015)),
@@ -230,7 +286,6 @@
       box-shadow:
         0 24px 80px rgba(0, 0, 0, 0.28),
         inset 0 1px 0 rgba(255, 255, 255, 0.035);
-      backdrop-filter: blur(18px);
     }
 
     .dashboard-page [data-slot="card"]::before {
@@ -238,8 +293,12 @@
       position: absolute;
       inset: 1px;
       border-radius: inherit;
-      border: 1px solid rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(212, 212, 216, 0.1);
       pointer-events: none;
+    }
+
+    .dark .dashboard-page [data-slot="card"]::before {
+      border: 1px solid rgba(255, 255, 255, 0.03);
     }
 
     .dashboard-page a [data-slot="card"],
@@ -253,6 +312,15 @@
     .dashboard-page a:hover [data-slot="card"],
     .dashboard-page .dashboard-interactive:hover {
       transform: translateY(-2px);
+      border-color: rgba(8, 145, 178, 0.25);
+      box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.1),
+        0 0 0 1px rgba(8, 145, 178, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .dark .dashboard-page a:hover [data-slot="card"],
+    .dark .dashboard-page .dashboard-interactive:hover {
       border-color: rgba(103, 232, 249, 0.2);
       box-shadow:
         0 30px 90px rgba(0, 0, 0, 0.34),
@@ -261,28 +329,52 @@
     }
 
     .dashboard-page .dashboard-banner {
+      border: 1px solid rgba(212, 212, 216, 0.4);
+      background:
+        linear-gradient(135deg, rgba(8, 145, 178, 0.08), rgba(249, 115, 22, 0.05), rgba(255, 255, 255, 0.92));
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+      backdrop-filter: blur(18px);
+    }
+
+    .dark .dashboard-page .dashboard-banner {
       border: 1px solid rgba(255, 255, 255, 0.08);
       background:
         linear-gradient(135deg, rgba(8, 145, 178, 0.16), rgba(249, 115, 22, 0.09), rgba(10, 10, 15, 0.88));
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
-      backdrop-filter: blur(18px);
     }
 
     .dashboard-page .dashboard-tablist {
+      border-color: rgba(212, 212, 216, 0.4);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(250, 250, 252, 0.85));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .dark .dashboard-page .dashboard-tablist {
       border-color: rgba(255, 255, 255, 0.08);
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(10, 12, 18, 0.9));
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
     }
 
     .dashboard-page .dashboard-pill {
+      border: 1px solid rgba(212, 212, 216, 0.4);
+      background: rgba(255, 255, 255, 0.85);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(14px);
+    }
+
+    .dark .dashboard-page .dashboard-pill {
       border: 1px solid rgba(255, 255, 255, 0.08);
       background: rgba(9, 12, 18, 0.72);
       box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-      backdrop-filter: blur(14px);
     }
 }
 
 ::selection {
+  background: rgba(8, 145, 178, 0.25);
+  color: #18181b;
+}
+
+.dark ::selection {
   background: rgba(8, 145, 178, 0.35);
   color: #f4f4f5;
 }

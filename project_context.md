@@ -754,3 +754,62 @@ Migration définitive vers une architecture **plugin push exclusif**. Tous les s
 - **Source unique** : Le plugin Jellyfin pousse les événements en temps réel vers `/api/plugin/events`.
 - **`JELLYFIN_URL` + `JELLYFIN_API_KEY`** : Toujours nécessaires pour le proxy d'images (`src/lib/jellyfin.ts`) et la synchronisation de bibliothèque cron (`src/lib/sync.ts`).
 - **Cron jobs** : Synchronisation bibliothèque (3h00) et backup automatique (3h30) inchangés.
+
+---
+
+### Phase 39 — Correction Encodage UTF-8, Refonte Thème Clair/Sombre & Sidebar UX
+
+Correction massive des encodages UTF-8 cassés (mojibake) dans l'ensemble de la codebase, refonte complète du support light/dark mode, et amélioration UX de la sidebar.
+
+#### 1. Correction UTF-8 Double-Encodage (36+ fichiers)
+- **Cause racine** : Les fichiers source avaient été sauvegardés en Latin-1/Windows-1252 puis ré-encodés en UTF-8, causant un double-encodage (ex: `é` → `Ã©`, `—` → `â€"`, emojis drapeaux → séquences multi-octets illisibles).
+- **Correctif** : Script Node.js avec regex basées sur les code points Unicode pour remplacer les séquences mojibake par les caractères UTF-8 corrects.
+- **Fichiers critiques corrigés** : `locales.ts` (noms de langues + emojis drapeaux), `LoginForm.tsx` (placeholder mot de passe `••••••••••`), `Sidebar.tsx` (`Santé des logs`), `i18n-api.ts` (tirets cadratins `—` et accents `à`), `SystemHealthWidgets.tsx`, `LiveStreamsPanel.tsx`, `MediaTimelineChart.tsx`, `log-health/page.tsx`, et 28+ autres fichiers.
+
+#### 2. Refonte ThemeToggle
+- Ancien design : petit bouton icône `p-2` écrasé à côté du LanguageSwitcher dans un flex row.
+- Nouveau design : bouton pleine largeur `rounded-2xl` avec conteneur icône `9×9 rounded-xl`, label "Thème", et nom du thème actuel ("Sombre"/"Clair"). Style identique au LanguageSwitcher pour cohérence visuelle.
+
+#### 3. Sidebar Footer — Layout Vertical
+- Ancien : LanguageSwitcher et ThemeToggle côte-à-côte dans un flex row → ThemeToggle compressé.
+- Nouveau : Layout vertical empilé — LanguageSwitcher, puis ThemeToggle, puis LogoutButton. Chaque composant occupe toute la largeur.
+
+#### 4. Support Light Mode Complet
+
+**globals.css** — Toutes les classes utilitaires custom sont désormais scopées :
+- `.app-surface` : fond blanc/glass en light, dark glass original en dark (via `.dark .app-surface`)
+- `.app-surface-soft`, `.app-field`, `.app-chip`, `.app-chip-success` : idem
+- `.dashboard-page [data-slot="card"]` : fond blanc avec bords subtils en light, glass sombre en dark
+- `.dashboard-page .dashboard-banner`, `.dashboard-tablist`, `.dashboard-pill` : variantes light/dark
+- `.dashboard-page::before` : gradients radiaux atténués en light
+- `::selection` : couleur de sélection adaptée au thème
+
+**Login** — Page entièrement adaptée :
+- `page.tsx` : `bg-zinc-50 dark:bg-black`, Card `bg-white/80 dark:bg-zinc-900/80`
+- `LoginForm.tsx` : inputs `bg-zinc-100/80 dark:bg-black/50`, labels `text-zinc-600 dark:text-zinc-300`
+- `LoginLanguageSwitcher.tsx` : bouton et dropdown avec variantes light/dark
+
+**Composants partagés** :
+- `LanguageSwitcher.tsx` : bouton, dropdown, items avec `dark:` prefixes
+- `SearchBar.tsx` : input et dropdown adaptés
+- `FallbackImage.tsx` : placeholder `bg-zinc-200/80 dark:bg-zinc-800/80`
+- `TimeRangeSelector.tsx` : triggers et popovers adaptés
+- `CollapsibleCard.tsx` : Card partagée adaptée
+
+**Dashboard & Analytics** :
+- `page.tsx` : stats text `text-zinc-900 dark:text-white`, Cards breakdown adaptées
+- `SystemHealthWidgets.tsx`, `NetworkAnalysis.tsx`, `DeepInsights.tsx`, `GranularAnalysis.tsx`, `HardwareMonitor.tsx`, `LiveStreamsPanel.tsx`, `DraggableDashboard.tsx` : toutes les Cards et éléments internes adaptés
+
+**Pages applicatives** :
+- `newsletter/page.tsx` : page entière adaptée (était `bg-black text-white` codé en dur)
+- `about/page.tsx` : Cards et dépendances adaptées
+- `admin/log-health/page.tsx` : Cards et éléments internes
+- `admin/cleanup/CleanupClient.tsx` : tables, filtres, badges
+- `media/[id]/page.tsx` : breadcrumbs, badges, progress bars, tables
+- `media/[id]/MediaTimelineChart.tsx` : toggles, tooltips, select
+- `media/loading.tsx` : tous les Skeletons
+- `users/page.tsx`, `users/[id]/UserRecentMedia.tsx` : tables, pagination
+- `logs/page.tsx`, `logs/ColumnToggle.tsx` : table rows, toggles
+- `settings/page.tsx` : boutons d'action, séparateurs
+- `charts/YearlyHeatmap.tsx` : Card, boutons, chips filtres, tooltips
+- `charts/LazyCharts.tsx` : skeleton placeholder

@@ -411,7 +411,7 @@ export default function SettingsPage() {
                                         </div>
                                         <button
                                             onClick={handleCopyApiKey}
-                                            className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium border border-zinc-700 hover:bg-zinc-800 transition-colors"
+                                            className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                         >
                                             <Copy className="w-4 h-4" />
                                             {apiKeyCopied ? t('pluginApiKeyCopied') : t('pluginCopyKey')}
@@ -439,7 +439,7 @@ export default function SettingsPage() {
                             <button
                                 onClick={() => handleGeneratePluginKey(true)}
                                 disabled={pluginLoading}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${pluginLoading ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'border border-zinc-700 hover:bg-zinc-800'}`}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${pluginLoading ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
                             >
                                 <RefreshCw className={`w-4 h-4 ${pluginLoading ? 'animate-spin' : ''}`} />
                                 {t('pluginRegenerateKey')}
@@ -603,7 +603,7 @@ export default function SettingsPage() {
                                 </div>
                             </div>
                         )}
-                        <div className="border-t border-zinc-800/50 pt-6 mt-6">
+                        <div className="border-t border-zinc-200 dark:border-zinc-800/50 pt-6 mt-6">
                             <Label htmlFor="excluded-libraries" className="text-base">{t('collectionFilter')}</Label>
                             <p className="text-sm text-muted-foreground mb-4">{t('collectionFilterDesc')}</p>
                             <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
@@ -612,7 +612,7 @@ export default function SettingsPage() {
                                 </span>
                                 {libraryScanError && (
                                     <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-amber-200">
-                                        Jellyfin non joignable, affichage basÃ© sur les mÃ©dias dÃ©jÃ  synchronisÃ©s.
+                                        Jellyfin non joignable, affichage basé sur les médias déjà synchronisés.
                                     </span>
                                 )}
                             </div>
@@ -635,7 +635,7 @@ export default function SettingsPage() {
                                                     <div className="text-xs text-zinc-400 font-mono mt-1">{libraryKey}</div>
                                                 </div>
                                                 <div className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${enabled ? 'app-chip-success' : 'app-chip'}`}>
-                                                    {enabled ? 'Suivi' : 'IgnorÃ©'}
+                                                    {enabled ? 'Suivi' : 'Ignoré'}
                                                 </div>
                                             </div>
                                         </button>
@@ -654,8 +654,8 @@ export default function SettingsPage() {
 
                 <Card className="app-surface mt-6">
                     <CardHeader>
-                        <CardTitle>RÃ¨gles par bibliothÃ¨que</CardTitle>
-                        <CardDescription>ContrÃ´lez les abandons et le taux de complÃ©tion par bibliothÃ¨que. Vous pouvez dÃ©sactiver complÃ¨tement la complÃ©tion pour une bibliothÃ¨que, comme la musique.</CardDescription>
+                        <CardTitle>Règles par bibliothèque</CardTitle>
+                        <CardDescription>Contrôlez les abandons et le taux de complétion par bibliothèque. Vous pouvez désactiver complètement la complétion pour une bibliothèque, comme la musique.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {availableLibraries.map((libraryKey) => {
@@ -674,21 +674,21 @@ export default function SettingsPage() {
                                             <div className="mt-1 text-xs text-zinc-500 font-mono">{libraryKey}</div>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <Label htmlFor={`rule-${libraryKey}`} className="text-sm text-zinc-300">Analyser la complÃ©tion</Label>
+                                            <Label htmlFor={`rule-${libraryKey}`} className="text-sm text-zinc-300">Analyser la complétion</Label>
                                             <Switch id={`rule-${libraryKey}`} checked={rule.completionEnabled} onCheckedChange={(checked) => updateRule(libraryKey, { completionEnabled: checked })} />
                                         </div>
                                     </div>
                                     <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
                                         <div className="space-y-2">
-                                            <Label>TerminÃ© Ã  partir de (%)</Label>
+                                            <Label>Terminé à partir de (%)</Label>
                                             <Input type="number" min={1} max={100} disabled={!rule.completionEnabled} value={rule.completedThreshold} onChange={(e) => updateRule(libraryKey, { completedThreshold: parseInt(e.target.value, 10) || 0 })} className="font-mono" />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label>Partiel Ã  partir de (%)</Label>
+                                            <Label>Partiel à partir de (%)</Label>
                                             <Input type="number" min={1} max={99} disabled={!rule.completionEnabled} value={rule.partialThreshold} onChange={(e) => updateRule(libraryKey, { partialThreshold: parseInt(e.target.value, 10) || 0 })} className="font-mono" />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label>AbandonnÃ© Ã  partir de (%)</Label>
+                                            <Label>Abandonné à partir de (%)</Label>
                                             <Input type="number" min={0} max={98} disabled={!rule.completionEnabled} value={rule.abandonedThreshold} onChange={(e) => updateRule(libraryKey, { abandonedThreshold: parseInt(e.target.value, 10) || 0 })} className="font-mono" />
                                         </div>
                                     </div>
@@ -697,7 +697,7 @@ export default function SettingsPage() {
                         })}
                     </CardContent>
                     <CardFooter>
-                        <p className="text-xs text-zinc-500">Ces seuils sâ€™appliquent au dashboard, aux statistiques utilisateur et au nettoyage des mÃ©dias abandonnÃ©s.</p>
+                        <p className="text-xs text-zinc-500">Ces seuils s’appliquent au dashboard, aux statistiques utilisateur et au nettoyage des médias abandonnés.</p>
                     </CardFooter>
                 </Card>
 
@@ -717,7 +717,7 @@ export default function SettingsPage() {
                         <input type="file" accept=".json" ref={fileInputRef} className="hidden" onChange={handleImportBackup} />
                     </CardContent>
                     <CardFooter className="flex flex-col sm:flex-row gap-4">
-                        <button onClick={handleExportBackup} className="flex-1 flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors border border-zinc-700 hover:bg-zinc-800">
+                        <button onClick={handleExportBackup} className="flex-1 flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800">
                             <Download className="w-4 h-4" /> {t('exportBackup')}
                         </button>
                         <button onClick={() => fileInputRef.current?.click()} disabled={isRestoring} className={`flex-1 flex justify-center items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${isRestoring ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>

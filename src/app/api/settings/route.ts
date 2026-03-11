@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { discordWebhookUrl, discordAlertCondition, discordAlertsEnabled, excludedLibraries, syncCronHour, syncCronMinute, backupCronHour, backupCronMinute, defaultLocale, libraryRules } = body;
 
-        // Input validation â€” Discord webhook URL must be a valid Discord URL or null
+        // Input validation — Discord webhook URL must be a valid Discord URL or null
         if (discordWebhookUrl !== undefined && discordWebhookUrl !== null && discordWebhookUrl !== "") {
             try {
                 const parsed = new URL(discordWebhookUrl);
@@ -126,14 +126,14 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Input validation â€” alert condition must be a known value
+        // Input validation — alert condition must be a known value
         const VALID_CONDITIONS = ["ALL", "TRANSCODE_ONLY", "NEW_IP_ONLY"];
         if (discordAlertCondition !== undefined && !VALID_CONDITIONS.includes(discordAlertCondition)) {
             return NextResponse.json({ error: await apiT('alertConditionInvalid') }, { status: 400 });
         }
 
 
-        // Input validation â€” cron hours/minutes
+        // Input validation — cron hours/minutes
         if (syncCronHour !== undefined) {
             const val = Number(syncCronHour);
             if (isNaN(val) || val < 0 || val > 23) return NextResponse.json({ error: await apiT('syncCronHourRange') }, { status: 400 });

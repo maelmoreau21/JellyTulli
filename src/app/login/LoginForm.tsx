@@ -57,14 +57,14 @@ export default function LoginForm() {
                 )}
 
                 <div className="space-y-2">
-                    <Label htmlFor="username" className="text-zinc-300 font-medium">{t('username')}</Label>
+                    <Label htmlFor="username" className="text-zinc-600 dark:text-zinc-300 font-medium">{t('username')}</Label>
                     <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-zinc-500" />
+                        <User className="absolute left-3 top-3 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                         <Input
                             id="username"
                             required
                             placeholder="Jellyfin User"
-                            className="pl-10 bg-black/50 border-zinc-700 text-white focus-visible:ring-indigo-500 placeholder:text-zinc-600 h-10"
+                            className="pl-10 bg-zinc-100/80 dark:bg-black/50 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white focus-visible:ring-indigo-500 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 h-10"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                         />
@@ -72,15 +72,15 @@ export default function LoginForm() {
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="password" className="text-zinc-300 font-medium">{t('password')}</Label>
+                    <Label htmlFor="password" className="text-zinc-600 dark:text-zinc-300 font-medium">{t('password')}</Label>
                     <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-zinc-500" />
+                        <Lock className="absolute left-3 top-3 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                         <Input
                             id="password"
                             type="password"
                             required
-                            placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
-                            className="pl-10 bg-black/50 border-zinc-700 text-white focus-visible:ring-indigo-500 placeholder:text-zinc-600 h-10"
+                            placeholder=".........."
+                            className="pl-10 bg-zinc-100/80 dark:bg-black/50 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white focus-visible:ring-indigo-500 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 h-10"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                         />

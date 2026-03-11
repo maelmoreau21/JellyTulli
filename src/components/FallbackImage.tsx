@@ -19,7 +19,7 @@ export function FallbackImage({ src, alt, className, fill, width, height, unopti
 
     if (error) {
         return (
-            <div className={`flex items-center justify-center bg-zinc-800/80 ${fill ? 'absolute inset-0' : ''} ${className || ''}`}
+            <div className={`flex items-center justify-center bg-zinc-200/80 dark:bg-zinc-800/80 ${fill ? 'absolute inset-0' : ''} ${className || ''}`}
                  style={!fill && width && height ? { width, height } : undefined}>
                 <Film className="w-8 h-8 text-zinc-600" />
             </div>

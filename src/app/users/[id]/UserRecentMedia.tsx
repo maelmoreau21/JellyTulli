@@ -21,7 +21,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
 
     if (!user) {
         return (
-            <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
+            <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm mt-6">
                 <CardHeader>
                     <CardTitle>{t('playbackHistory')}</CardTitle>
                     <CardDescription>{t('noHistory')}</CardDescription>
@@ -37,7 +37,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
 
     if (totalCount === 0) {
         return (
-            <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
+            <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm mt-6">
                 <CardHeader>
                     <CardTitle>{t('playbackHistory')}</CardTitle>
                     <CardDescription>{t('noHistory')}</CardDescription>
@@ -58,7 +58,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
         take: ITEMS_PER_PAGE,
     });
 
-    // Build parent chain for enriched media titles (Episode â†’ Series â€” Season, Audio â†’ Artist â€” Album)
+    // Build parent chain for enriched media titles (Episode â†’ Series — Season, Audio â†’ Artist — Album)
     const parentIds = new Set<string>();
     sessions.forEach((s: any) => {
         if (s.media?.parentId) parentIds.add(s.media.parentId);
@@ -86,13 +86,13 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
         if (!parent) return null;
         if (media.type === 'Episode') {
             const gp = parent.parentId ? grandparentMap.get(parent.parentId) : null;
-            if (gp) return `${gp.title} â€” ${parent.title}`;
+            if (gp) return `${gp.title} — ${parent.title}`;
             return parent.title;
         }
         if (media.type === 'Season') return parent.title;
         if (media.type === 'Audio') {
             const artistName = media.artist || parent.artist || null;
-            if (artistName) return `${artistName} â€” ${parent.title}`;
+            if (artistName) return `${artistName} — ${parent.title}`;
             return parent.title;
         }
         return parent.title;
@@ -107,11 +107,11 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
     };
 
     return (
-        <Card className="bg-zinc-900/50 border-zinc-800/50 backdrop-blur-sm mt-6">
+        <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm mt-6">
             <CardHeader>
                 <CardTitle>{t('playbackHistory')}</CardTitle>
                 <CardDescription>
-                    {t('aggregatedDesc')} â€” {totalCount} session{totalCount > 1 ? 's' : ''}
+                    {t('aggregatedDesc')} — {totalCount} session{totalCount > 1 ? 's' : ''}
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -146,7 +146,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
                                 }
 
                                 return (
-                                    <TableRow key={session.id} className="even:bg-zinc-900/30 hover:bg-zinc-800/50 border-zinc-800/50 transition-colors">
+                                    <TableRow key={session.id} className="even:bg-zinc-100/50 dark:even:bg-zinc-900/30 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 border-zinc-200/50 dark:border-zinc-800/50 transition-colors">
                                         <TableCell className="font-medium">
                                             <Link href={`/media/${session.media.jellyfinMediaId}`} className="flex items-center gap-3 group">
                                                 <div className="relative w-10 aspect-[2/3] bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10">
@@ -158,7 +158,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
                                                     />
                                                 </div>
                                                 <div className="min-w-0 flex-1">
-                                                    <div className="truncate group-hover:underline text-zinc-100">{session.media.title}</div>
+                                                    <div className="truncate group-hover:underline text-zinc-800 dark:text-zinc-100">{session.media.title}</div>
                                                     {subtitle ? (
                                                         <div className="text-xs text-zinc-400 truncate" title={subtitle}>
                                                             {session.media.type === 'Episode' ? 'ðŸ“º' : session.media.type === 'Audio' ? 'ðŸŽµ' : ''} {subtitle}
@@ -176,7 +176,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
                                                             {session.playMethod || "DirectPlay"}
                                                         </span>
                                                         <span className="truncate">{session.clientName || "N/A"}</span>
-                                                        <span className="text-zinc-500">Â·</span>
+                                                        <span className="text-zinc-500">·</span>
                                                         <span>{minutes} min</span>
                                                     </div>
                                                 </div>
@@ -206,9 +206,9 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t border-zinc-800/50">
+                    <div className="flex items-center justify-center gap-2 mt-4 pt-3 border-t border-zinc-200 dark:border-zinc-800/50">
                         {safePage > 1 && (
-                            <Link href={buildPageUrl(safePage - 1)} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-zinc-700 hover:bg-zinc-800">
+                            <Link href={buildPageUrl(safePage - 1)} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800">
                                 <ChevronLeft className="w-4 h-4" />
                             </Link>
                         )}
@@ -230,7 +230,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
                                             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                                                 item === safePage
                                                     ? "bg-primary text-primary-foreground"
-                                                    : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                                                    : "text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-zinc-800 dark:text-zinc-100"
                                             }`}
                                         >
                                             {item}
@@ -239,7 +239,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
                                 )}
                         </div>
                         {safePage < totalPages && (
-                            <Link href={buildPageUrl(safePage + 1)} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-zinc-700 hover:bg-zinc-800">
+                            <Link href={buildPageUrl(safePage + 1)} className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800">
                                 <ChevronRight className="w-4 h-4" />
                             </Link>
                         )}

@@ -57,7 +57,7 @@ export function ColumnToggle({ visibleColumns }: { visibleColumns: Column[] }) {
                 <span className="hidden md:inline">{t('columns')}</span>
             </button>
             {open && (
-                <div className="app-surface-soft absolute right-0 top-full mt-1 z-50 border border-zinc-700 rounded-lg shadow-xl p-2 min-w-[220px] md:min-w-[180px]">
+                <div className="app-surface-soft absolute right-0 top-full mt-1 z-50 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl p-2 min-w-[220px] md:min-w-[180px]">
                     {ALL_COLUMNS.map(col => (
                         <label
                             key={col}
@@ -67,7 +67,7 @@ export function ColumnToggle({ visibleColumns }: { visibleColumns: Column[] }) {
                                 type="checkbox"
                                 checked={visibleColumns.includes(col)}
                                 onChange={() => toggleColumn(col)}
-                                className="rounded border-zinc-600 bg-zinc-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0"
+                                className="rounded border-zinc-300 dark:border-zinc-600 bg-zinc-100 dark:bg-zinc-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0"
                             />
                             {columnLabels[col]}
                         </label>

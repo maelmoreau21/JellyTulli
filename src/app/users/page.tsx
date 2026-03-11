@@ -11,7 +11,7 @@ export default async function UsersPage() {
     const t = await getTranslations('users');
     const tc = await getTranslations('common');
     const locale = await getLocale();
-    // RÃ©cupÃ©rer tous les utilisateurs
+    // Récupérer tous les utilisateurs
     const users = await prisma.user.findMany({
         include: {
             playbackHistory: {
@@ -42,7 +42,7 @@ export default async function UsersPage() {
             }
         });
 
-        // Trouver le client prÃ©fÃ©rÃ©
+        // Trouver le client préféré
         let topClient = tc('unknown');
         let topClientCount = 0;
         clientCounts.forEach((count, name) => {
@@ -88,10 +88,10 @@ export default async function UsersPage() {
                                 {t('noUsers')}
                             </div>
                         ) : (
-                            <div className="app-surface-soft rounded-md border border-zinc-700/50 overflow-x-auto">
+                            <div className="app-surface-soft rounded-md border border-zinc-200/50 dark:border-zinc-700/50 overflow-x-auto">
                                 <Table className="min-w-[700px]">
                                     <TableHeader className="app-field">
-                                        <TableRow className="border-zinc-800">
+                                        <TableRow className="border-zinc-200 dark:border-zinc-800">
                                             <TableHead className="w-[80px]">{t('colRank')}</TableHead>
                                             <TableHead>{t('colUser')}</TableHead>
                                             <TableHead>{t('colTotalTime')}</TableHead>
@@ -109,7 +109,7 @@ export default async function UsersPage() {
                                                 "text-muted-foreground";
 
                                             return (
-                                                <TableRow key={stat.id} className="border-zinc-700/50 hover:bg-slate-800/50 transition-colors">
+                                                <TableRow key={stat.id} className="border-zinc-200/50 dark:border-zinc-700/50 hover:bg-zinc-100/50 dark:hover:bg-slate-800/50 transition-colors">
                                                     <TableCell className={rankColor}>#{index + 1}</TableCell>
                                                     <TableCell className="font-medium">
                                                         <Link 

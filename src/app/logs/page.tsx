@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic"; // Bypass statis rendering for real-time
 
 const LOGS_PER_PAGE = 100;
 
-// Column utilities â€” defined server-side to avoid client/server boundary issues
+// Column utilities — defined server-side to avoid client/server boundary issues
 const ALL_COLUMNS = ['date', 'user', 'media', 'clientIp', 'status', 'codecs', 'duration'] as const;
 type Column = typeof ALL_COLUMNS[number];
 const DEFAULT_VISIBLE: Column[] = ['date', 'user', 'media', 'clientIp', 'status', 'duration'];
@@ -163,7 +163,7 @@ export default async function LogsPage({
     const grandparentMap = new Map<string, { title: string; type: string; artist: string | null }>();
     grandparentMedia.forEach(gp => grandparentMap.set(gp.jellyfinMediaId, { title: gp.title, type: gp.type, artist: gp.artist }));
 
-    // Helper: build subtitle line for a media (e.g., "SÃ©rie â€” Saison" or "Artist â€” Album")
+    // Helper: build subtitle line for a media (e.g., "Série — Saison" or "Artist — Album")
     function getMediaSubtitle(media: any): string | null {
         if (!media?.parentId) return null;
         const parent = parentMap.get(media.parentId);
@@ -171,16 +171,16 @@ export default async function LogsPage({
         if (media.type === 'Episode') {
             // Episode â†’ parent=Season â†’ grandparent=Series
             const grandparent = parent.parentId ? grandparentMap.get(parent.parentId) : null;
-            if (grandparent) return `${grandparent.title} â€” ${parent.title}`;
+            if (grandparent) return `${grandparent.title} — ${parent.title}`;
             return parent.title;
         }
         if (media.type === 'Season') {
             return parent.title; // Season â†’ Series
         }
         if (media.type === 'Audio') {
-            // Audio â†’ parent=Album. Show "Artist â€” Album" if artist is available
+            // Audio â†’ parent=Album. Show "Artist — Album" if artist is available
             const artistName = media.artist || parent.artist || null;
-            if (artistName) return `${artistName} â€” ${parent.title}`;
+            if (artistName) return `${artistName} — ${parent.title}`;
             return parent.title;
         }
         return parent.title;
@@ -238,7 +238,7 @@ export default async function LogsPage({
                         <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{tl('title')}</h2>
                         <p className="text-muted-foreground md:mr-12 mt-2 text-sm md:text-base">
                             {tl('description')}
-                            {totalCount > 0 && <span className="text-zinc-500"> â€” {totalCount} {tl('totalEntries')}</span>}
+                            {totalCount > 0 && <span className="text-zinc-500"> — {totalCount} {tl('totalEntries')}</span>}
                         </p>
                     </div>
                 </div>
@@ -302,7 +302,7 @@ export default async function LogsPage({
 
                                             return (
                                                 <Fragment key={log.id}>
-                                                    {/* Watch Party Banner â€” first log of each party */}
+                                                    {/* Watch Party Banner — first log of each party */}
                                                     {isFirstOfParty && party && (
                                                         <TableRow key={`party-banner-${partyId}`} className="border-none">
                                                             <TableCell colSpan={visibleColumns.length} className="py-1.5 px-3">
@@ -312,7 +312,7 @@ export default async function LogsPage({
                                                                         Watch Party
                                                                     </span>
                                                                     <span className="text-xs text-zinc-400 ml-1">
-                                                                        {party.members.size} {tc('viewers')} â€” <span className="font-medium text-zinc-300">{party.mediaTitle}</span>
+                                                                        {party.members.size} {tc('viewers')} — <span className="font-medium text-zinc-300">{party.mediaTitle}</span>
                                                                     </span>
                                                                     <div className="ml-auto flex items-center gap-1">
                                                                         {Array.from(party.members).slice(0, 4).map((m, i) => (
@@ -326,7 +326,7 @@ export default async function LogsPage({
                                                             </TableCell>
                                                         </TableRow>
                                                     )}
-                                                    <TableRow key={log.id} className={`even:bg-slate-900/35 hover:bg-slate-800/55 border-zinc-700/50 transition-colors ${isParty ? 'border-l-2 border-l-violet-500/40' : ''}`}>
+                                                    <TableRow key={log.id} className={`even:bg-zinc-100/50 dark:even:bg-slate-900/35 hover:bg-zinc-100 dark:hover:bg-slate-800/55 border-zinc-200/50 dark:border-zinc-700/50 transition-colors ${isParty ? 'border-l-2 border-l-violet-500/40' : ''}`}>
                                                         {/* Date */}
                                                         {visibleColumns.includes('date') && (
                                                             <TableCell className="font-medium whitespace-nowrap">
@@ -359,7 +359,7 @@ export default async function LogsPage({
                                                             </TableCell>
                                                         )}
 
-                                                        {/* MÃ©dia */}
+                                                        {/* Média */}
                                                         {visibleColumns.includes('media') && (
                                                             <TableCell className="overflow-hidden">
                                                                 <div className="flex items-center gap-2 md:gap-3 w-full overflow-hidden" title={log.media?.title || tc('unknownMedia')}>
@@ -411,7 +411,7 @@ export default async function LogsPage({
                                                                                 {log.playMethod || 'DirectPlay'}
                                                                             </span>
                                                                             <span className="truncate">{log.clientName || tc('unknown')}</span>
-                                                                            <span className="text-zinc-500">Â·</span>
+                                                                            <span className="text-zinc-500">·</span>
                                                                             <span>{Math.floor((log.durationWatched || 0) / 60)} min</span>
                                                                         </div>
                                                                     </div>
@@ -436,7 +436,7 @@ export default async function LogsPage({
                                                             </TableCell>
                                                         )}
 
-                                                        {/* Statut (MÃ©thode) */}
+                                                        {/* Statut (Méthode) */}
                                                         {visibleColumns.includes('status') && (
                                                             <TableCell className="hidden md:table-cell">
                                                                 <Badge variant={isTranscode ? "destructive" : "default"} className={`shadow-sm ${isTranscode ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'}`}>
@@ -459,7 +459,7 @@ export default async function LogsPage({
                                                             </TableCell>
                                                         )}
 
-                                                        {/* DurÃ©e */}
+                                                        {/* Durée */}
                                                         {visibleColumns.includes('duration') && (
                                                             <TableCell className="text-right whitespace-nowrap hidden md:table-cell">
                                                                 {isActuallyActive
@@ -483,7 +483,7 @@ export default async function LogsPage({
 
                         {/* Pagination */}
                         {totalPages > 1 && (
-                            <div className="flex items-center justify-center gap-2 mt-4 md:mt-6 pt-3 md:pt-4 border-t border-zinc-700/50 flex-wrap">
+                            <div className="flex items-center justify-center gap-2 mt-4 md:mt-6 pt-3 md:pt-4 border-t border-zinc-200/50 dark:border-zinc-700/50 flex-wrap">
                                 {safePage > 1 && (
                                     <Link href={buildPageUrl(safePage - 1)} className="app-field flex items-center gap-1 px-2.5 md:px-3 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-medium transition-colors hover:bg-slate-700/50">
                                         <ChevronLeft className="w-4 h-4" /> {tc('previous')}
