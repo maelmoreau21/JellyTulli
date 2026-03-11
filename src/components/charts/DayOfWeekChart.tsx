@@ -10,6 +10,7 @@ import {
     ResponsiveContainer,
     Cell
 } from "recharts";
+import { chartAxisColor, chartGridColor, chartItemStyle, chartLabelStyle, chartTooltipStyle } from "@/lib/chartTheme";
 
 export interface DayOfWeekData {
     day: string;
@@ -18,6 +19,16 @@ export interface DayOfWeekData {
 
 interface DayOfWeekChartProps {
     data: DayOfWeekData[];
+}
+
+function GlowBar(props: any) {
+    const { fill, x, y, width, height } = props;
+    return (
+        <g>
+            <rect x={x} y={y} width={width} height={height} rx={4} ry={4}
+                  fill={fill} filter="url(#dowGlow)" fillOpacity={1} />
+        </g>
+    );
 }
 
 export function DayOfWeekChart({ data }: DayOfWeekChartProps) {
@@ -29,34 +40,50 @@ export function DayOfWeekChart({ data }: DayOfWeekChartProps) {
                 data={data}
                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
             >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" />
+                <defs>
+                    <filter id="dowGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartGridColor} />
                 <XAxis
                     dataKey="day"
-                    stroke="#888888"
+                    stroke={chartAxisColor}
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
                 />
                 <YAxis
-                    stroke="#888888"
+                    stroke={chartAxisColor}
                     fontSize={10}
                     tickLine={false}
                     axisLine={false}
                     allowDecimals={false}
                 />
                 <Tooltip
-                    contentStyle={{ backgroundColor: "#18181b", border: "1px solid #27272a", borderRadius: "8px", color: "#f4f4f5" }}
-                    labelStyle={{ color: "#a1a1aa" }}
-                    itemStyle={{ color: "#e4e4e7" }}
-                    cursor={{ fill: '#27272a' }}
+                    contentStyle={chartTooltipStyle}
+                    labelStyle={chartLabelStyle}
+                    itemStyle={chartItemStyle}
+                    cursor={{ fill: 'rgba(16, 185, 129, 0.06)', radius: 4 }}
                     formatter={(value: number) => [value, "Sessions"]}
+                    animationDuration={200}
                 />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                <Bar
+                    dataKey="count"
+                    radius={[4, 4, 0, 0]}
+                    animationDuration={800}
+                    animationEasing="ease-out"
+                    activeBar={<GlowBar />}
+                >
                     {data.map((entry, index) => (
                         <Cell
                             key={`cell-${index}`}
                             fill={entry.count === maxCount && maxCount > 0 ? "#f97316" : "#10b981"}
-                            className="transition-all duration-300"
+                            className="transition-all duration-200"
                         />
                     ))}
                 </Bar>

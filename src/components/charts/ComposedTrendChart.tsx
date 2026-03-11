@@ -19,11 +19,11 @@ import { chartAxisColor, chartGridColor, chartItemStyle, chartLabelStyle, chartT
 
 interface TrendData {
     time: string;
-    movieVolume?: number; // in hours
+    movieVolume?: number;
     seriesVolume?: number;
     musicVolume?: number;
     booksVolume?: number;
-    peakStreams?: number; // Server load
+    peakStreams?: number;
 }
 
 interface ChartSeries {
@@ -32,6 +32,18 @@ interface ChartSeries {
     color: string;
     type: "area" | "line" | "bar";
     yAxisId?: "left" | "right";
+}
+
+/* Glowing active dot for lines */
+function GlowDot(props: any) {
+    const { cx, cy, fill } = props;
+    if (cx == null || cy == null) return null;
+    return (
+        <g>
+            <circle cx={cx} cy={cy} r={8} fill={fill} fillOpacity={0.2} />
+            <circle cx={cx} cy={cy} r={5} fill={fill} stroke="#0c0c14" strokeWidth={2} />
+        </g>
+    );
 }
 
 export function ComposedTrendChart({ data, series }: { data: TrendData[], series?: ChartSeries[] }) {
@@ -91,26 +103,75 @@ export function ComposedTrendChart({ data, series }: { data: TrendData[], series
                     labelStyle={chartLabelStyle}
                     itemStyle={chartItemStyle}
                     formatter={formatTooltipValue}
+                    cursor={{ stroke: 'rgba(56, 189, 248, 0.2)', strokeWidth: 1, strokeDasharray: '4 4' }}
+                    animationDuration={200}
                 />
-                <Legend onClick={toggleLegend} wrapperStyle={{ fontSize: '12px', paddingTop: '10px', cursor: 'pointer' }} />
+                <Legend
+                    onClick={toggleLegend}
+                    wrapperStyle={{ fontSize: '12px', paddingTop: '10px', cursor: 'pointer' }}
+                />
 
                 {series ? (
                     series.map((s) => {
                         if (s.type === "line") {
-                            return <Line key={s.key} hide={hidden.has(s.key)} yAxisId={s.yAxisId || "left"} type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={2} dot={false} name={s.name} />;
+                            return (
+                                <Line
+                                    key={s.key}
+                                    hide={hidden.has(s.key)}
+                                    yAxisId={s.yAxisId || "left"}
+                                    type="monotone"
+                                    dataKey={s.key}
+                                    stroke={s.color}
+                                    strokeWidth={2}
+                                    dot={false}
+                                    activeDot={<GlowDot fill={s.color} />}
+                                    name={s.name}
+                                    animationDuration={1200}
+                                    animationEasing="ease-out"
+                                />
+                            );
                         }
                         if (s.type === "bar") {
-                            return <Bar key={s.key} hide={hidden.has(s.key)} yAxisId={s.yAxisId || "left"} dataKey={s.key} barSize={20} fill={s.color} radius={[4, 4, 0, 0]} name={s.name} />;
+                            return (
+                                <Bar
+                                    key={s.key}
+                                    hide={hidden.has(s.key)}
+                                    yAxisId={s.yAxisId || "left"}
+                                    dataKey={s.key}
+                                    barSize={20}
+                                    fill={s.color}
+                                    radius={[4, 4, 0, 0]}
+                                    name={s.name}
+                                    animationDuration={800}
+                                    animationEasing="ease-out"
+                                />
+                            );
                         }
-                        return <Area key={s.key} hide={hidden.has(s.key)} yAxisId={s.yAxisId || "left"} type="monotone" dataKey={s.key} stackId="1" stroke={s.color} strokeWidth={2.2} fill={s.color} fillOpacity={0.2} name={s.name} />;
+                        return (
+                            <Area
+                                key={s.key}
+                                hide={hidden.has(s.key)}
+                                yAxisId={s.yAxisId || "left"}
+                                type="monotone"
+                                dataKey={s.key}
+                                stackId="1"
+                                stroke={s.color}
+                                strokeWidth={2.2}
+                                fill={s.color}
+                                fillOpacity={0.2}
+                                name={s.name}
+                                activeDot={<GlowDot fill={s.color} />}
+                                animationDuration={1200}
+                                animationEasing="ease-out"
+                            />
+                        );
                     })
                 ) : (
                     <>
-                        {/* Stacked areas with lower opacity for clarity */}
-                        <Area hide={hidden.has("movieVolume")} yAxisId="left" type="monotone" dataKey="movieVolume" stackId="1" stroke="#38bdf8" strokeWidth={2.2} fill="#38bdf8" fillOpacity={0.18} name={t('movies')} />
-                        <Area hide={hidden.has("seriesVolume")} yAxisId="left" type="monotone" dataKey="seriesVolume" stackId="1" stroke="#22c55e" strokeWidth={2.2} fill="#22c55e" fillOpacity={0.18} name={t('series')} />
-                        <Area hide={hidden.has("musicVolume")} yAxisId="left" type="monotone" dataKey="musicVolume" stackId="1" stroke="#f59e0b" strokeWidth={2.2} fill="#f59e0b" fillOpacity={0.18} name={t('music')} />
-                        <Area hide={hidden.has("booksVolume")} yAxisId="left" type="monotone" dataKey="booksVolume" stackId="1" stroke="#a855f7" strokeWidth={2.2} fill="#a855f7" fillOpacity={0.18} name={t('books')} />
+                        <Area hide={hidden.has("movieVolume")} yAxisId="left" type="monotone" dataKey="movieVolume" stackId="1" stroke="#38bdf8" strokeWidth={2.2} fill="#38bdf8" fillOpacity={0.18} name={t('movies')} activeDot={<GlowDot fill="#38bdf8" />} animationDuration={1200} animationEasing="ease-out" />
+                        <Area hide={hidden.has("seriesVolume")} yAxisId="left" type="monotone" dataKey="seriesVolume" stackId="1" stroke="#22c55e" strokeWidth={2.2} fill="#22c55e" fillOpacity={0.18} name={t('series')} activeDot={<GlowDot fill="#22c55e" />} animationDuration={1200} animationEasing="ease-out" />
+                        <Area hide={hidden.has("musicVolume")} yAxisId="left" type="monotone" dataKey="musicVolume" stackId="1" stroke="#f59e0b" strokeWidth={2.2} fill="#f59e0b" fillOpacity={0.18} name={t('music')} activeDot={<GlowDot fill="#f59e0b" />} animationDuration={1200} animationEasing="ease-out" />
+                        <Area hide={hidden.has("booksVolume")} yAxisId="left" type="monotone" dataKey="booksVolume" stackId="1" stroke="#a855f7" strokeWidth={2.2} fill="#a855f7" fillOpacity={0.18} name={t('books')} activeDot={<GlowDot fill="#a855f7" />} animationDuration={1200} animationEasing="ease-out" />
                     </>
                 )}
 

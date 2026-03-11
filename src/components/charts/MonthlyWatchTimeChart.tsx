@@ -25,10 +25,19 @@ interface MonthlyWatchTimeChartProps {
     monthNames: string[];
 }
 
+function GlowBar(props: any) {
+    const { fill, x, y, width, height } = props;
+    return (
+        <g>
+            <rect x={x} y={y} width={width} height={height} rx={4} ry={4}
+                  fill={fill} filter="url(#monthGlow)" fillOpacity={1} />
+        </g>
+    );
+}
+
 export function MonthlyWatchTimeChart({ data, monthNames }: MonthlyWatchTimeChartProps) {
     const t = useTranslations('charts');
 
-    // Extract available years from data
     const availableYears = useMemo(() => {
         const years = new Set<number>();
         data.forEach(d => {
@@ -47,7 +56,6 @@ export function MonthlyWatchTimeChart({ data, monthNames }: MonthlyWatchTimeChar
     const canGoBack = yearIndex > 0;
     const canGoForward = yearIndex < availableYears.length - 1;
 
-    // Build chart data for the selected year: always 12 months
     const chartData = useMemo(() => {
         const dataMap = new Map<string, number>();
         data.forEach(d => {
@@ -64,6 +72,13 @@ export function MonthlyWatchTimeChart({ data, monthNames }: MonthlyWatchTimeChar
     }, [data, selectedYear, monthNames]);
 
     const maxHours = Math.max(...chartData.map((d) => d.hours), 1);
+
+    const formatTooltip = (value: number | undefined) => {
+        const h = value ?? 0;
+        const hours = Math.floor(h);
+        const mins = Math.round((h - hours) * 60);
+        return [`${hours}h ${mins}min`, t('watchTime')];
+    };
 
     return (
         <div className="flex flex-col h-full">
@@ -95,6 +110,13 @@ export function MonthlyWatchTimeChart({ data, monthNames }: MonthlyWatchTimeChar
                             <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.95} />
                             <stop offset="100%" stopColor="#a855f7" stopOpacity={0.7} />
                         </linearGradient>
+                        <filter id="monthGlow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="4" result="blur" />
+                            <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
                     </defs>
                     <CartesianGrid strokeDasharray="3 7" vertical={false} stroke={chartGridColor} />
                     <XAxis
@@ -114,11 +136,19 @@ export function MonthlyWatchTimeChart({ data, monthNames }: MonthlyWatchTimeChar
                     />
                     <Tooltip
                         contentStyle={chartTooltipStyle}
-                        formatter={(value: number | undefined) => [`${(value ?? 0).toFixed(1)}h`, t('watchTime')]}
+                        formatter={formatTooltip}
                         labelStyle={chartLabelStyle}
                         itemStyle={chartItemStyle}
+                        cursor={{ fill: 'rgba(56, 189, 248, 0.06)', radius: 4 }}
+                        animationDuration={200}
                     />
-                    <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
+                    <Bar
+                        dataKey="hours"
+                        radius={[4, 4, 0, 0]}
+                        animationDuration={800}
+                        animationEasing="ease-out"
+                        activeBar={<GlowBar />}
+                    >
                         {chartData.map((entry, index) => (
                             <Cell
                                 key={`cell-${index}`}

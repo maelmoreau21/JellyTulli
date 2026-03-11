@@ -292,3 +292,46 @@
   font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
   line-height: 1;
 }
+
+/* ─── Remove ugly focus outline on Recharts elements ─── */
+.recharts-wrapper *:focus,
+.recharts-wrapper *:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.recharts-surface:focus {
+  outline: none !important;
+}
+
+/* ─── Custom scrollbar (dark, slim, glass) ─── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ─── Chart bar hover glow ─── */
+.recharts-bar-rectangle:hover {
+  filter: brightness(1.25) drop-shadow(0 0 6px rgba(56, 189, 248, 0.4));
+  transition: filter 150ms ease;
+}
+.recharts-pie-sector:hover {
+  filter: brightness(1.15) drop-shadow(0 0 8px rgba(56, 189, 248, 0.35));
+  transition: filter 150ms ease;
+}

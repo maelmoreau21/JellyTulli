@@ -648,3 +648,22 @@ Conversion intégrale de l'interface utilisateur du français codé en dur vers 
   - **Image proxy auth** : ajout de `getServerSession(authOptions)` dans `src/app/api/jellyfin/image/route.ts` + suppression de l'exclusion dans le matcher de `proxy.ts` → defense-in-depth.
   - **Audit constat** : le `proxy.ts` existant (Next.js 16) couvre déjà l'authentification sur toutes les routes via `withAuth`. Rate limiting ✓, JWT 7j max ✓, webhook secret ✓, validation d'entrée ✓.
 - **Validation** : build `npm run build` OK.
+
+### Phase 45 — Graphiques Interactifs & UI Polish
+- **CSS Global** :
+  - Suppression du contour moche (focus outline) sur les éléments Recharts.
+  - Scrollbar custom : fine, sombre, style glassmorphism (6px, coins arrondis, hover plus clair).
+  - Effet de glow CSS au survol des barres et secteurs de graphiques.
+- **BarCharts (4 composants : ActivityByHour, DayOfWeek, MonthlyWatchTime, ClientCategory)** :
+  - `GlowBar` activeBar avec filtre SVG `feGaussianBlur` pour un effet lumineux au survol.
+  - Animation d'entrée fluide (800ms, ease-out).
+  - Cursor amélioré (léger highlight coloré) et tooltips enrichis (heures + minutes pour le temps).
+- **PieCharts (2 composants : PlatformDistribution, CompletionRatio)** :
+  - `activeShape` : le secteur survolé s'agrandit de 8px avec glow.
+  - Label central dynamique : affiche le nom, la valeur et le pourcentage du secteur survolé.
+  - Animation d'entrée (1000ms).
+- **ComposedTrendChart** :
+  - `GlowDot` activeDot : point plus gros (rayon 5) avec halo semi-transparent (rayon 8).
+  - Curseur vertical en pointillé.
+  - Animation 1200ms sur toutes les séries Area/Line.
+- **Validation** : build `npm run build` OK.

@@ -10,6 +10,7 @@ import {
     ResponsiveContainer,
     Cell,
 } from "recharts";
+import { chartAxisColor, chartGridColor, chartItemStyle, chartLabelStyle, chartTooltipStyle } from "@/lib/chartTheme";
 
 export interface ClientCategoryData {
     category: string; // "TV", "Web", "Mobile", "Desktop", "Autre"
@@ -28,25 +29,48 @@ const CATEGORY_COLORS: Record<string, string> = {
     Autre: "#71717a",
 };
 
+function GlowBar(props: any) {
+    const { fill, x, y, width, height } = props;
+    return (
+        <g>
+            <rect x={x} y={y} width={width} height={height} rx={4} ry={4}
+                  fill={fill} filter="url(#catGlow)" fillOpacity={1} />
+        </g>
+    );
+}
+
 export function ClientCategoryChart({ data }: ClientCategoryChartProps) {
     return (
         <ResponsiveContainer width="100%" height={280}>
             <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#333" />
-                <XAxis type="number" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                <YAxis type="category" dataKey="category" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} width={70} />
+                <defs>
+                    <filter id="catGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartGridColor} />
+                <XAxis type="number" stroke={chartAxisColor} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                <YAxis type="category" dataKey="category" stroke={chartAxisColor} fontSize={12} tickLine={false} axisLine={false} width={70} />
                 <Tooltip
-                    contentStyle={{
-                        backgroundColor: "#18181b",
-                        border: "1px solid #27272a",
-                        borderRadius: "8px",
-                        color: "#f4f4f5",
-                    }}
+                    contentStyle={chartTooltipStyle}
                     formatter={(value: number) => [`${value} sessions`, "Sessions"]}
-                    labelStyle={{ color: "#a1a1aa" }}
-                    itemStyle={{ color: "#e4e4e7" }}
+                    labelStyle={chartLabelStyle}
+                    itemStyle={chartItemStyle}
+                    cursor={{ fill: 'rgba(99, 102, 241, 0.06)' }}
+                    animationDuration={200}
                 />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={24}>
+                <Bar
+                    dataKey="count"
+                    radius={[0, 4, 4, 0]}
+                    barSize={24}
+                    animationDuration={800}
+                    animationEasing="ease-out"
+                    activeBar={<GlowBar />}
+                >
                     {data.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[entry.category] || "#71717a"} />
                     ))}
@@ -56,9 +80,6 @@ export function ClientCategoryChart({ data }: ClientCategoryChartProps) {
     );
 }
 
-/**
- * Categorize a Jellyfin client name into a device category.
- */
 /**
  * Note: categorizeClient() has been moved to @/lib/utils
  * to allow server-side usage. Import it from there.

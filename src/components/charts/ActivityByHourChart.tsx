@@ -21,8 +21,18 @@ interface ActivityByHourChartProps {
     data: ActivityHourData[];
 }
 
+/* Custom active bar shape with glow effect */
+function GlowBar(props: any) {
+    const { fill, x, y, width, height } = props;
+    return (
+        <g>
+            <rect x={x} y={y} width={width} height={height} rx={4} ry={4}
+                  fill={fill} filter="url(#barGlow)" fillOpacity={1} />
+        </g>
+    );
+}
+
 export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
-    // Find max value to color it differently
     const maxCount = Math.max(...data.map(d => d.count), 0);
 
     return (
@@ -36,6 +46,13 @@ export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
                         <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.95} />
                         <stop offset="100%" stopColor="#a855f7" stopOpacity={0.72} />
                     </linearGradient>
+                    <filter id="barGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
                 </defs>
                 <CartesianGrid strokeDasharray="3 7" vertical={false} stroke={chartGridColor} />
                 <XAxis
@@ -57,14 +74,22 @@ export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
                     contentStyle={chartTooltipStyle}
                     labelStyle={chartLabelStyle}
                     itemStyle={chartItemStyle}
-                    cursor={{ fill: '#27272a' }}
+                    cursor={{ fill: 'rgba(56, 189, 248, 0.06)', radius: 4 }}
+                    formatter={(value: number) => [`${value} sessions`, "Activité"]}
+                    animationDuration={200}
                 />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                <Bar
+                    dataKey="count"
+                    radius={[4, 4, 0, 0]}
+                    animationDuration={800}
+                    animationEasing="ease-out"
+                    activeBar={<GlowBar />}
+                >
                     {data.map((entry, index) => (
                         <Cell
                             key={`cell-${index}`}
                             fill={entry.count === maxCount && maxCount > 0 ? "#f97316" : "url(#activityByHourGradient)"}
-                            className="transition-all duration-300"
+                            className="transition-all duration-200"
                         />
                     ))}
                 </Bar>
