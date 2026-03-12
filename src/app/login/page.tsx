@@ -3,6 +3,7 @@ import { Lock } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import LoginForm from "./LoginForm";
 import { LoginLanguageSwitcher } from "./LoginLanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { getTranslations } from 'next-intl/server';
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,9 @@ export default async function LoginPage() {
                 </Card>
 
                 <LoginLanguageSwitcher />
+                <div className="w-full max-w-sm">
+                    <ThemeToggle />
+                </div>
             </div>
         </div>
     );

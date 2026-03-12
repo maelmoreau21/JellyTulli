@@ -69,6 +69,15 @@ export async function POST(req: Request) {
             return corsJson({ error: "Missing 'event' field." }, { status: 400 });
         }
 
+        // Keep connection status fresh even if the plugin sends few heartbeats.
+        if (event !== "Heartbeat" && event !== "PlaybackProgress") {
+            await prisma.globalSettings.upsert({
+                where: { id: "global" },
+                update: { pluginLastSeen: new Date() },
+                create: { id: "global", pluginLastSeen: new Date() },
+            });
+        }
+
         console.log(`[Plugin] Event received: ${event}`);
 
         // ────── Heartbeat ──────

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { RefreshCw, CheckCircle2, AlertCircle, Save, Download, UploadCloud, Clock, Trash2, Zap, Database, Play, Plug, Copy, Eye, EyeOff, KeyRound, Unplug } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -71,6 +71,24 @@ export default function SettingsPage() {
     const [pluginMsg, setPluginMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [showApiKey, setShowApiKey] = useState(false);
     const [apiKeyCopied, setApiKeyCopied] = useState(false);
+    const [pluginUrlCopied, setPluginUrlCopied] = useState(false);
+
+    const fetchPluginStatus = useCallback(async () => {
+        try {
+            const res = await fetch("/api/plugin/api-key", { cache: "no-store" });
+            if (res.ok) {
+                const data = await res.json();
+                setPluginHasKey(data.hasApiKey);
+                setPluginApiKey(data.apiKey);
+                setPluginConnected(data.isConnected);
+                setPluginLastSeen(data.pluginLastSeen);
+                setPluginVersion(data.pluginVersion);
+                setPluginServerName(data.pluginServerName);
+            }
+        } catch {
+            console.error("Failed to load plugin status");
+        }
+    }, []);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -115,24 +133,10 @@ export default function SettingsPage() {
     }, []);
 
     useEffect(() => {
-        const fetchPluginStatus = async () => {
-            try {
-                const res = await fetch("/api/plugin/api-key");
-                if (res.ok) {
-                    const data = await res.json();
-                    setPluginHasKey(data.hasApiKey);
-                    setPluginApiKey(data.apiKey);
-                    setPluginConnected(data.isConnected);
-                    setPluginLastSeen(data.pluginLastSeen);
-                    setPluginVersion(data.pluginVersion);
-                    setPluginServerName(data.pluginServerName);
-                }
-            } catch {
-                console.error("Failed to load plugin status");
-            }
-        };
         fetchPluginStatus();
-    }, []);
+        const timer = setInterval(fetchPluginStatus, 10000);
+        return () => clearInterval(timer);
+    }, [fetchPluginStatus]);
 
     const handleGeneratePluginKey = async (regenerate = false) => {
         if (regenerate && !confirm(t('pluginConfirmRegenerate'))) return;
@@ -195,6 +199,23 @@ export default function SettingsPage() {
         }
         setApiKeyCopied(true);
         setTimeout(() => setApiKeyCopied(false), 2000);
+    };
+
+    const handleCopyPluginUrl = async () => {
+        try {
+            await navigator.clipboard.writeText(pluginEndpoint);
+        } catch {
+            const textarea = document.createElement('textarea');
+            textarea.value = pluginEndpoint;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+        }
+        setPluginUrlCopied(true);
+        setTimeout(() => setPluginUrlCopied(false), 2000);
     };
 
     const handleSaveSettings = async () => {
@@ -339,6 +360,8 @@ export default function SettingsPage() {
         }));
     };
 
+    const pluginEndpoint = typeof window !== 'undefined' ? `${window.location.origin}/api/plugin/events` : '/api/plugin/events';
+
     return (
         <div className="flex-col md:flex">
             <div className="flex-1 space-y-4 md:space-y-6 p-4 md:p-8 pt-4 md:pt-6 max-w-4xl mx-auto w-full">
@@ -433,11 +456,21 @@ export default function SettingsPage() {
                                 {/* Server URL display */}
                                 <div className="space-y-2">
                                     <Label>{t('pluginServerUrl')}</Label>
-                                    <Input
-                                        readOnly
-                                        value={typeof window !== 'undefined' ? `${window.location.origin}/api/plugin/events` : '/api/plugin/events'}
-                                        className="font-mono text-sm"
-                                    />
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            readOnly
+                                            value={pluginEndpoint}
+                                            className="font-mono text-sm"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleCopyPluginUrl}
+                                            className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                        >
+                                            <Copy className="w-4 h-4" />
+                                            {pluginUrlCopied ? t('pluginApiKeyCopied') : t('pluginCopyKey')}
+                                        </button>
+                                    </div>
                                     <p className="text-xs text-muted-foreground">{t('pluginServerUrlDesc')}</p>
                                 </div>
 
