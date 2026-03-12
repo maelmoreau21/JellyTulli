@@ -78,7 +78,7 @@ export function SystemHealthWidgets({ initialSnapshot }: { initialSnapshot: Snap
                 </Link>
             </div>
 
-            <Card className="border-zinc-200/60 dark:border-white/5 bg-white/80 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] backdrop-blur-xl shadow-[0_4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
+            <Card className="border-zinc-200/60 dark:border-white/5 bg-white/80 dark:bg-zinc-950/90 backdrop-blur-xl shadow-[0_4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
                 <CardContent className="grid gap-4 p-5 md:grid-cols-4">
                     <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-black/20 p-4">
                         <div className="flex items-center gap-2 text-sm text-zinc-400"><CheckCircle2 className="h-4 w-4 text-emerald-400" /> Streams actifs</div>

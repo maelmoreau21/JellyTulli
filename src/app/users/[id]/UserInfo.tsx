@@ -232,7 +232,7 @@ export default async function UserInfo({ userId }: { userId: string }) {
                 </CardHeader>
                 <CardContent>
                     <div className="text-lg font-bold">{uniqueMovies.size + uniqueSeries.size + uniqueMusic.size}</div>
-                    <p className="text-xs text-muted-foreground">ðŸŽ¬ {uniqueMovies.size} · ðŸ“º {uniqueSeries.size} · ðŸŽµ {uniqueMusic.size}</p>
+                    <p className="text-xs text-muted-foreground">🎬 {uniqueMovies.size} · 📺 {uniqueSeries.size} · 🎵 {uniqueMusic.size}</p>
                 </CardContent>
             </Card>
 

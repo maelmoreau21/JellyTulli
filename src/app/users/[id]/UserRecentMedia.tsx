@@ -161,7 +161,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
                                                     <div className="truncate group-hover:underline text-zinc-800 dark:text-zinc-100">{session.media.title}</div>
                                                     {subtitle ? (
                                                         <div className="text-xs text-zinc-400 truncate" title={subtitle}>
-                                                            {session.media.type === 'Episode' ? 'ðŸ“º' : session.media.type === 'Audio' ? 'ðŸŽµ' : ''} {subtitle}
+                                                            {session.media.type === 'Episode' ? '📺' : session.media.type === 'Audio' ? '🎵' : ''} {subtitle}
                                                         </div>
                                                     ) : (
                                                         <div className="text-xs text-zinc-500">{session.media.type}</div>

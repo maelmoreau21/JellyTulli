@@ -4,6 +4,17 @@ import redis from "@/lib/redis";
 import { getGeoLocation } from "@/lib/geoip";
 import { inferLibraryKey, isLibraryExcluded } from "@/lib/mediaPolicy";
 
+const CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Api-Key",
+};
+
+// Handle CORS preflight
+export async function OPTIONS() {
+    return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
 // ────────────────────────────────────────────────────
 // Plugin Authentication — API key from GlobalSettings
 // ────────────────────────────────────────────────────
@@ -38,12 +49,16 @@ function cleanIp(ip: string | null | undefined): string {
 
 const MERGE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
+function corsJson(body: unknown, init?: { status?: number }) {
+    return NextResponse.json(body, { ...init, headers: CORS_HEADERS });
+}
+
 // ────────────────────────────────────────────────────
 // POST /api/plugin/events — Receive events from the Jellyfin Plugin
 // ────────────────────────────────────────────────────
 export async function POST(req: Request) {
     if (!(await verifyPluginAuth(req))) {
-        return NextResponse.json({ error: "Unauthorized — invalid or missing API key." }, { status: 401 });
+        return corsJson({ error: "Unauthorized — invalid or missing API key." }, { status: 401 });
     }
 
     try {
@@ -51,7 +66,7 @@ export async function POST(req: Request) {
         const event = payload.event || payload.Event;
 
         if (!event) {
-            return NextResponse.json({ error: "Missing 'event' field." }, { status: 400 });
+            return corsJson({ error: "Missing 'event' field." }, { status: 400 });
         }
 
         console.log(`[Plugin] Event received: ${event}`);
@@ -82,7 +97,7 @@ export async function POST(req: Request) {
                 syncedUsers++;
             }
 
-            return NextResponse.json({ success: true, message: `Heartbeat OK, ${syncedUsers} users synced.` });
+            return corsJson({ success: true, message: `Heartbeat OK, ${syncedUsers} users synced.` });
         }
 
         // ────── PlaybackStart ──────
@@ -102,7 +117,7 @@ export async function POST(req: Request) {
             const ipAddress = cleanIp(session.ipAddress || session.IpAddress || null);
 
             if (!jellyfinUserId || !jellyfinMediaId) {
-                return NextResponse.json({ error: "Missing userId or mediaId." }, { status: 400 });
+                return corsJson({ error: "Missing userId or mediaId." }, { status: 400 });
             }
 
             // Upsert user
@@ -147,7 +162,7 @@ export async function POST(req: Request) {
                 select: { excludedLibraries: true, discordAlertsEnabled: true, discordWebhookUrl: true, discordAlertCondition: true },
             });
             if (isLibraryExcluded({ collectionType, type }, settings?.excludedLibraries || [])) {
-                return NextResponse.json({ success: true, ignored: true, message: "Library excluded." });
+                return corsJson({ success: true, ignored: true, message: "Library excluded." });
             }
 
             // GeoIP
@@ -297,7 +312,7 @@ export async function POST(req: Request) {
                 console.error("[Plugin] Discord notification error:", err);
             }
 
-            return NextResponse.json({ success: true, message: "PlaybackStart processed." });
+            return corsJson({ success: true, message: "PlaybackStart processed." });
         }
 
         // ────── PlaybackStop ──────
@@ -310,7 +325,7 @@ export async function POST(req: Request) {
             const sessionId = payload.sessionId || payload.SessionId;
 
             if (!jellyfinUserId || !jellyfinMediaId) {
-                return NextResponse.json({ error: "Missing userId or mediaId." }, { status: 400 });
+                return corsJson({ error: "Missing userId or mediaId." }, { status: 400 });
             }
 
             const user = await prisma.user.findUnique({ where: { jellyfinUserId } });
@@ -370,7 +385,7 @@ export async function POST(req: Request) {
                 }
             }
 
-            return NextResponse.json({ success: true, message: "PlaybackStop processed." });
+            return corsJson({ success: true, message: "PlaybackStop processed." });
         }
 
         // ────── PlaybackProgress ──────
@@ -387,7 +402,7 @@ export async function POST(req: Request) {
             const sessionId = payload.sessionId || payload.SessionId;
 
             if (!jellyfinUserId || !jellyfinMediaId) {
-                return NextResponse.json({ error: "Missing userId or mediaId." }, { status: 400 });
+                return corsJson({ error: "Missing userId or mediaId." }, { status: 400 });
             }
 
             const user = await prisma.user.findUnique({ where: { jellyfinUserId } });
@@ -467,7 +482,7 @@ export async function POST(req: Request) {
                 }
             }
 
-            return NextResponse.json({ success: true, message: "PlaybackProgress processed." });
+            return corsJson({ success: true, message: "PlaybackProgress processed." });
         }
 
         // ────── LibraryChanged ──────
@@ -509,12 +524,12 @@ export async function POST(req: Request) {
                 synced++;
             }
             console.log(`[Plugin] LibraryChanged: ${synced} items synced.`);
-            return NextResponse.json({ success: true, message: `${synced} items synced.` });
+            return corsJson({ success: true, message: `${synced} items synced.` });
         }
 
-        return NextResponse.json({ error: `Unknown event: ${event}` }, { status: 400 });
+        return corsJson({ error: `Unknown event: ${event}` }, { status: 400 });
     } catch (error) {
         console.error("[Plugin Events Error]:", error);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return corsJson({ error: "Internal Server Error" }, { status: 500 });
     }
 }

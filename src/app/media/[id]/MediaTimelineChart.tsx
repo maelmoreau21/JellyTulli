@@ -37,10 +37,10 @@ const EVENT_COLORS: Record<string, string> = {
 };
 
 const EVENT_ICONS: Record<string, string> = {
-    stop:            "â¹",
-    pause:           "â¸",
-    audio_change:    "ðŸ”Š",
-    subtitle_change: "ðŸ’¬",
+    stop:            "⏹",
+    pause:           "⏸",
+    audio_change:    "🔊",
+    subtitle_change: "💬",
 };
 
 // --- Helpers ---

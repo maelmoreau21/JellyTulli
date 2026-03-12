@@ -189,10 +189,10 @@ export default async function LogsPage({
     // Helper: get the media type icon prefix
     function getMediaTypeLabel(type: string): { icon: string; label: string } | null {
         switch (type) {
-            case 'Episode': return { icon: 'ðŸ“º', label: tl('episodeType') };
-            case 'Audio': return { icon: 'ðŸŽµ', label: tl('musicType') };
-            case 'Movie': return { icon: 'ðŸŽ¬', label: tl('movieType') };
-            case 'Season': return { icon: 'ðŸ“º', label: tl('seasonType') };
+            case 'Episode': return { icon: '📺', label: tl('episodeType') };
+            case 'Audio': return { icon: '🎵', label: tl('musicType') };
+            case 'Movie': return { icon: '🎬', label: tl('movieType') };
+            case 'Season': return { icon: '📺', label: tl('seasonType') };
             default: return null;
         }
     }
@@ -307,7 +307,7 @@ export default async function LogsPage({
                                                         <TableRow key={`party-banner-${partyId}`} className="border-none">
                                                             <TableCell colSpan={visibleColumns.length} className="py-1.5 px-3">
                                                                 <div className="flex items-center gap-2 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-violet-500/10 border border-violet-500/20 rounded-lg px-4 py-2 animate-pulse-slow">
-                                                                    <span className="text-lg" role="img" aria-label="Watch Party">ðŸ¿</span>
+                                                                    <span className="text-lg" role="img" aria-label="Watch Party">🍿</span>
                                                                     <span className="font-bold text-sm bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
                                                                         Watch Party
                                                                     </span>
