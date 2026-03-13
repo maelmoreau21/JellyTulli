@@ -472,20 +472,22 @@ export async function POST(req: Request) {
             const username = userPayload.username || userPayload.Username || userPayload.name || userPayload.Name || "Unknown";
             const title = mediaPayload.title || mediaPayload.Title || mediaPayload.name || mediaPayload.Name || "Unknown";
             const type = mediaPayload.type || mediaPayload.Type || "Unknown";
-            const collectionType = mediaPayload.collectionType || mediaPayload.CollectionType || inferLibraryKey({ type });
+            const collectionType = mediaPayload.collectionType || mediaPayload.CollectionType || null;
             const mediaDurationMsRaw = mediaPayload.durationMs ?? mediaPayload.DurationMs;
             const mediaDurationMs = Number(mediaDurationMsRaw);
             const sessionId = payload.sessionId || payload.SessionId || sessionPayload.sessionId || sessionPayload.SessionId;
-            const isPaused = payload.isPaused === true || payload.IsPaused === true;
+            const pausedRaw = payload.isPaused ?? payload.IsPaused ?? sessionPayload.isPaused ?? sessionPayload.IsPaused;
+            const hasPausedState = typeof pausedRaw === "boolean";
+            const isPaused = pausedRaw === true;
             const audioStreamIndex = payload.audioStreamIndex ?? payload.AudioStreamIndex;
             const subtitleStreamIndex = payload.subtitleStreamIndex ?? payload.SubtitleStreamIndex;
             const positionTicksRaw = payload.positionTicks ?? payload.PositionTicks ?? sessionPayload.positionTicks ?? sessionPayload.PositionTicks ?? 0;
             const positionTicks = Number(positionTicksRaw) > 0 ? Number(positionTicksRaw) : 0;
             const positionMs = positionTicks > 0 ? BigInt(Math.floor(positionTicks / 10_000)) : BigInt(0);
-            const clientName = sessionPayload.clientName || sessionPayload.ClientName || "Unknown";
-            const deviceName = sessionPayload.deviceName || sessionPayload.DeviceName || "Unknown";
-            const playMethod = sessionPayload.playMethod || sessionPayload.PlayMethod || "Unknown";
-            const ipAddress = cleanIp(sessionPayload.ipAddress || sessionPayload.IpAddress || null);
+            const clientNameRaw = sessionPayload.clientName || sessionPayload.ClientName || "Unknown";
+            const deviceNameRaw = sessionPayload.deviceName || sessionPayload.DeviceName || "Unknown";
+            const playMethodRaw = sessionPayload.playMethod || sessionPayload.PlayMethod || "Unknown";
+            const ipAddressRaw = cleanIp(sessionPayload.ipAddress || sessionPayload.IpAddress || null);
             const videoCodec = sessionPayload.videoCodec || sessionPayload.VideoCodec || null;
             const audioCodec = sessionPayload.audioCodec || sessionPayload.AudioCodec || null;
             const audioLanguage = sessionPayload.audioLanguage || sessionPayload.AudioLanguage || null;
@@ -508,42 +510,82 @@ export async function POST(req: Request) {
                 return corsJson({ error: "Missing userId or mediaId." }, { status: 400 });
             }
 
+            const existingMedia = await prisma.media.findUnique({
+                where: { jellyfinMediaId },
+                select: { title: true, type: true, collectionType: true, durationMs: true, artist: true, libraryName: true, parentId: true },
+            });
+            const existingStream = sessionId
+                ? await prisma.activeStream.findUnique({
+                    where: { sessionId },
+                    select: {
+                        clientName: true,
+                        deviceName: true,
+                        playMethod: true,
+                        ipAddress: true,
+                        videoCodec: true,
+                        audioCodec: true,
+                        audioLanguage: true,
+                        subtitleLanguage: true,
+                        subtitleCodec: true,
+                        transcodeFps: true,
+                        bitrate: true,
+                    },
+                })
+                : null;
+
+            const resolvedTitle = title !== "Unknown"
+                ? title
+                : (existingMedia?.title || `Media ${String(jellyfinMediaId).slice(0, 8)}`);
+            const resolvedType = type !== "Unknown" ? type : (existingMedia?.type || "Unknown");
+            const resolvedCollectionType = collectionType || existingMedia?.collectionType || inferLibraryKey({ type: resolvedType });
+            const resolvedClientName = clientNameRaw !== "Unknown" ? clientNameRaw : (existingStream?.clientName || "Unknown");
+            const resolvedDeviceName = deviceNameRaw !== "Unknown" ? deviceNameRaw : (existingStream?.deviceName || "Unknown");
+            const resolvedPlayMethod = playMethodRaw !== "Unknown" ? playMethodRaw : (existingStream?.playMethod || "DirectPlay");
+            const resolvedIpAddress = ipAddressRaw !== "Unknown" ? ipAddressRaw : (existingStream?.ipAddress || "Unknown");
+            const resolvedVideoCodec = videoCodec || existingStream?.videoCodec || null;
+            const resolvedAudioCodec = audioCodec || existingStream?.audioCodec || null;
+            const resolvedAudioLanguage = audioLanguage || existingStream?.audioLanguage || null;
+            const resolvedSubtitleLanguage = subtitleLanguage || existingStream?.subtitleLanguage || null;
+            const resolvedSubtitleCodec = subtitleCodec || existingStream?.subtitleCodec || null;
+            const resolvedTranscodeFps = transcodeFps ?? existingStream?.transcodeFps ?? null;
+            const resolvedBitrate = bitrate ?? existingStream?.bitrate ?? null;
+
             const settings = await prisma.globalSettings.findUnique({
                 where: { id: "global" },
                 select: { excludedLibraries: true },
             });
-            if (isLibraryExcluded({ collectionType, type }, settings?.excludedLibraries || [])) {
+            if (isLibraryExcluded({ collectionType: resolvedCollectionType, type: resolvedType }, settings?.excludedLibraries || [])) {
                 return corsJson({ success: true, ignored: true, message: "Library excluded." });
             }
 
             const user = await prisma.user.upsert({
                 where: { jellyfinUserId },
-                update: { username },
-                create: { jellyfinUserId, username },
+                update: { username: username !== "Unknown" ? username : undefined },
+                create: { jellyfinUserId, username: username !== "Unknown" ? username : jellyfinUserId },
             });
 
             const media = await prisma.media.upsert({
                 where: { jellyfinMediaId },
                 update: {
-                    title: title !== "Unknown" ? title : undefined,
-                    type: type !== "Unknown" ? type : undefined,
-                    collectionType: collectionType || undefined,
+                    title: resolvedTitle,
+                    type: resolvedType,
+                    collectionType: resolvedCollectionType || undefined,
                     durationMs: Number.isFinite(mediaDurationMs) && mediaDurationMs > 0 ? BigInt(mediaDurationMs) : undefined,
-                    parentId: parentItemId || undefined,
-                    artist: mediaPayload.artist || mediaPayload.Artist || albumArtist || undefined,
-                    libraryName: mediaPayload.libraryName || mediaPayload.LibraryName || undefined,
+                    parentId: parentItemId || existingMedia?.parentId || undefined,
+                    artist: mediaPayload.artist || mediaPayload.Artist || albumArtist || existingMedia?.artist || undefined,
+                    libraryName: mediaPayload.libraryName || mediaPayload.LibraryName || existingMedia?.libraryName || undefined,
                 },
                 create: {
                     jellyfinMediaId,
-                    title,
-                    type,
-                    collectionType,
+                    title: resolvedTitle,
+                    type: resolvedType,
+                    collectionType: resolvedCollectionType,
                     genres: mediaPayload.genres || mediaPayload.Genres || [],
                     resolution: mediaPayload.resolution || mediaPayload.Resolution || null,
                     durationMs: Number.isFinite(mediaDurationMs) && mediaDurationMs > 0 ? BigInt(mediaDurationMs) : null,
-                    parentId: parentItemId,
-                    artist: mediaPayload.artist || mediaPayload.Artist || albumArtist || null,
-                    libraryName: mediaPayload.libraryName || mediaPayload.LibraryName || null,
+                    parentId: parentItemId || existingMedia?.parentId || null,
+                    artist: mediaPayload.artist || mediaPayload.Artist || albumArtist || existingMedia?.artist || null,
+                    libraryName: mediaPayload.libraryName || mediaPayload.LibraryName || existingMedia?.libraryName || null,
                 },
             });
 
@@ -551,7 +593,7 @@ export async function POST(req: Request) {
                 runTimeTicks = Number(media.durationMs) * 10_000;
             }
 
-            const geoData = getGeoLocation(ipAddress);
+            const geoData = getGeoLocation(resolvedIpAddress);
 
             const lastPlayback = await prisma.playbackHistory.findFirst({
                 where: { userId: user.id, mediaId: media.id, endedAt: null },
@@ -562,16 +604,16 @@ export async function POST(req: Request) {
                 data: {
                     userId: user.id,
                     mediaId: media.id,
-                    playMethod,
-                    clientName,
-                    deviceName,
-                    ipAddress,
+                    playMethod: resolvedPlayMethod,
+                    clientName: resolvedClientName,
+                    deviceName: resolvedDeviceName,
+                    ipAddress: resolvedIpAddress,
                     country: geoData.country,
                     city: geoData.city,
-                    audioLanguage,
-                    audioCodec,
-                    subtitleLanguage,
-                    subtitleCodec,
+                    audioLanguage: resolvedAudioLanguage,
+                    audioCodec: resolvedAudioCodec,
+                    subtitleLanguage: resolvedSubtitleLanguage,
+                    subtitleCodec: resolvedSubtitleCodec,
                 },
             });
 
@@ -589,12 +631,14 @@ export async function POST(req: Request) {
             // Pause tracking
             const pauseKey = `pause:${activePlayback.id}`;
             const prevPauseState = await redis.get(pauseKey);
-            if (isPaused && prevPauseState !== "paused") {
-                updates.pauseCount = { increment: 1 };
-                await redis.setex(pauseKey, 3600, "paused");
-                if (positionMs > 0) telemetryEvents.push({ eventType: "pause", positionMs });
-            } else if (!isPaused && prevPauseState === "paused") {
-                await redis.setex(pauseKey, 3600, "playing");
+            if (hasPausedState) {
+                if (isPaused && prevPauseState !== "paused") {
+                    updates.pauseCount = { increment: 1 };
+                    await redis.setex(pauseKey, 3600, "paused");
+                    if (positionMs > 0) telemetryEvents.push({ eventType: "pause", positionMs });
+                } else if (!isPaused && prevPauseState === "paused") {
+                    await redis.setex(pauseKey, 3600, "playing");
+                }
             }
 
             // Audio change tracking
@@ -635,38 +679,38 @@ export async function POST(req: Request) {
                     update: {
                         userId: user.id,
                         mediaId: media.id,
-                        playMethod,
-                        clientName,
-                        deviceName,
-                        ipAddress,
+                        playMethod: resolvedPlayMethod,
+                        clientName: resolvedClientName,
+                        deviceName: resolvedDeviceName,
+                        ipAddress: resolvedIpAddress,
                         country: geoData.country,
                         city: geoData.city,
-                        videoCodec,
-                        audioCodec,
-                        transcodeFps,
-                        bitrate,
-                        audioLanguage,
-                        subtitleLanguage,
-                        subtitleCodec,
+                        videoCodec: resolvedVideoCodec,
+                        audioCodec: resolvedAudioCodec,
+                        transcodeFps: resolvedTranscodeFps,
+                        bitrate: resolvedBitrate,
+                        audioLanguage: resolvedAudioLanguage,
+                        subtitleLanguage: resolvedSubtitleLanguage,
+                        subtitleCodec: resolvedSubtitleCodec,
                         positionTicks: positionTicks > 0 ? BigInt(positionTicks) : null,
                     },
                     create: {
                         sessionId,
                         userId: user.id,
                         mediaId: media.id,
-                        playMethod,
-                        clientName,
-                        deviceName,
-                        ipAddress,
+                        playMethod: resolvedPlayMethod,
+                        clientName: resolvedClientName,
+                        deviceName: resolvedDeviceName,
+                        ipAddress: resolvedIpAddress,
                         country: geoData.country,
                         city: geoData.city,
-                        videoCodec,
-                        audioCodec,
-                        transcodeFps,
-                        bitrate,
-                        audioLanguage,
-                        subtitleLanguage,
-                        subtitleCodec,
+                        videoCodec: resolvedVideoCodec,
+                        audioCodec: resolvedAudioCodec,
+                        transcodeFps: resolvedTranscodeFps,
+                        bitrate: resolvedBitrate,
+                        audioLanguage: resolvedAudioLanguage,
+                        subtitleLanguage: resolvedSubtitleLanguage,
+                        subtitleCodec: resolvedSubtitleCodec,
                         positionTicks: positionTicks > 0 ? BigInt(positionTicks) : null,
                     },
                 });
@@ -698,20 +742,20 @@ export async function POST(req: Request) {
                     parentItemId: parentItemId || null,
                     userId: user.id,
                     UserId: user.id,
-                    username,
-                    UserName: username,
+                    username: username !== "Unknown" ? username : (parsed.username || parsed.UserName || user.username || user.jellyfinUserId),
+                    UserName: username !== "Unknown" ? username : (parsed.UserName || parsed.username || user.username || user.jellyfinUserId),
                     mediaId: media.id,
-                    title: media.title || title,
-                    ItemName: media.title || title,
+                    title: media.title || resolvedTitle,
+                    ItemName: media.title || resolvedTitle,
                     mediaSubtitle,
-                    playMethod,
-                    PlayMethod: playMethod,
-                    isTranscoding: playMethod === "Transcode",
-                    IsTranscoding: playMethod === "Transcode",
-                    clientName,
-                    deviceName,
-                    DeviceName: deviceName,
-                    ipAddress,
+                    playMethod: resolvedPlayMethod,
+                    PlayMethod: resolvedPlayMethod,
+                    isTranscoding: resolvedPlayMethod === "Transcode",
+                    IsTranscoding: resolvedPlayMethod === "Transcode",
+                    clientName: resolvedClientName,
+                    deviceName: resolvedDeviceName,
+                    DeviceName: resolvedDeviceName,
+                    ipAddress: resolvedIpAddress,
                     country: geoData.country,
                     Country: geoData.country,
                     city: geoData.city,
@@ -722,16 +766,16 @@ export async function POST(req: Request) {
                     runTimeTicks: runTimeTicks > 0 ? runTimeTicks : null,
                     RunTimeTicks: runTimeTicks > 0 ? runTimeTicks : null,
                     progressPercent,
-                    isPaused,
-                    IsPaused: isPaused,
-                    audioLanguage,
-                    AudioLanguage: audioLanguage,
-                    audioCodec,
-                    AudioCodec: audioCodec,
-                    subtitleLanguage,
-                    SubtitleLanguage: subtitleLanguage,
-                    subtitleCodec,
-                    SubtitleCodec: subtitleCodec,
+                    isPaused: hasPausedState ? isPaused : (parsed.isPaused === true || parsed.IsPaused === true),
+                    IsPaused: hasPausedState ? isPaused : (parsed.IsPaused === true || parsed.isPaused === true),
+                    audioLanguage: resolvedAudioLanguage,
+                    AudioLanguage: resolvedAudioLanguage,
+                    audioCodec: resolvedAudioCodec,
+                    AudioCodec: resolvedAudioCodec,
+                    subtitleLanguage: resolvedSubtitleLanguage,
+                    SubtitleLanguage: resolvedSubtitleLanguage,
+                    subtitleCodec: resolvedSubtitleCodec,
+                    SubtitleCodec: resolvedSubtitleCodec,
                 };
 
                 await redis.setex(redisKey, 60, JSON.stringify(redisPayload));
