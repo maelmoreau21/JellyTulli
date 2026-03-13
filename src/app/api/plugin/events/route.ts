@@ -15,6 +15,16 @@ export async function OPTIONS() {
     return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
+// Lightweight diagnostics for manual browser checks.
+export async function GET() {
+    return corsJson({
+        ok: true,
+        endpoint: "/api/plugin/events",
+        method: "POST",
+        message: "Endpoint reachable. Send plugin events with POST and API key headers.",
+    });
+}
+
 // ────────────────────────────────────────────────────
 // Plugin Authentication — API key from GlobalSettings
 // ────────────────────────────────────────────────────
