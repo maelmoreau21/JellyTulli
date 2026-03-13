@@ -5,8 +5,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 // Allowed image types for the Jellyfin image proxy (prevent path traversal)
 const ALLOWED_IMAGE_TYPES = ["Primary", "Thumb", "Backdrop", "Banner", "Logo", "Art"];
-// Jellyfin IDs are hex UUIDs — validate format to prevent injection
-const UUID_PATTERN = /^[a-f0-9]{32}$/i;
+// Jellyfin IDs can be UUIDs with or without dashes (both are valid in practice).
+const UUID_PATTERN = /^(?:[a-f0-9]{32}|[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i;
 
 export async function GET(req: NextRequest) {
     // SECURITY: Require authentication (defense-in-depth, middleware also checks)
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
         return new NextResponse("Invalid image type", { status: 400 });
     }
 
-    // SECURITY: Validate itemId and fallbackId format (hex UUID only)
+    // SECURITY: Validate itemId and fallbackId format (UUID, dashed or non-dashed)
     if (!UUID_PATTERN.test(itemId)) {
         return new NextResponse("Invalid item ID format", { status: 400 });
     }

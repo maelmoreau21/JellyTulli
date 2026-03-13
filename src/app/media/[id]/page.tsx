@@ -275,6 +275,8 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
 
     const genres = media.genres || [];
     const isMusic = ['Audio', 'MusicAlbum'].includes(media.type);
+    const resolvedAlbumArtist = albumArtist || media.artist || null;
+    const headerFallbackId = media.parentId || albumId || undefined;
 
     return (
         <div className="flex-col md:flex">
@@ -290,8 +292,8 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                     {seasonId && seasonName && (
                         <><ChevronRight className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-600" /><Link href={`/media/${seasonId}`} className="hover:text-zinc-900 dark:hover:text-white transition-colors">{seasonName}</Link></>
                     )}
-                    {albumArtist && (
-                        <><ChevronRight className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-600" /><span className="text-zinc-600 dark:text-zinc-300">{albumArtist}</span></>
+                    {resolvedAlbumArtist && (
+                        <><ChevronRight className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-600" /><span className="text-zinc-600 dark:text-zinc-300">{resolvedAlbumArtist}</span></>
                     )}
                     {albumId && albumName && (
                         <><ChevronRight className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-600" /><Link href={`/media/${albumId}`} className="hover:text-zinc-900 dark:hover:text-white transition-colors">{albumName}</Link></>
@@ -324,7 +326,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                 {/* Header */}
                 <div className="flex flex-col md:flex-row gap-8">
                     <div className="relative w-48 aspect-[2/3] bg-zinc-200 dark:bg-zinc-900 rounded-lg overflow-hidden ring-1 ring-zinc-300/30 dark:ring-white/10 shadow-xl shrink-0">
-                        <FallbackImage src={getJellyfinImageUrl(media.jellyfinMediaId, "Primary", media.parentId || undefined)} alt={media.title} fill className="object-cover" />
+                        <FallbackImage src={getJellyfinImageUrl(media.jellyfinMediaId, "Primary", headerFallbackId)} alt={media.title} fill className="object-cover" />
                     </div>
                     <div className="flex-1 space-y-4">
                         <div>
@@ -339,6 +341,12 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                             {genres.length > 0 && (
                                 <div className="flex items-center gap-1.5 mt-3 flex-wrap">
                                     {genres.map((g: string) => (<span key={g} className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full">{g}</span>))}
+                                </div>
+                            )}
+                            {isMusic && (resolvedAlbumArtist || albumName) && (
+                                <div className="flex items-center gap-2 mt-3 flex-wrap text-sm text-zinc-500 dark:text-zinc-300">
+                                    {resolvedAlbumArtist && <span className="inline-flex items-center gap-1.5"><Headphones className="w-4 h-4" /> {resolvedAlbumArtist}</span>}
+                                    {albumName && <span className="inline-flex items-center gap-1.5"><Disc3 className="w-4 h-4" /> {albumName}</span>}
                                 </div>
                             )}
                         </div>

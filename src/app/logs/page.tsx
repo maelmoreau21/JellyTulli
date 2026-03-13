@@ -165,25 +165,27 @@ export default async function LogsPage({
 
     // Helper: build subtitle line for a media (e.g., "Série — Saison" or "Artist — Album")
     function getMediaSubtitle(media: any): string | null {
-        if (!media?.parentId) return null;
-        const parent = parentMap.get(media.parentId);
-        if (!parent) return null;
+        if (!media) return null;
+        const parent = media.parentId ? parentMap.get(media.parentId) : null;
         if (media.type === 'Episode') {
+            if (!parent) return null;
             // Episode â†’ parent=Season â†’ grandparent=Series
             const grandparent = parent.parentId ? grandparentMap.get(parent.parentId) : null;
             if (grandparent) return `${grandparent.title} — ${parent.title}`;
             return parent.title;
         }
         if (media.type === 'Season') {
+            if (!parent) return null;
             return parent.title; // Season â†’ Series
         }
         if (media.type === 'Audio') {
             // Audio â†’ parent=Album. Show "Artist — Album" if artist is available
-            const artistName = media.artist || parent.artist || null;
+            const artistName = media.artist || parent?.artist || null;
+            if (!parent) return artistName;
             if (artistName) return `${artistName} — ${parent.title}`;
             return parent.title;
         }
-        return parent.title;
+        return parent ? parent.title : null;
     }
 
     // Helper: get the media type icon prefix
