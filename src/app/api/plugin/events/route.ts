@@ -11,6 +11,11 @@ const CORS_HEADERS = {
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Api-Key",
 };
 
+// When a new start event arrives but a session for the same user+media was
+// closed recently (within this window), prefer reopening that session
+// instead of creating a new row. This prevents short-lived race duplicates.
+const MERGE_WINDOW_MS = Number(process.env.MERGE_WINDOW_MS) || 60 * 60 * 1000; // 1 hour default
+
 // Handle CORS preflight
 export async function OPTIONS() {
     return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
@@ -381,53 +386,92 @@ export async function POST(req: Request) {
                 const lock = await acquirePlaybackLock(dbUser.id, dbMedia.id);
                 try {
                     if (lock.acquired) {
-                        const existingOpen = await prisma.playbackHistory.findFirst({
-                            where: { userId: dbUser.id, mediaId: dbMedia.id, endedAt: null },
-                        });
-                        if (!existingOpen) {
-                            await prisma.playbackHistory.create({
-                                data: {
-                                    userId: dbUser.id,
-                                    mediaId: dbMedia.id,
-                                    playMethod,
-                                    clientName,
-                                    deviceName,
-                                    ipAddress,
-                                    country: geoData.country,
-                                    city: geoData.city,
-                                    audioLanguage: session.audioLanguage || session.AudioLanguage || null,
-                                    audioCodec: session.audioCodec || session.AudioCodec || null,
-                                    subtitleLanguage: session.subtitleLanguage || session.SubtitleLanguage || null,
-                                    subtitleCodec: session.subtitleCodec || session.SubtitleCodec || null,
-                                },
+                            const existingOpen = await prisma.playbackHistory.findFirst({
+                                where: { userId: dbUser.id, mediaId: dbMedia.id, endedAt: null },
                             });
-                            console.log(`[Plugin] PlaybackStart: Created session for ${title}`);
-                        }
-                    } else {
-                        // Fallback: if lock couldn't be acquired, re-check once to avoid duplicate create
-                        const existingOpen = await prisma.playbackHistory.findFirst({
-                            where: { userId: dbUser.id, mediaId: dbMedia.id, endedAt: null },
-                        });
-                        if (!existingOpen) {
-                            await prisma.playbackHistory.create({
-                                data: {
-                                    userId: dbUser.id,
-                                    mediaId: dbMedia.id,
-                                    playMethod,
-                                    clientName,
-                                    deviceName,
-                                    ipAddress,
-                                    country: geoData.country,
-                                    city: geoData.city,
-                                    audioLanguage: session.audioLanguage || session.AudioLanguage || null,
-                                    audioCodec: session.audioCodec || session.AudioCodec || null,
-                                    subtitleLanguage: session.subtitleLanguage || session.SubtitleLanguage || null,
-                                    subtitleCodec: session.subtitleCodec || session.SubtitleCodec || null,
-                                },
+                            if (!existingOpen) {
+                                // Try to reopen a recently closed session to avoid duplicates
+                                const mergeWindow = new Date(Date.now() - MERGE_WINDOW_MS);
+                                const recentClosed = await prisma.playbackHistory.findFirst({
+                                    where: { userId: dbUser.id, mediaId: dbMedia.id, endedAt: { not: null, gte: mergeWindow } },
+                                    orderBy: { endedAt: "desc" },
+                                });
+                                if (recentClosed) {
+                                    await prisma.playbackHistory.update({
+                                        where: { id: recentClosed.id },
+                                        data: {
+                                            endedAt: null,
+                                            playMethod,
+                                            clientName,
+                                            deviceName,
+                                            ipAddress,
+                                            country: geoData.country,
+                                            city: geoData.city,
+                                            audioLanguage: session.audioLanguage || session.AudioLanguage || null,
+                                            audioCodec: session.audioCodec || session.AudioCodec || null,
+                                            subtitleLanguage: session.subtitleLanguage || session.SubtitleLanguage || null,
+                                            subtitleCodec: session.subtitleCodec || session.SubtitleCodec || null,
+                                        },
+                                    });
+                                    console.log(`[Plugin] PlaybackStart: Reopened recent session ${recentClosed.id} for ${title}`);
+                                } else {
+                                    await prisma.playbackHistory.create({
+                                        data: {
+                                            userId: dbUser.id,
+                                            mediaId: dbMedia.id,
+                                            playMethod,
+                                            clientName,
+                                            deviceName,
+                                            ipAddress,
+                                            country: geoData.country,
+                                            city: geoData.city,
+                                            audioLanguage: session.audioLanguage || session.AudioLanguage || null,
+                                            audioCodec: session.audioCodec || session.AudioCodec || null,
+                                            subtitleLanguage: session.subtitleLanguage || session.SubtitleLanguage || null,
+                                            subtitleCodec: session.subtitleCodec || session.SubtitleCodec || null,
+                                        },
+                                    });
+                                    console.log(`[Plugin] PlaybackStart: Created session for ${title}`);
+                                }
+                            }
+                        } else {
+                            // Fallback: if lock couldn't be acquired, re-check once to avoid duplicate create
+                            const existingOpen = await prisma.playbackHistory.findFirst({
+                                where: { userId: dbUser.id, mediaId: dbMedia.id, endedAt: null },
                             });
-                            console.log(`[Plugin] PlaybackStart (nolock fallback): Created session for ${title}`);
+                            if (!existingOpen) {
+                                const mergeWindow = new Date(Date.now() - MERGE_WINDOW_MS);
+                                const recentClosed = await prisma.playbackHistory.findFirst({
+                                    where: { userId: dbUser.id, mediaId: dbMedia.id, endedAt: { not: null, gte: mergeWindow } },
+                                    orderBy: { endedAt: "desc" },
+                                });
+                                if (recentClosed) {
+                                    await prisma.playbackHistory.update({
+                                        where: { id: recentClosed.id },
+                                        data: { endedAt: null },
+                                    });
+                                    console.log(`[Plugin] PlaybackStart (nolock fallback): Reopened recent session ${recentClosed.id} for ${title}`);
+                                } else {
+                                    await prisma.playbackHistory.create({
+                                        data: {
+                                            userId: dbUser.id,
+                                            mediaId: dbMedia.id,
+                                            playMethod,
+                                            clientName,
+                                            deviceName,
+                                            ipAddress,
+                                            country: geoData.country,
+                                            city: geoData.city,
+                                            audioLanguage: session.audioLanguage || session.AudioLanguage || null,
+                                            audioCodec: session.audioCodec || session.AudioCodec || null,
+                                            subtitleLanguage: session.subtitleLanguage || session.SubtitleLanguage || null,
+                                            subtitleCodec: session.subtitleCodec || session.SubtitleCodec || null,
+                                        },
+                                    });
+                                    console.log(`[Plugin] PlaybackStart (nolock fallback): Created session for ${title}`);
+                                }
+                            }
                         }
-                    }
                 } finally {
                     try {
                         if (lock.acquired) await redis.del(lock.key);
@@ -820,27 +864,46 @@ export async function POST(req: Request) {
                         if (recheck) {
                             activePlayback = recheck;
                         } else {
-                            activePlayback = await prisma.playbackHistory.create({
-                                data: {
-                                    userId: user.id,
-                                    mediaId: media.id,
-                                    playMethod: resolvedPlayMethod,
-                                    clientName: resolvedClientName,
-                                    deviceName: resolvedDeviceName,
-                                    ipAddress: resolvedIpAddress,
-                                    country: geoData.country,
-                                    city: geoData.city,
-                                    audioLanguage: resolvedAudioLanguage,
-                                    audioCodec: resolvedAudioCodec,
-                                    subtitleLanguage: resolvedSubtitleLanguage,
-                                    subtitleCodec: resolvedSubtitleCodec,
-                                },
+                            // Try to reopen recent closed session before creating a new one
+                            const mergeWindow = new Date(Date.now() - MERGE_WINDOW_MS);
+                            const recentClosed = await prisma.playbackHistory.findFirst({
+                                where: { userId: user.id, mediaId: media.id, endedAt: { not: null, gte: mergeWindow } },
+                                orderBy: { endedAt: "desc" },
                             });
-                            console.log("[Plugin] PlaybackProgress bootstrap: created session because PlaybackStart was missing", {
-                                jellyfinUserId,
-                                jellyfinMediaId,
-                                sessionId: sessionId || null,
-                            });
+                            if (recentClosed) {
+                                activePlayback = await prisma.playbackHistory.update({
+                                    where: { id: recentClosed.id },
+                                    data: { endedAt: null, playMethod: resolvedPlayMethod, clientName: resolvedClientName, deviceName: resolvedDeviceName, ipAddress: resolvedIpAddress, country: geoData.country, city: geoData.city, audioLanguage: resolvedAudioLanguage, audioCodec: resolvedAudioCodec, subtitleLanguage: resolvedSubtitleLanguage, subtitleCodec: resolvedSubtitleCodec },
+                                });
+                                console.log("[Plugin] PlaybackProgress bootstrap: reopened recent session because PlaybackStart was missing", {
+                                    jellyfinUserId,
+                                    jellyfinMediaId,
+                                    sessionId: sessionId || null,
+                                    reopened: recentClosed.id,
+                                });
+                            } else {
+                                activePlayback = await prisma.playbackHistory.create({
+                                    data: {
+                                        userId: user.id,
+                                        mediaId: media.id,
+                                        playMethod: resolvedPlayMethod,
+                                        clientName: resolvedClientName,
+                                        deviceName: resolvedDeviceName,
+                                        ipAddress: resolvedIpAddress,
+                                        country: geoData.country,
+                                        city: geoData.city,
+                                        audioLanguage: resolvedAudioLanguage,
+                                        audioCodec: resolvedAudioCodec,
+                                        subtitleLanguage: resolvedSubtitleLanguage,
+                                        subtitleCodec: resolvedSubtitleCodec,
+                                    },
+                                });
+                                console.log("[Plugin] PlaybackProgress bootstrap: created session because PlaybackStart was missing", {
+                                    jellyfinUserId,
+                                    jellyfinMediaId,
+                                    sessionId: sessionId || null,
+                                });
+                            }
                         }
                     } else {
                         // fallback: wait briefly and re-check, then create if still missing
@@ -856,27 +919,37 @@ export async function POST(req: Request) {
                             }
                         }
                         if (!activePlayback) {
-                            activePlayback = await prisma.playbackHistory.create({
-                                data: {
-                                    userId: user.id,
-                                    mediaId: media.id,
-                                    playMethod: resolvedPlayMethod,
-                                    clientName: resolvedClientName,
-                                    deviceName: resolvedDeviceName,
-                                    ipAddress: resolvedIpAddress,
-                                    country: geoData.country,
-                                    city: geoData.city,
-                                    audioLanguage: resolvedAudioLanguage,
-                                    audioCodec: resolvedAudioCodec,
-                                    subtitleLanguage: resolvedSubtitleLanguage,
-                                    subtitleCodec: resolvedSubtitleCodec,
-                                },
+                            const mergeWindow = new Date(Date.now() - MERGE_WINDOW_MS);
+                            const recentClosed = await prisma.playbackHistory.findFirst({
+                                where: { userId: user.id, mediaId: media.id, endedAt: { not: null, gte: mergeWindow } },
+                                orderBy: { endedAt: "desc" },
                             });
-                            console.log("[Plugin] PlaybackProgress bootstrap (nolock fallback): created session because PlaybackStart was missing", {
-                                jellyfinUserId,
-                                jellyfinMediaId,
-                                sessionId: sessionId || null,
-                            });
+                            if (recentClosed) {
+                                activePlayback = await prisma.playbackHistory.update({ where: { id: recentClosed.id }, data: { endedAt: null } });
+                                console.log("[Plugin] PlaybackProgress bootstrap (nolock fallback): reopened recent session", { jellyfinUserId, jellyfinMediaId, reopened: recentClosed.id });
+                            } else {
+                                activePlayback = await prisma.playbackHistory.create({
+                                    data: {
+                                        userId: user.id,
+                                        mediaId: media.id,
+                                        playMethod: resolvedPlayMethod,
+                                        clientName: resolvedClientName,
+                                        deviceName: resolvedDeviceName,
+                                        ipAddress: resolvedIpAddress,
+                                        country: geoData.country,
+                                        city: geoData.city,
+                                        audioLanguage: resolvedAudioLanguage,
+                                        audioCodec: resolvedAudioCodec,
+                                        subtitleLanguage: resolvedSubtitleLanguage,
+                                        subtitleCodec: resolvedSubtitleCodec,
+                                    },
+                                });
+                                console.log("[Plugin] PlaybackProgress bootstrap (nolock fallback): created session because PlaybackStart was missing", {
+                                    jellyfinUserId,
+                                    jellyfinMediaId,
+                                    sessionId: sessionId || null,
+                                });
+                            }
                         }
                     }
                 } finally {
