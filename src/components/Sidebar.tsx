@@ -30,7 +30,7 @@ const adminNavigationKeys = [
     { key: 'recentlyAdded', href: '/recent', icon: Sparkles },
     { key: 'library', href: '/media', icon: Film },
     { key: 'logs', href: '/logs', icon: ScrollText },
-    { label: 'Santé des logs', href: '/admin/log-health', icon: HeartPulse },
+    { key: 'logHealth', href: '/admin/log-health', icon: HeartPulse },
     { key: 'users', href: '/users', icon: Users },
     { key: 'cleanup', href: '/admin/cleanup', icon: Eraser },
     { key: 'settings', href: '/settings', icon: Settings },
