@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTheme } from 'next-themes';
 import { useTranslations, useLocale } from 'next-intl';
 import { ActivityCalendar, ThemeInput } from "react-activity-calendar";
 import { format, eachDayOfInterval, startOfYear, endOfYear } from "date-fns";
@@ -43,6 +44,9 @@ export function YearlyHeatmap({ data, availableYears, dataByType, libraryTypes }
     const t = useTranslations('charts');
     const locale = useLocale();
     const dateFnsLocale = locale === 'fr' ? fr : enUS;
+    const { theme } = useTheme();
+    const [mountedTheme, setMountedTheme] = useState(false);
+    useEffect(() => setMountedTheme(true), []);
     const currentYear = new Date().getFullYear();
     const [selectedYear, setSelectedYear] = useState(currentYear);
     const [selectedLibrary, setSelectedLibrary] = useState<string>('_total');
@@ -66,7 +70,7 @@ export function YearlyHeatmap({ data, availableYears, dataByType, libraryTypes }
     const blockSize = useMemo(() => {
         if (containerWidth <= 0) return 14; // default before measurement
         const WEEKS = 53;
-        const LABEL_MARGIN = 45; // space for weekday labels on the left
+        const LABEL_MARGIN = 20; // space for weekday labels on the left (reduced to better fill width)
         const BLOCK_MARGIN = 3;
         const available = containerWidth - LABEL_MARGIN;
         const computed = Math.floor(available / WEEKS) - BLOCK_MARGIN;
@@ -126,7 +130,7 @@ export function YearlyHeatmap({ data, availableYears, dataByType, libraryTypes }
     return (
         <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 backdrop-blur-sm overflow-hidden flex flex-col">
             <CardHeader className="w-full pb-2">
-                <CardTitle className="text-zinc-100 flex items-center justify-between">
+                <CardTitle className="flex items-center justify-between text-zinc-900 dark:text-zinc-100">
                     <span>{t('yearlyActivity')}</span>
                     <div className="flex items-center gap-2">
                         <button
@@ -193,7 +197,7 @@ export function YearlyHeatmap({ data, availableYears, dataByType, libraryTypes }
                     <ActivityCalendar
                         data={processedData}
                         theme={customTheme}
-                        colorScheme="dark"
+                        colorScheme={mountedTheme && theme === 'dark' ? 'dark' : 'light'}
                         blockSize={blockSize}
                         blockRadius={3}
                         blockMargin={3}

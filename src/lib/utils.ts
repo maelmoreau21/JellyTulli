@@ -24,6 +24,9 @@ export function formatHour(hour24: number, locale: string): string {
  */
 export function categorizeClient(clientName: string): string {
     const lower = (clientName || "").toLowerCase();
+    // Specific client name mappings
+    if (lower.includes("feishin")) return "Desktop"; // Feishin is a desktop client
+    if (lower.includes("finamp")) return "Mobile"; // Finamp is a mobile client
     // TV / Smart TV / STB
     if (lower.includes("tv") || lower.includes("androidtv") || lower.includes("firestick") || lower.includes("roku") || lower.includes("chromecast") || lower.includes("apple tv") || lower.includes("kodi") || lower.includes("swiftfin") || lower.includes("infuse")) return "TV";
     // Web

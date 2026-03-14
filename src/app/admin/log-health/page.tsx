@@ -5,11 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getLogHealthSnapshot } from "@/lib/logHealth";
 import { AlertTriangle, CheckCircle2, Clock3, HeartPulse, RadioTower, RefreshCw, ShieldAlert } from "lucide-react";
 import { HealthAnomalyCharts } from "@/components/admin/HealthAnomalyCharts";
-
-function formatDate(dateString: string | null) {
-    if (!dateString) return "Jamais";
-    return new Date(dateString).toLocaleString('fr-FR');
-}
+import { getTranslations } from 'next-intl/server';
 
 export default async function LogHealthPage() {
     const session = await getServerSession(authOptions);
@@ -17,28 +13,34 @@ export default async function LogHealthPage() {
         const uid = (session?.user as any)?.jellyfinUserId;
         redirect(uid ? `/users/${uid}` : '/login');
     }
+    const t = await getTranslations('dashboard');
 
     const snapshot = await getLogHealthSnapshot();
+
+    function formatDate(dateString: string | null) {
+        if (!dateString) return t('never');
+        return new Date(dateString).toLocaleString();
+    }
 
     return (
         <div className="flex-col md:flex">
             <div className="flex-1 space-y-4 md:space-y-6 p-4 md:p-8 pt-4 md:pt-6 max-w-7xl mx-auto w-full">
                 <div>
-                    <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Santé des logs</h2>
-                    <p className="mt-2 text-sm text-zinc-400">Vue d’ensemble du monitor, des sessions orphelines, des fermetures automatiques et des bibliothèques exclues.</p>
+                    <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{t('logHealth')}</h2>
+                    <p className="mt-2 text-sm text-zinc-400">{t('logHealthDesc')}</p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-4">
-                    <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50"><CardHeader><CardTitle className="text-sm text-zinc-400 flex items-center gap-2"><RadioTower className="h-4 w-4 text-cyan-400" /> Monitor</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{snapshot.status.monitor.status === 'error' ? 'Erreur' : 'OK'}</div><p className="text-xs text-zinc-500 mt-1">Dernier poll: {formatDate(snapshot.status.monitor.lastPollAt)}</p></CardContent></Card>
-                    <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50"><CardHeader><CardTitle className="text-sm text-zinc-400 flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-orange-400" /> Lectures orphelines</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{snapshot.counts.openPlaybackOrphans}</div><p className="text-xs text-zinc-500 mt-1">PlaybackHistory ouvertes sans ActiveStream.</p></CardContent></Card>
-                    <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50"><CardHeader><CardTitle className="text-sm text-zinc-400 flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-400" /> Streams DB sans Redis</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{snapshot.counts.dbStreamsWithoutRedis}</div><p className="text-xs text-zinc-500 mt-1">ActiveStream présents en base mais absents du cache Redis.</p></CardContent></Card>
-                    <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50"><CardHeader><CardTitle className="text-sm text-zinc-400 flex items-center gap-2"><HeartPulse className="h-4 w-4 text-emerald-400" /> Redis orphelin</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{snapshot.counts.redisOrphans}</div><p className="text-xs text-zinc-500 mt-1">Clés Redis stream sans ActiveStream correspondant.</p></CardContent></Card>
+                    <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50"><CardHeader><CardTitle className="text-sm text-zinc-400 flex items-center gap-2"><RadioTower className="h-4 w-4 text-cyan-400" /> {t('monitor')}</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{snapshot.status.monitor.status === 'error' ? t('monitorStatusError') : t('monitorStatusOk')}</div><p className="text-xs text-zinc-500 mt-1">{t('lastPoll')}: {formatDate(snapshot.status.monitor.lastPollAt)}</p></CardContent></Card>
+                    <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50"><CardHeader><CardTitle className="text-sm text-zinc-400 flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-orange-400" /> {t('openPlaybackOrphans')}</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{snapshot.counts.openPlaybackOrphans}</div><p className="text-xs text-zinc-500 mt-1">{t('playbackHistoryNote')}</p></CardContent></Card>
+                    <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50"><CardHeader><CardTitle className="text-sm text-zinc-400 flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-400" /> {t('dbWithoutRedis')}</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{snapshot.counts.dbStreamsWithoutRedis}</div><p className="text-xs text-zinc-500 mt-1">{t('dbWithoutRedisDesc')}</p></CardContent></Card>
+                    <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50"><CardHeader><CardTitle className="text-sm text-zinc-400 flex items-center gap-2"><HeartPulse className="h-4 w-4 text-emerald-400" /> {t('redisOrphan')}</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{snapshot.counts.redisOrphans}</div><p className="text-xs text-zinc-500 mt-1">{t('redisOrphanDesc')}</p></CardContent></Card>
                 </div>
 
                 <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50">
                     <CardHeader>
-                        <CardTitle>Graphiques d’anomalies</CardTitle>
-                        <CardDescription>Vue sur les 14 derniers jours des erreurs monitor/sync/backup et des nettoyages automatiques détectés.</CardDescription>
+                        <CardTitle>{t('anomalyChartsTitle')}</CardTitle>
+                        <CardDescription>{t('anomalyChartsDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="pt-2">
                         <HealthAnomalyCharts timeline={snapshot.anomalyTimeline} breakdown={snapshot.anomalyBreakdown} />
@@ -48,16 +50,16 @@ export default async function LogHealthPage() {
                 <div className="grid gap-4 lg:grid-cols-2">
                     <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50">
                         <CardHeader>
-                            <CardTitle>Lectures orphelines en cours</CardTitle>
-                            <CardDescription>Ces entrées sont affichées comme ouvertes mais n’ont plus de stream actif associé.</CardDescription>
+                            <CardTitle>{t('orphanPlaybacksTitle')}</CardTitle>
+                            <CardDescription>{t('orphanPlaybacksDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            {snapshot.orphanPlaybacks.length === 0 && <div className="text-sm text-zinc-500">Aucune lecture orpheline détectée.</div>}
+                            {snapshot.orphanPlaybacks.length === 0 && <div className="text-sm text-zinc-500">{t('noOrphanPlaybacks')}</div>}
                             {snapshot.orphanPlaybacks.map((entry: any) => (
                                 <div key={entry.id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-black/20 p-3">
                                     <div className="font-medium text-zinc-100">{entry.mediaTitle}</div>
                                     <div className="mt-1 text-xs text-zinc-400">{entry.username} · {entry.library}</div>
-                                    <div className="mt-2 text-xs text-zinc-500">Ouverte le {formatDate(entry.startedAt)} · {Math.floor(entry.durationWatched / 60)} min</div>
+                                    <div className="mt-2 text-xs text-zinc-500">{t('openedOn')} {formatDate(entry.startedAt)} · {Math.floor(entry.durationWatched / 60)} min</div>
                                 </div>
                             ))}
                         </CardContent>
@@ -65,11 +67,11 @@ export default async function LogHealthPage() {
 
                     <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50">
                         <CardHeader>
-                            <CardTitle>Fermetures automatiques récentes</CardTitle>
-                            <CardDescription>Résumé des nettoyages réalisés par le monitor, la synchro et les sauvegardes.</CardDescription>
+                            <CardTitle>{t('recentClosuresTitle')}</CardTitle>
+                            <CardDescription>{t('recentClosuresDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            {snapshot.recentEvents.length === 0 && <div className="text-sm text-zinc-500">Aucun événement récent.</div>}
+                            {snapshot.recentEvents.length === 0 && <div className="text-sm text-zinc-500">{t('noRecentEvents')}</div>}
                             {snapshot.recentEvents.map((event: any) => (
                                 <div key={event.id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-black/20 p-3">
                                     <div className="flex items-center gap-2 text-sm font-medium text-zinc-100">
@@ -86,11 +88,11 @@ export default async function LogHealthPage() {
                 <div className="grid gap-4 lg:grid-cols-2">
                     <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50">
                         <CardHeader>
-                            <CardTitle>Bibliothèques exclues</CardTitle>
-                            <CardDescription>Bibliothèques complètement ignorées pour les logs et statistiques.</CardDescription>
+                            <CardTitle>{t('excludedLibrariesTitle')}</CardTitle>
+                            <CardDescription>{t('excludedLibrariesDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-wrap gap-2">
-                            {snapshot.excludedLibraries.length === 0 && <span className="text-sm text-zinc-500">Aucune bibliothèque exclue.</span>}
+                            {snapshot.excludedLibraries.length === 0 && <span className="text-sm text-zinc-500">{t('noExcludedLibraries')}</span>}
                             {snapshot.excludedLibraries.map((library: string) => (
                                 <span key={library} className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-200">{library}</span>
                             ))}
@@ -99,8 +101,8 @@ export default async function LogHealthPage() {
 
                     <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50">
                         <CardHeader>
-                            <CardTitle>Règles de complétion</CardTitle>
-                            <CardDescription>Paramètres actifs par bibliothèque pour les médias abandonnés et taux de complétion.</CardDescription>
+                            <CardTitle>{t('rulesTitle')}</CardTitle>
+                            <CardDescription>{t('rulesDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {Object.entries(snapshot.libraryRules).map(([library, rule]: any) => (
@@ -108,8 +110,8 @@ export default async function LogHealthPage() {
                                     <div className="font-medium text-zinc-100">{library}</div>
                                     <div className="mt-1 text-xs text-zinc-400">
                                         {rule.completionEnabled
-                                            ? `Abandonné: ${rule.abandonedThreshold}% · Partiel: ${rule.partialThreshold}% · Terminé: ${rule.completedThreshold}%`
-                                            : 'Complétion désactivée'
+                                            ? `${t('abandoned')}: ${rule.abandonedThreshold}% · ${t('partial')}: ${rule.partialThreshold}% · ${t('completed')}: ${rule.completedThreshold}%`
+                                            : t('completionDisabled')
                                         }
                                     </div>
                                 </div>
@@ -120,24 +122,24 @@ export default async function LogHealthPage() {
 
                 <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50">
                     <CardHeader>
-                        <CardTitle>État des traitements</CardTitle>
-                        <CardDescription>Derniers passages du monitor, de la synchronisation et des sauvegardes.</CardDescription>
+                        <CardTitle>{t('processingStatusTitle')}</CardTitle>
+                        <CardDescription>{t('processingStatusDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-4 md:grid-cols-3">
                         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-black/20 p-4">
-                            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300"><RadioTower className="h-4 w-4 text-cyan-400" /> Monitor</div>
-                            <div className="mt-2 text-sm text-zinc-500">Dernier succès: {formatDate(snapshot.status.monitor.lastSuccessAt)}</div>
-                            <div className="mt-1 text-sm text-zinc-500">Dernière erreur: {snapshot.status.monitor.lastError || 'Aucune'}</div>
+                            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300"><RadioTower className="h-4 w-4 text-cyan-400" /> {t('monitor')}</div>
+                            <div className="mt-2 text-sm text-zinc-500">{t('lastSuccess')}: {formatDate(snapshot.status.monitor.lastSuccessAt)}</div>
+                            <div className="mt-1 text-sm text-zinc-500">{t('lastError')}: {snapshot.status.monitor.lastError || t('none')}</div>
                         </div>
                         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-black/20 p-4">
                             <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300"><RefreshCw className="h-4 w-4 text-amber-400" /> Sync</div>
-                            <div className="mt-2 text-sm text-zinc-500">Dernier succès: {formatDate(snapshot.status.sync.lastSuccessAt)}</div>
-                            <div className="mt-1 text-sm text-zinc-500">Mode: {snapshot.status.sync.mode || '—'}</div>
+                            <div className="mt-2 text-sm text-zinc-500">{t('lastSuccess')}: {formatDate(snapshot.status.sync.lastSuccessAt)}</div>
+                            <div className="mt-1 text-sm text-zinc-500">{t('mode')}: {snapshot.status.sync.mode || '—'}</div>
                         </div>
                         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-black/20 p-4">
                             <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300"><Clock3 className="h-4 w-4 text-emerald-400" /> Backup</div>
-                            <div className="mt-2 text-sm text-zinc-500">Dernier succès: {formatDate(snapshot.status.backup.lastSuccessAt)}</div>
-                            <div className="mt-1 text-sm text-zinc-500">Fichier: {snapshot.status.backup.lastFileName || '—'}</div>
+                            <div className="mt-2 text-sm text-zinc-500">{t('lastSuccess')}: {formatDate(snapshot.status.backup.lastSuccessAt)}</div>
+                            <div className="mt-1 text-sm text-zinc-500">{t('file')}: {snapshot.status.backup.lastFileName || '—'}</div>
                         </div>
                     </CardContent>
                 </Card>
