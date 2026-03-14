@@ -6,7 +6,20 @@ echo "Starting JellyTrack Server..."
 # ─── Build DATABASE_URL from env vars (DB_* or POSTGRES_*) ──────────
 # Priority order for compatibility:
 # DB_* (host-network friendly) > POSTGRES_* (legacy) > defaults
+# Treat obvious placeholder values as "not provided" so the entrypoint can
+# reconstruct a usable DATABASE_URL without removing or changing user env vars.
+rebuild_db=false
 if [ -z "$DATABASE_URL" ]; then
+  rebuild_db=true
+else
+  case "$DATABASE_URL" in
+    *placeholder*|*PLACEHOLDER*)
+      rebuild_db=true
+      ;;
+  esac
+fi
+
+if [ "$rebuild_db" = true ]; then
   DB_USER=${DB_USER:-${POSTGRES_USER:-JellyTrack}}
   DB_PASSWORD=${DB_PASSWORD:-${POSTGRES_PASSWORD:-JellyTrack_password}}
   DB_HOST=${DB_HOST:-${POSTGRES_IP:-postgres}}
