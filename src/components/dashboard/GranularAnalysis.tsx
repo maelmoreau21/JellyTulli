@@ -89,7 +89,10 @@ const getGranularData = unstable_cache(
             dayEntry[`${lib}_duration`] = (dayEntry[`${lib}_duration`] || 0) + durationH;
 
             // Hourly Aggregation
-            const hourEntry = hourlyMap.get(hourKey);
+            if (!hourlyMap.has(hourKey)) {
+                hourlyMap.set(hourKey, { time: hourKey, plays: 0, duration: 0 });
+            }
+            const hourEntry = hourlyMap.get(hourKey)!;
             hourEntry.plays += 1;
             hourEntry.duration += durationH;
 

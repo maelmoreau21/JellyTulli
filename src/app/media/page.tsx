@@ -35,6 +35,24 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
     const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
     const excludedLibraries = settings?.excludedLibraries || [];
 
+    // Attempt to fetch the list of libraries (Virtual Folders) directly from Jellyfin
+    const baseUrl = process.env.JELLYFIN_URL;
+    const apiKey = process.env.JELLYFIN_API_KEY;
+    let jellyfinViews: any[] = [];
+    if (baseUrl && apiKey) {
+        try {
+            const viewsRes = await fetch(`${baseUrl}/Library/VirtualFolders`, { headers: { 'X-Emby-Token': apiKey } });
+            if (viewsRes.ok) {
+                const v = await viewsRes.json();
+                jellyfinViews = Array.isArray(v) ? v : (v.Items || []);
+            } else {
+                console.warn('[MediaPage] Failed to fetch Jellyfin VirtualFolders:', viewsRes.status);
+            }
+        } catch (e) {
+            console.warn('[MediaPage] Error fetching Jellyfin VirtualFolders:', e);
+        }
+    }
+
     const displayTypes = type === 'movie' ? ['Movie']
         : type === 'series' ? ['Series']
         : type === 'music' ? ['MusicAlbum']
@@ -156,7 +174,17 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
         select: { type: true, size: true, durationMs: true, libraryName: true }
     });
 
-    const libraryStatsMap = new Map<string, { size: bigint; duration: bigint; items: number; movies: number; series: number; music: number; books: number }>();
+    const libraryStatsMap = new Map<string, { size: bigint; duration: bigint; watchedSeconds?: number; items: number; movies: number; series: number; music: number; books: number }>();
+
+    // Pre-populate library map with Jellyfin libraries so empty libraries appear in the UI
+    if (jellyfinViews && jellyfinViews.length > 0) {
+        for (const v of jellyfinViews) {
+            const name = v?.Name || tc('other');
+            if (!libraryStatsMap.has(name)) {
+                libraryStatsMap.set(name, { size: BigInt(0), duration: BigInt(0), items: 0, movies: 0, series: 0, music: 0, books: 0 });
+            }
+        }
+    }
 
     let totalSizeBytes = BigInt(0);
     let totalDurationMs = BigInt(0);
@@ -168,19 +196,14 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
     allMedia.forEach(m => {
         const libName = m.libraryName || tc('other');
         if (!libraryStatsMap.has(libName)) {
-            libraryStatsMap.set(libName, { size: BigInt(0), duration: BigInt(0), items: 0, movies: 0, series: 0, music: 0, books: 0 });
+            libraryStatsMap.set(libName, { size: BigInt(0), duration: BigInt(0), watchedSeconds: 0, items: 0, movies: 0, series: 0, music: 0, books: 0 });
         }
         const lib = libraryStatsMap.get(libName)!;
 
-        // CRITICAL: Only count size from leaf items to avoid double counting containers (Series/Albums)
+        // CRITICAL: Only count durations from leaf items for "Watch Time" (sizes will be aggregated via Prisma below)
         const isLeaf = ['Movie', 'Episode', 'Audio', 'Book'].includes(m.type);
-        if (isLeaf && m.size) {
-            totalSizeBytes += m.size;
-            lib.size += m.size;
-        }
 
         if (m.durationMs) {
-            // Only sum duration for leaf items for global "Watch Time"
             if (isLeaf) {
                 totalDurationMs += m.durationMs;
                 lib.duration += m.durationMs;
@@ -192,6 +215,54 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
         else if (m.type === 'MusicAlbum') { albumCount++; lib.music++; lib.items++; }
         else if (m.type === 'Book') { bookCount++; lib.books++; lib.items++; }
     });
+
+    // Use Prisma aggregation to compute total size and per-library sizes robustly
+    try {
+        const leafTypes = ['Movie', 'Episode', 'Audio', 'Book'];
+        const sizeWhere: any = { type: { in: leafTypes } };
+        if (excludedLibraries.length > 0) {
+            sizeWhere.libraryName = { notIn: excludedLibraries };
+        }
+
+        const sizeAgg = await prisma.media.aggregate({ where: sizeWhere, _sum: { size: true } });
+        totalSizeBytes = (sizeAgg._sum && (sizeAgg._sum as any).size) || BigInt(0);
+
+        const perLibSizes = await prisma.media.groupBy({ by: ['libraryName'], where: sizeWhere, _sum: { size: true } });
+        for (const p of perLibSizes) {
+            const name = p.libraryName || tc('other');
+            if (!libraryStatsMap.has(name)) {
+                libraryStatsMap.set(name, { size: BigInt(0), duration: BigInt(0), watchedSeconds: 0, items: 0, movies: 0, series: 0, music: 0, books: 0 });
+            }
+            const lib = libraryStatsMap.get(name)!;
+            lib.size = (p._sum && (p._sum as any).size) || BigInt(0);
+        }
+    } catch (e) {
+        console.warn('[MediaPage] Failed to aggregate sizes from DB:', e);
+    }
+
+    // Aggregate actual watch time (from playback history) per library so we can show total watched time
+    try {
+        const playbackAgg = await prisma.playbackHistory.groupBy({
+            by: ['mediaId'],
+            _sum: { durationWatched: true },
+        });
+        const mediaIdsWithHistory = playbackAgg.map(p => p.mediaId);
+        const mediasForHistory = mediaIdsWithHistory.length > 0
+            ? await prisma.media.findMany({ where: { id: { in: mediaIdsWithHistory } }, select: { id: true, libraryName: true } })
+            : [];
+        const mediaToLib = new Map(mediasForHistory.map(m => [m.id, m.libraryName || tc('other')]));
+
+        for (const p of playbackAgg) {
+            const libName = mediaToLib.get(p.mediaId) || tc('other');
+            if (!libraryStatsMap.has(libName)) {
+                libraryStatsMap.set(libName, { size: BigInt(0), duration: BigInt(0), watchedSeconds: 0, items: 0, movies: 0, series: 0, music: 0, books: 0 });
+            }
+            const lib = libraryStatsMap.get(libName)!;
+            lib.watchedSeconds = (lib.watchedSeconds || 0) + (p._sum.durationWatched || 0);
+        }
+    } catch (e) {
+        console.warn('[MediaPage] Failed to aggregate playback history by library:', e);
+    }
 
     const formatSize = (bytes: bigint) => {
         const tb = Number(bytes) / (1024 ** 4);
@@ -210,8 +281,16 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
     const libraryStatsList = Array.from(libraryStatsMap.entries())
         .map(([name, stats]) => {
             const size = formatSize(stats.size);
-            const d = Math.floor(Number(stats.duration) / (1000 * 60 * 60 * 24));
-            const h = Math.floor((Number(stats.duration) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            // Prefer actual watched time (from playback history) when available, otherwise fall back to total media durations
+            let d = 0;
+            let h = 0;
+            if (stats.watchedSeconds && stats.watchedSeconds > 0) {
+                d = Math.floor(stats.watchedSeconds / (60 * 60 * 24));
+                h = Math.floor((stats.watchedSeconds % (60 * 60 * 24)) / (60 * 60));
+            } else {
+                d = Math.floor(Number(stats.duration) / (1000 * 60 * 60 * 24));
+                h = Math.floor((Number(stats.duration) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            }
             return {
                 name,
                 size: `${size.value} ${size.unit}`,
