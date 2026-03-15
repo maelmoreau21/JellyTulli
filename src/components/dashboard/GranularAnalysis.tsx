@@ -40,6 +40,18 @@ const getGranularData = unstable_cache(
             orderBy: { startedAt: 'asc' }
         });
 
+        const dailyMap = new Map<string, any>();
+        const hourlyMap = new Map<string, any>();
+        const collections = new Set<string>();
+        const completionMap = new Map<string, { totalCompletion: number, sessions: number }>();
+        const mediaDropMap = new Map<string, { title: string, mediaId: string, completion: number, count: number }>();
+        const audioMap = new Map<string, number>();
+        const subMap = new Map<string, number>();
+        let dropSkipped = 0;
+        let dropAbandoned = 0;
+        let dropAlmost = 0;
+        let dropFinished = 0;
+
         // Heatmap Data (Day of Week vs Hour)
         // Array of 7 days, each having 24 hours
         const heatmapData: any[] = [];
