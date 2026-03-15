@@ -12,7 +12,7 @@ import {
     Cell,
     ReferenceLine,
 } from "recharts";
-import { chartAxisColor, chartGridColor, chartItemStyle, chartLabelStyle, chartTooltipStyle } from "@/lib/chartTheme";
+// Read colors from CSS variables at runtime so charts follow light/dark theme.
 
 export interface ActivityHourData {
     hour: string; // "00:00", "01:00", etc.
@@ -40,6 +40,20 @@ export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
     const selectedEntry = data.find(d => d.hour === selectedHour);
 
     const avg = data.length > 0 ? Math.round(data.reduce((sum, d) => sum + d.count, 0) / data.length) : 0;
+
+    // Read chart-related CSS variables so charts match light/dark theme
+    const root = typeof window !== "undefined" ? getComputedStyle(document.documentElement) : null;
+    const chartAxisColor = root?.getPropertyValue('--chart-axis-color')?.trim() || '#94a3b8';
+    const chartGridColor = root?.getPropertyValue('--chart-grid-color')?.trim() || 'rgba(148, 163, 184, 0.14)';
+    const chartTooltipStyle = {
+        background: root?.getPropertyValue('--chart-tooltip-bg')?.trim() || 'rgba(8, 12, 18, 0.9)',
+        border: root?.getPropertyValue('--chart-tooltip-border')?.trim() || '1px solid rgba(103, 232, 249, 0.18)',
+        borderRadius: root?.getPropertyValue('--chart-tooltip-radius')?.trim() || '18px',
+        boxShadow: root?.getPropertyValue('--chart-tooltip-box-shadow')?.trim() || '0 20px 60px rgba(0, 0, 0, 0.35)',
+        backdropFilter: root?.getPropertyValue('--chart-tooltip-backdrop')?.trim() || 'blur(18px)'
+    };
+    const chartLabelStyle = { color: root?.getPropertyValue('--chart-label-color')?.trim() || '#94a3b8' };
+    const chartItemStyle = { color: root?.getPropertyValue('--chart-item-color')?.trim() || '#e5eefb' };
 
     return (
         <div className="flex flex-col h-full">
@@ -106,10 +120,10 @@ export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
                     {/* Average reference line */}
                     <ReferenceLine
                         y={avg}
-                        stroke="#94a3b8"
-                        strokeDasharray="4 4"
-                        strokeOpacity={0.5}
-                        label={{ value: `moy: ${avg}`, position: 'right', fill: '#94a3b8', fontSize: 10 }}
+                        stroke={chartAxisColor}
+                        strokeDasharray="3 4"
+                        strokeOpacity={0.28}
+                        label={{ value: `moy: ${avg}`, position: 'right', fill: chartLabelStyle.color, fontSize: 10 }}
                     />
                     <Bar
                         dataKey="count"

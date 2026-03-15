@@ -275,36 +275,42 @@ export default function LogRow({ log, visibleColumns, onOpenDetails }: { log: an
               </div>
 
               <div className="w-full">
-                <div className="w-full h-10 bg-zinc-100 dark:bg-zinc-800 rounded relative overflow-hidden">
-                  {groupedEvents.length === 0 ? (
-                    <div className="absolute inset-0 flex items-center justify-center text-zinc-400">{t('timeline.noEvents')}</div>
-                  ) : (
-                    groupedEvents.map((g: any, idx: number) => {
-                      const pos = Number(g.pos || 0);
-                      const pct = Number.isFinite(durationMs) && durationMs > 0 ? Math.min(99, Math.max(1, Math.round((pos / durationMs) * 100))) : 1;
-                      const meta = getEventMeta(g.repType);
-                      const size = g.count > 1 ? 10 : 8;
-                      return (
-                        <button
-                          key={g.key ?? idx}
-                          title={`${meta.icon} ${meta.label} — ${formatTime(pos)}${g.count > 1 ? ` (${g.count} events)` : ''}`}
-                          aria-label={`${meta.label} at ${formatTime(pos)}`}
-                          className={`absolute top-1/2 ${meta.color} rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1`}
-                          style={{ left: `${pct}%`, width: size, height: size, transform: 'translate(-50%, -50%)' }}
-                        >
-                          {g.count > 1 && (
-                            <span className="text-[10px] text-white leading-none" style={{ fontSize: 9 }}>{g.count}</span>
-                          )}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
+                <div className="app-surface-soft p-2 rounded">
+                  <div className="relative h-3 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                    {/* subtle progress tint to match app style */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-40 pointer-events-none" />
 
-                <div className="flex justify-between text-[11px] text-zinc-500 mt-2">
-                  <div>0:00</div>
-                  <div className="text-center">{formatTime(Math.floor(durationMs / 2))}</div>
-                  <div className="text-right">{formatTime(durationMs)}</div>
+                    {groupedEvents.length === 0 ? (
+                      <div className="absolute inset-0 flex items-center justify-center text-zinc-400">{t('timeline.noEvents')}</div>
+                    ) : (
+                      groupedEvents.map((g: any, idx: number) => {
+                        const pos = Number(g.pos || 0);
+                        const pct = Number.isFinite(durationMs) && durationMs > 0 ? Math.min(99, Math.max(1, Math.round((pos / durationMs) * 100))) : 1;
+                        const meta = getEventMeta(g.repType);
+                        const size = g.count > 1 ? 10 : 8;
+                        return (
+                          <div key={g.key ?? idx} className="absolute top-1/2" style={{ left: `${pct}%`, transform: 'translate(-50%, -50%)' }}>
+                            <button
+                              title={`${meta.icon} ${meta.label} — ${formatTime(pos)}${g.count > 1 ? ` (${g.count} events)` : ''}`}
+                              aria-label={`${meta.label} at ${formatTime(pos)}`}
+                              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs text-white shadow ${meta.color} ring-1 ring-white/20 focus:outline-none focus:ring-2 focus:ring-offset-1`}
+                            >
+                              <span className="leading-none">{meta.icon}</span>
+                            </button>
+                            {g.count > 1 && (
+                              <div className="mt-1 text-[10px] text-zinc-500 text-center">{g.count}</div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="flex justify-between text-[11px] text-zinc-500 mt-2 px-1">
+                    <div>0:00</div>
+                    <div className="text-center">{formatTime(Math.floor(durationMs / 2))}</div>
+                    <div className="text-right">{formatTime(durationMs)}</div>
+                  </div>
                 </div>
               </div>
 
