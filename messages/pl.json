@@ -404,7 +404,28 @@
     "episodeType": "Odcinek",
     "musicType": "Utwór",
     "movieType": "Film",
-    "seasonType": "Sezon"
+    "seasonType": "Sezon",
+    "timeline": {
+      "label": {
+        "subtitle_change": "Zmiana napisów",
+        "audio_change": "Zmiana audio",
+        "seek": "Przewijanie",
+        "pause": "Pauza",
+        "default": "Zdarzenie"
+      },
+      "legend": {
+        "subtitles": "Napisy",
+        "pause": "Pauzy",
+        "audio": "Dźwięk"
+      },
+      "title": "Oś czasu",
+      "toggle": {
+        "5s": "5s",
+        "exact": "Punkt",
+        "30s": "30s"
+      },
+      "noEvents": "Brak zarejestrowanych zdarzeń."
+    }
   },
   "media": {
     "title": "Biblioteka",
@@ -641,7 +662,7 @@
     "previousYear": "Rok wstecz",
     "nextYear": "Rok w przód",
     "playsInYear": "{count} {count, plural, one {raz} other {razy}} w {year}",
-    "playsTotal": "{{count}} razy w {{year}}",
+    "playsTotal": "{count} razy w {year}",
     "less": "Mało",
     "more": "Dużo",
     "play": "raz",

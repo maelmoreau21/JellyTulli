@@ -642,7 +642,7 @@
     "previousYear": "前一年",
     "nextYear": "后一年",
     "playsInYear": "{year} 年共播放 {count} 次",
-    "playsTotal": "{{year}} 年总计 {{count}} 次播放",
+    "playsTotal": "{year} 年总计 {count} 次播放",
     "less": "更少",
     "more": "更多",
     "play": "播放",

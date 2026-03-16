@@ -404,7 +404,28 @@
     "episodeType": "Aflevering",
     "musicType": "Nummer",
     "movieType": "Film",
-    "seasonType": "Seizoen"
+    "seasonType": "Seizoen",
+    "timeline": {
+      "label": {
+        "subtitle_change": "Ondertitelwijziging",
+        "audio_change": "Audiowijziging",
+        "seek": "Seek",
+        "pause": "Pauze",
+        "default": "Gebeurtenis"
+      },
+      "legend": {
+        "subtitles": "Ondertitels",
+        "pause": "Pauze",
+        "audio": "Audio"
+      },
+      "title": "Tijdlijn",
+      "toggle": {
+        "5s": "5s",
+        "exact": "Exact",
+        "30s": "30s"
+      },
+      "noEvents": "Geen gebeurtenissen geregistreerd."
+    }
   },
   "media": {
     "title": "Bibliotheek",
@@ -642,7 +663,7 @@
     "previousYear": "Vorig jaar",
     "nextYear": "Volgend jaar",
     "playsInYear": "{count} {count, plural, one {afspeelbeurt} other {afspeelbeurten}} in {year}",
-    "playsTotal": "{{count}} afspeelbeurten in {{year}}",
+    "playsTotal": "{count} afspeelbeurten in {year}",
     "less": "Minder",
     "more": "Meer",
     "play": "afspeelbeurt",

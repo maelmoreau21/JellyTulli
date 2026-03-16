@@ -10,16 +10,17 @@
 - DataViz: **Recharts**
 - IP Localization: **geoip-country**
 
-## Phase 50: Wrapped Enhancements & Availability (Access window, historical access, conditional slides, new statistics).
-- **Wrapped Period Management**: Added `wrappedStartMonth/Day` and `wrappedEndMonth/Day` to `GlobalSettings` to control availability of the current year's retrospective.
-- **Historical Archives**: Users can now toggle between different years without restriction.
-- **Conditional Rendering**: Slides for categories with no data (e.g., zero music played) are automatically hidden for a cleaner UX.
-- **New Stats**: Integrated "Total Days" and "Top Device" visualizations into the Wrapped story flow.
-- **Translation Log Spam Fix**: Reorganized `fr.json` and `en.json` to nest `timeline` keys inside the `logs` object, resolving thousands of "Missing key" errors.
-- **Sync Reliability**: Added a custom `fetchWithTimeout` utility and increased default timeouts (30-60s) in `sync.ts` to handle large libraries and Docker network instability. Added detailed troubleshooting logs for Jellyfin reaching/timeout issues.
-- **Detailed Library Stats**: Enhanced the Media page (`/media`) with per-library "Top Content" (most played item) and "Recently Added" (last item added) details.
-- **Premium UI**: Redesigned `LibraryStats.tsx` with a dashboard-like experience, featuring media posters, progress bars, hover glows, and quick links to libraries.
-- **Duration Capping**: Implemented strict `durationMs` capping in both the Plugin API and cleanup logic to prevent abnormally long playback durations.
+## Phase 52: Dashboard Widget Resilience & Deep Analysis Fixes
+- **Resolution Matrix Fix**: Added proactive resolution extraction in the monitor to ensure "4K/1080p" badges appear instead of "?".
+- **Library Grid Aggregation**: Fixed Series/Album playback stats aggregation via children (Grandparents → Parents → Children).
+- **Audio/Language Sanitization**: Implemented `isValidLang` filter to prevent codec info from polluting language charts.
+- **Worst Completion Rates**: Lowered threshold to 1 view to make playback failures more visible.
+
+## Phase 53: Critical i18n Synchronization & Crash Prevention
+- **fr.json Emergency Restore**: Restored missing `charts` keys (`months`, `weekdays`, `dayNamesShort`, etc.) that were causing a client-side crash in French.
+- **Global Structural Standardization**: Moved the `timeline` namespace inside `logs` across all 10 language files for structural consistency with `en.json`.
+- **Variable Formatting Fix**: Standardized variable interpolation from `{{variable}}` to `{variable}` across multiple locales to prevent rendering errors.
+- **Locale Audit**: Verified `fr`, `en`, `it`, `es`, `de`, `nl`, `pl`, `zh`, `pt-BR`, and `ru` for global consistency and dashboard stability.
 
 ## Phase 3 : Tautulli Ultimate Clone Capabilities
 A massive analytical refactoring was introduced focusing on Data Context and Resilience on Edge Devices (Raspberry Pi).

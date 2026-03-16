@@ -404,7 +404,28 @@
     "episodeType": "Episodio",
     "musicType": "Pista",
     "movieType": "Película",
-    "seasonType": "Temporada"
+    "seasonType": "Temporada",
+    "timeline": {
+      "label": {
+        "subtitle_change": "Cambio de subtítulo",
+        "audio_change": "Cambio de audio",
+        "seek": "Búsqueda (Seek)",
+        "pause": "Pausa",
+        "default": "Evento"
+      },
+      "legend": {
+        "subtitles": "Subtítulos",
+        "pause": "Pausa",
+        "audio": "Audio"
+      },
+      "title": "Línea de tiempo",
+      "toggle": {
+        "5s": "5s",
+        "exact": "Exacto",
+        "30s": "30s"
+      },
+      "noEvents": "No hay eventos registrados."
+    }
   },
   "media": {
     "title": "Biblioteca",

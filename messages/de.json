@@ -404,7 +404,28 @@
     "episodeType": "Episode",
     "musicType": "Titel",
     "movieType": "Film",
-    "seasonType": "Staffel"
+    "seasonType": "Staffel",
+    "timeline": {
+      "label": {
+        "subtitle_change": "Untertitelwechsel",
+        "audio_change": "Audiowechsel",
+        "seek": "Seek",
+        "pause": "Pause",
+        "default": "Ereignis"
+      },
+      "legend": {
+        "subtitles": "Untertitel",
+        "pause": "Pause",
+        "audio": "Audio"
+      },
+      "title": "Zeitachse",
+      "toggle": {
+        "5s": "5s",
+        "exact": "Exakt",
+        "30s": "30s"
+      },
+      "noEvents": "Keine Ereignisse aufgezeichnet."
+    }
   },
   "media": {
     "title": "Bibliothek",
@@ -642,7 +663,7 @@
     "previousYear": "Vorheriges Jahr",
     "nextYear": "Nächstes Jahr",
     "playsInYear": "{count} {count, plural, one {Wiedergabe} other {Wiedergaben}} in {year}",
-    "playsTotal": "{{count}} Wiedergaben in {{year}}",
+    "playsTotal": "{count} Wiedergaben in {year}",
     "less": "Weniger",
     "more": "Mehr",
     "play": "Wiedergabe",

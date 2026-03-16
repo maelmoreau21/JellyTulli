@@ -660,11 +660,19 @@
     "previousYear": "Année précédente",
     "nextYear": "Année suivante",
     "playsInYear": "{count} {count, plural, one {lecture} other {lectures}} en {year}",
-    "playsTotal": "{{count}} lectures en {{year}}",
+    "playsTotal": "{count} lectures en {year}",
     "less": "Moins",
     "more": "Plus",
     "play": "lecture",
-    "plays": "lectures"
+    "plays": "lectures",
+    "months": "Jan,Fév,Mar,Avr,Mai,Juin,Juil,Aoû,Sep,Oct,Nov,Déc",
+    "weekdays": "Dim,Lun,Mar,Mer,Jeu,Ven,Sam",
+    "noPlatformData": "Aucune donnée de plateforme",
+    "noGenreData": "Aucune donnée de genre disponible",
+    "server": "Serveur",
+    "all": "Tout",
+    "sessions": "sessions",
+    "dayNamesShort": "D,L,M,M,J,V,S"
   },
   "wrapped": {
     "introSubtitle": "Le Récap de {username}",

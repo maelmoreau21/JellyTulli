@@ -404,7 +404,28 @@
     "episodeType": "Эпизод",
     "musicType": "Трек",
     "movieType": "Фильм",
-    "seasonType": "Сезон"
+    "seasonType": "Сезон",
+    "timeline": {
+      "label": {
+        "subtitle_change": "Смена субт.",
+        "audio_change": "Смена аудио",
+        "seek": "Перемотка",
+        "pause": "Пауза",
+        "default": "Событие"
+      },
+      "legend": {
+        "subtitles": "Субтитры",
+        "pause": "Паузы",
+        "audio": "Звук"
+      },
+      "title": "Хронология",
+      "toggle": {
+        "5s": "5с",
+        "exact": "Точно",
+        "30s": "30с"
+      },
+      "noEvents": "Событий не зафиксировано."
+    }
   },
   "media": {
     "title": "Библиотека",
@@ -641,7 +662,7 @@
     "previousYear": "Год назад",
     "nextYear": "Год вперед",
     "playsInYear": "{count} {count, plural, one {раз} few {раза} other {раз}} в {year}",
-    "playsTotal": "{{count}} раз в {{year}}",
+    "playsTotal": "{count} раз в {year}",
     "less": "Мало",
     "more": "Много",
     "play": "раз",

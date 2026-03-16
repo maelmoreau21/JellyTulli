@@ -404,7 +404,28 @@
     "episodeType": "Episodio",
     "musicType": "Traccia",
     "movieType": "Film",
-    "seasonType": "Stagione"
+    "seasonType": "Stagione",
+    "timeline": {
+      "label": {
+        "subtitle_change": "Cambio sottotitoli",
+        "audio_change": "Cambio audio",
+        "seek": "Seek",
+        "pause": "Pausa",
+        "default": "Evento"
+      },
+      "legend": {
+        "subtitles": "Sottotitoli",
+        "pause": "Pause",
+        "audio": "Audio"
+      },
+      "title": "Timeline",
+      "toggle": {
+        "5s": "5s",
+        "exact": "Esatto",
+        "30s": "30s"
+      },
+      "noEvents": "Nessun evento registrato."
+    }
   },
   "media": {
     "title": "Libreria",

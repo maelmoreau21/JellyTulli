@@ -398,7 +398,28 @@
     "episodeType": "Episódio",
     "musicType": "Faixa",
     "movieType": "Filme",
-    "seasonType": "Temporada"
+    "seasonType": "Temporada",
+    "timeline": {
+      "label": {
+        "subtitle_change": "Alt. de legenda",
+        "audio_change": "Alt. de áudio",
+        "seek": "Seek",
+        "pause": "Pausa",
+        "default": "Evento"
+      },
+      "legend": {
+        "subtitles": "Legendas",
+        "pause": "Pausas",
+        "audio": "Áudio"
+      },
+      "title": "Linha do tempo",
+      "toggle": {
+        "5s": "5s",
+        "exact": "Exato",
+        "30s": "30s"
+      },
+      "noEvents": "Nenhum evento registrado."
+    }
   },
   "media": {
     "title": "Biblioteca",
@@ -636,7 +657,7 @@
     "previousYear": "Ano anterior",
     "nextYear": "Próximo ano",
     "playsInYear": "{count} {count, plural, one {reprodução} other {reproduções}} em {year}",
-    "playsTotal": "{{count}} reproduções em {{year}}",
+    "playsTotal": "{count} reproduções em {year}",
     "less": "Menos",
     "more": "Mais",
     "play": "reprodução",
