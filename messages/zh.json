@@ -352,10 +352,16 @@
     "recentSync": "增量同步",
     "recentSyncDesc": "仅同步最近更改的元素。",
     "backupTask": "备份任务",
-    "wrappedVisible": "启用年度回顾 (Wrapped)",
-    "wrappedVisibleDesc": "允许所有用户查看其年度统计数据。",
+    "wrappedVisible": "显示年度回顾 (Wrapped)",
+    "wrappedVisibleDesc": "允许用户查看其年度总结。",
+    "wrappedPeriod": "本年度回顾可用期",
+    "wrappedPeriodDesc": "定义本年度的回顾（2025+）何时开放访问。过往年份始终可以查看。",
+    "wrappedStart": "发布日期",
+    "wrappedEnd": "结束日期",
+    "month": "月",
+    "day": "日",
     "deleted": "已删除",
-    "restoring": "恢复中..."
+    "restoring": "正在恢复..."
   },
   "logs": {
     "title": "审计日志",
@@ -726,7 +732,13 @@
     "sunday": "星期日",
     "unknown": "未知领域",
     "introTitle": "{year} 年度回顾",
-    "shareCardYear": "{year} 回顾卡片"
+    "shareCardYear": "{year} 年度总结",
+    "days": "天",
+    "devices": "设备",
+    "topDevice": "您的首选设备",
+    "topDeviceDesc": "您在 {device} 上花费的时间最多。",
+    "totalTimeDays": "{days} 天 {hours} 小时",
+    "totalTimeDaysDesc": "这是您今年与我们共度的总时间。"
   },
   "timeline": {
     "label": {

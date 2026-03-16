@@ -354,6 +354,12 @@
     "backupTask": "Tarea de respaldo",
     "wrappedVisible": "Mostrar función Wrapped",
     "wrappedVisibleDesc": "Permitir a los usuarios ver su resumen anual.",
+    "wrappedPeriod": "Periodo de disponibilidad para el año en curso",
+    "wrappedPeriodDesc": "Define cuándo el Wrapped del año actual (2025+) se vuelve accesible. Los años anteriores siempre permanecen accesibles.",
+    "wrappedStart": "Fecha de lanzamiento",
+    "wrappedEnd": "Fecha de cierre",
+    "month": "Mes",
+    "day": "Día",
     "deleted": "Eliminado",
     "restoring": "Restaurando..."
   },
@@ -726,7 +732,13 @@
     "sunday": "domingo",
     "unknown": "Desconocido",
     "introTitle": "Resumen de {year}",
-    "shareCardYear": "Resumen de {year}"
+    "shareCardYear": "Resumen de {year}",
+    "days": "días",
+    "devices": "Dispositivos",
+    "topDevice": "Tu dispositivo favorito",
+    "topDeviceDesc": "Pasaste la mayor parte del tiempo en el dispositivo {device}.",
+    "totalTimeDays": "{days} días y {hours} horas",
+    "totalTimeDaysDesc": "Ese es el tiempo total que pasaste con nosotros este año."
   },
   "timeline": {
     "label": {

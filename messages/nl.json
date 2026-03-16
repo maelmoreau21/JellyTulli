@@ -352,8 +352,14 @@
     "recentSync": "Recente synchronisatie",
     "recentSyncDesc": "Alleen onlangs toegevoegde/gewijzigde items synchroniseren.",
     "backupTask": "Back-uptaak",
-    "wrappedVisible": "Wrapped-functie tonen",
+    "wrappedVisible": "Wrapped-functie weergeven",
     "wrappedVisibleDesc": "Gebruikers toestaan hun jaaroverzicht te bekijken.",
+    "wrappedPeriod": "Beschikbaarheidsperiode voor het huidige jaar",
+    "wrappedPeriodDesc": "Bepaalt wanneer de Wrapped van het huidige jaar (2025+) toegankelijk wordt. Voorgaande jaren blijven altijd toegankelijk.",
+    "wrappedStart": "Releasedatum",
+    "wrappedEnd": "Sluitingsdatum",
+    "month": "Maand",
+    "day": "Dag",
     "deleted": "Verwijderd",
     "restoring": "Herstellen..."
   },
@@ -726,7 +732,13 @@
     "sunday": "zondag",
     "unknown": "Onbekend",
     "introTitle": "Recap {year}",
-    "shareCardYear": "Recap {year}"
+    "shareCardYear": "Overzicht {year}",
+    "days": "dagen",
+    "devices": "Apparaten",
+    "topDevice": "Je favoriete apparaat",
+    "topDeviceDesc": "Je hebt de meeste tijd doorgebracht op het apparaat {device}.",
+    "totalTimeDays": "{days} dagen en {hours} uur",
+    "totalTimeDaysDesc": "Dat is de totale tijd die je dit jaar bij ons hebt doorgebracht."
   },
   "timeline": {
     "label": {

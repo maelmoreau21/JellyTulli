@@ -352,8 +352,14 @@
     "recentSync": "Szybka synchronizacja",
     "recentSyncDesc": "Tylko nowe i zmienione elementy.",
     "backupTask": "Zadanie kopii zapasowej",
-    "wrappedVisible": "Włącz funkcję Wrapped",
-    "wrappedVisibleDesc": "Pozwól użytkownikom widzieć podsumowanie roku.",
+    "wrappedVisible": "Pokaż funkcję Wrapped",
+    "wrappedVisibleDesc": "Zezwalaj użytkownikom na wyświetlanie ich rocznego podsumowania.",
+    "wrappedPeriod": "Okres dostępności dla bieżącego roku",
+    "wrappedPeriodDesc": "Określa, kiedy Wrapped z bieżącego roku (2025+) stanie się dostępny. Poprzednie lata pozostają zawsze dostępne.",
+    "wrappedStart": "Data premiery",
+    "wrappedEnd": "Data zamknięcia",
+    "month": "Miesiąc",
+    "day": "Dzień",
     "deleted": "Usunięto",
     "restoring": "Przywracanie..."
   },
@@ -725,7 +731,13 @@
     "sunday": "niedziele",
     "unknown": "Nieznane",
     "introTitle": "Podsumowanie {year}",
-    "shareCardYear": "Podsumowanie {year}"
+    "shareCardYear": "Podsumowanie {year}",
+    "days": "dni",
+    "devices": "Urządzenia",
+    "topDevice": "Twoje ulubione urządzenie",
+    "topDeviceDesc": "Spędziłeś najwięcej czasu na urządzeniu {device}.",
+    "totalTimeDays": "{days} dni i {hours} godzin",
+    "totalTimeDaysDesc": "To łączny czas spędzony z nami w tym roku."
   },
   "timeline": {
     "label": {

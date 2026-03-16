@@ -352,8 +352,14 @@
     "recentSync": "Sincronizzazione recente",
     "recentSyncDesc": "Sincronizza solo gli elementi aggiunti/modificati di recente.",
     "backupTask": "Attività di backup",
-    "wrappedVisible": "Mostra funzione Wrapped",
-    "wrappedVisibleDesc": "Consenti agli utenti di visualizzare il loro riepilogo annuale.",
+    "wrappedVisible": "Mostra la funzione Wrapped",
+    "wrappedVisibleDesc": "Permetti agli utenti di vedere il loro riepilogo annuale.",
+    "wrappedPeriod": "Periodo di disponibilità per l'anno in corso",
+    "wrappedPeriodDesc": "Definisce quando il Wrapped dell'anno corrente (2025+) diventa accessibile. Gli anni precedenti rimangono sempre accessibili.",
+    "wrappedStart": "Data di rilascio",
+    "wrappedEnd": "Data di chiusura",
+    "month": "Mese",
+    "day": "Giorno",
     "deleted": "Eliminato",
     "restoring": "Ripristino in corso..."
   },
@@ -726,7 +732,13 @@
     "sunday": "domenica",
     "unknown": "Sconosciuto",
     "introTitle": "Riepilogo {year}",
-    "shareCardYear": "Riepilogo {year}"
+    "shareCardYear": "Riepilogo {year}",
+    "days": "giorni",
+    "devices": "Dispositivi",
+    "topDevice": "Il tuo dispositivo preferito",
+    "topDeviceDesc": "Hai trascorso la maggior parte del tempo sul dispositivo {device}.",
+    "totalTimeDays": "{days} giorni e {hours} ore",
+    "totalTimeDaysDesc": "Questo è il tempo totale che hai trascorso con noi quest'anno."
   },
   "timeline": {
     "label": {

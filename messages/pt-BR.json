@@ -726,7 +726,13 @@
     "sunday": "domingo",
     "unknown": "Desconhecido",
     "introTitle": "Resumo {year}",
-    "shareCardYear": "Resumo {year}"
+    "shareCardYear": "Resumo {year}",
+    "days": "dias",
+    "devices": "Dispositivos",
+    "topDevice": "Seu dispositivo favorito",
+    "topDeviceDesc": "Você passou a maior parte do tempo no dispositivo {device}.",
+    "totalTimeDays": "{days} dias e {hours} horas",
+    "totalTimeDaysDesc": "Esse é o tempo total que você passou conosco este ano."
   },
   "timeline": {
     "label": {

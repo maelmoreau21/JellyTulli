@@ -354,6 +354,12 @@
     "backupTask": "Backup Task",
     "wrappedVisible": "Show Wrapped Feature",
     "wrappedVisibleDesc": "Allow users to view their annual recap.",
+    "wrappedPeriod": "Availability period for the current year",
+    "wrappedPeriodDesc": "Defines when the current year's Wrapped (2025+) becomes accessible. Previous years always remain accessible.",
+    "wrappedStart": "Release Date",
+    "wrappedEnd": "Closing Date",
+    "month": "Month",
+    "day": "Day",
     "deleted": "Deleted",
     "restoring": "Restoring..."
   },
@@ -744,7 +750,12 @@
     "sunday": "Sunday",
     "unknown": "Unknown",
     "introTitle": "{year} Summary",
-    "shareCardYear": "{year} Summary"
-  },
+    "shareCardYear": "{year} Summary",
+    "days": "days",
+    "devices": "Devices",
+    "topDevice": "Your go-to device",
+    "topDeviceDesc": "You spent most of your time on {device}.",
+    "totalTimeDays": "{days} days and {hours} hours",
+    "totalTimeDaysDesc": "That's the total time you spent with us this year."
   }
 }

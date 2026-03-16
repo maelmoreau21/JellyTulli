@@ -354,6 +354,12 @@
     "backupTask": "Tâche de Sauvegarde",
     "wrappedVisible": "Afficher le Wrapped",
     "wrappedVisibleDesc": "Autoriser les utilisateurs à voir leur récapitulatif annuel.",
+    "wrappedPeriod": "Période de disponibilité pour l'année en cours",
+    "wrappedPeriodDesc": "Définit quand le Wrapped de l'année actuelle (2025+) devient accessible. Les années précédentes restent toujours consultables.",
+    "wrappedStart": "Ouverture",
+    "wrappedEnd": "Fermeture",
+    "month": "Mois",
+    "day": "Jour",
     "deleted": "Supprimé",
     "restoring": "Restauration..."
   },
@@ -744,7 +750,12 @@
     "sunday": "Dimanche",
     "unknown": "Inconnu",
     "introTitle": "Récapitulatif {year}",
-    "shareCardYear": "Récapitulatif {year}"
-  },
+    "shareCardYear": "Récapitulatif {year}",
+    "days": "jours",
+    "devices": "Appareils",
+    "topDevice": "Votre appareil de prédilection",
+    "topDeviceDesc": "Vous avez passé le plus clair de votre temps sur {device}.",
+    "totalTimeDays": "{days} jours et {hours} heures",
+    "totalTimeDaysDesc": "C'est le temps total que vous avez passé avec nous cette année."
   }
 }

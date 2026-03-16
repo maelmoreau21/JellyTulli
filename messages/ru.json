@@ -352,8 +352,14 @@
     "recentSync": "Быстрая синхронизация",
     "recentSyncDesc": "Только новые и изменённые элементы.",
     "backupTask": "Задача бэкапа",
-    "wrappedVisible": "Включить Wrapped",
-    "wrappedVisibleDesc": "Разрешить пользователям видеть их годовой отчёт.",
+    "wrappedVisible": "Показать функцию Wrapped",
+    "wrappedVisibleDesc": "Разрешить пользователям просматривать их годовой отчет.",
+    "wrappedPeriod": "Период доступности для текущего года",
+    "wrappedPeriodDesc": "Определяет, когда Wrapped текущего года (2025+) станет доступным. Предыдущие годы всегда остаются доступными.",
+    "wrappedStart": "Дата выпуска",
+    "wrappedEnd": "Дата закрытия",
+    "month": "Месяц",
+    "day": "День",
     "deleted": "Удалено",
     "restoring": "Восстановление..."
   },
@@ -725,7 +731,13 @@
     "sunday": "воскресеньям",
     "unknown": "Неизвестно",
     "introTitle": "Итоги {year}",
-    "shareCardYear": "Итоги {year}"
+    "shareCardYear": "Итоги {year}",
+    "days": "дней",
+    "devices": "Устройства",
+    "topDevice": "Ваше любимое устройство",
+    "topDeviceDesc": "Вы провели больше всего времени на устройстве {device}.",
+    "totalTimeDays": "{days} дн. и {hours} ч.",
+    "totalTimeDaysDesc": "Это общее время, которое вы провели с нами в этом году."
   },
   "timeline": {
     "label": {
