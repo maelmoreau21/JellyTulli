@@ -26,6 +26,8 @@ interface WrappedData {
     monthlyHours: { name: string; hours: number }[];
     topSeries: { title: string; seconds: number }[];
     topArtists: { title: string; seconds: number }[];
+    topAlbums: { title: string; seconds: number }[];
+    topTracks: { title: string; seconds: number }[];
     totalSessions: number;
     categories: {
         movies: CategoryBreakdown;
@@ -307,15 +309,39 @@ export default function WrappedClient({ data }: { data: WrappedData }) {
                 </div>
             )
         }] : []),
-        // 8 - Top Artists (conditional)
+        // 8 - Top Songs (New!)
+        ...(data.topTracks.length > 0 ? [{
+            title: t('tracksTitle'),
+            subtitle: t('tracksSubtitle'),
+            icon: <Music className="w-16 h-16 mb-4 text-emerald-400" />,
+            bgColor: "bg-gradient-to-br from-emerald-900 via-teal-900 to-black",
+            content: (
+                <div className="w-full max-w-md px-6">
+                    <RankedList items={data.topTracks} gradient="bg-gradient-to-r from-emerald-500 to-teal-400" noDataLabel={noDataLabel} />
+                </div>
+            )
+        }] : []),
+        // 8b - Top Artists (New!)
         ...(data.topArtists.length > 0 ? [{
             title: t('artistsTitle'),
             subtitle: t('artistsSubtitle'),
-            icon: <Headphones className="w-16 h-16 mb-4 text-green-400" />,
-            bgColor: "bg-gradient-to-br from-green-900 via-emerald-900 to-black",
+            icon: <Headphones className="w-16 h-16 mb-4 text-purple-400" />,
+            bgColor: "bg-gradient-to-br from-purple-900 via-indigo-900 to-black",
             content: (
                 <div className="w-full max-w-md px-6">
-                    <RankedList items={data.topArtists} gradient="bg-gradient-to-r from-green-500 to-emerald-400" noDataLabel={noDataLabel} />
+                    <RankedList items={data.topArtists} gradient="bg-gradient-to-r from-purple-500 to-indigo-400" noDataLabel={noDataLabel} />
+                </div>
+            )
+        }] : []),
+        // 8c - Top Albums (New!)
+        ...(data.topAlbums.length > 0 ? [{
+            title: t('albumsTitle'),
+            subtitle: t('albumsSubtitle'),
+            icon: <Star className="w-16 h-16 mb-4 text-pink-400" />,
+            bgColor: "bg-gradient-to-br from-pink-900 via-rose-900 to-black",
+            content: (
+                <div className="w-full max-w-md px-6">
+                    <RankedList items={data.topAlbums} gradient="bg-gradient-to-r from-pink-500 to-rose-400" noDataLabel={noDataLabel} />
                 </div>
             )
         }] : []),

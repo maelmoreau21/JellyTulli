@@ -62,12 +62,10 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
         const AND: any[] = [{ type: { in: displayTypes } }];
         if (excludedLibraries.length > 0) {
             AND.push({
-                NOT: {
-                    OR: [
-                        { type: { in: excludedLibraries } },
-                        ...excludedLibraries.map((lib: string) => ({ collectionType: lib }))
-                    ]
-                }
+                AND: [
+                    { collectionType: { notIn: excludedLibraries } },
+                    { libraryName: { notIn: excludedLibraries } }
+                ]
             });
         }
         return { AND };
@@ -170,7 +168,12 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
 
     // Library Metrics
     const allMedia = await prisma.media.findMany({
-        where: excludedLibraries.length > 0 ? { NOT: { OR: [ { type: { in: excludedLibraries } }, ...excludedLibraries.map((lib: string) => ({ collectionType: lib })) ] } } : {},
+        where: excludedLibraries.length > 0 ? { 
+            AND: [
+                { collectionType: { notIn: excludedLibraries } },
+                { libraryName: { notIn: excludedLibraries } }
+            ]
+        } : {},
         select: { type: true, size: true, durationMs: true, libraryName: true }
     });
 
@@ -454,10 +457,21 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                             fill
                                             className="object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50"
                                         />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end">
+                                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end">
                                             <h3 className="text-white font-bold text-lg leading-tight truncate">{media.title}</h3>
                                             <span className="text-zinc-300 text-xs">{media.productionYear}</span>
                                         </div>
+                                        {media.resolution && (
+                                            <div className="absolute top-2 right-2 z-10">
+                                                <Badge className={`px-1.5 py-0 text-[10px] font-black tracking-tighter uppercase ${
+                                                    media.resolution.includes('4K') ? 'bg-orange-500 text-black border-transparent' : 
+                                                    media.resolution.includes('1080') ? 'bg-blue-600 text-white border-transparent' :
+                                                    'bg-zinc-800 text-zinc-300 border-zinc-700'
+                                                }`}>
+                                                    {media.resolution === '4K' ? '4K UHD' : media.resolution}
+                                                </Badge>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="px-1">
                                         <h4 className="font-semibold text-sm truncate text-zinc-100">{media.title}</h4>

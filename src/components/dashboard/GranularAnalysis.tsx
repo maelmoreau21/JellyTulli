@@ -10,6 +10,13 @@ import { formatHour } from "@/lib/utils";
 import { getCompletionMetrics } from "@/lib/mediaPolicy";
 import { loadLibraryRules } from "@/lib/libraryRules";
 
+function isValidLang(lang: string | null | undefined): boolean {
+    if (!lang) return false;
+    const l = lang.toLowerCase().trim();
+    if (l === 'und' || l === 'undefined' || l === 'null' || l === 'none' || l === '') return false;
+    return l.length <= 3; // Basic ISO 639-1 or 639-2 check
+}
+
 const getGranularData = unstable_cache(
     async (type: string | undefined, timeRange: string, excludedLibraries: string[], locale: string, libraryRulesJson: string) => {
         const libraryRules = JSON.parse(libraryRulesJson || '{}');
@@ -163,7 +170,7 @@ const getGranularData = unstable_cache(
 
         // Finalize Top 5 Abandonnés — include mediaId for links
         const topAbandoned = Array.from(mediaDropMap.values())
-            .filter(m => m.count >= 2) // At least tried a few times
+            .filter(m => m.count >= 1) // Lowered from 2 to 1 to show more data
             .map(m => ({
                 title: m.title.length > 25 ? m.title.substring(0, 25) + '…' : m.title,
                 fullTitle: m.title,

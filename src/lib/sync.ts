@@ -136,9 +136,14 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
             // Resolve actual Jellyfin library name from parent chain
             let libraryName: string | null = null;
             {
-                const libParentId = item.ParentId || item.SeasonId || item.SeriesId;
-                if (libParentId) {
-                    libraryName = parentNameMap.get(libParentId) || libraryNameMap.get(libParentId) || null;
+                // Try to find the library name in the parent chain
+                const possibleParentIds = [item.ParentId, item.SeasonId, item.SeriesId, item.AlbumId].filter(Boolean);
+                for (const pid of possibleParentIds) {
+                    const name = parentNameMap.get(pid!) || libraryNameMap.get(pid!) || null;
+                    if (name) {
+                        libraryName = name;
+                        break;
+                    }
                 }
             }
 
@@ -151,11 +156,14 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
                 if (videoStream && videoStream.Width) {
                     const w = videoStream.Width;
                     if (w >= 3800) resolution = "4K";
+                    else if (w >= 2500) resolution = "1440p";
                     else if (w >= 1900) resolution = "1080p";
                     else if (w >= 1200) resolution = "720p";
+                    else if (w >= 800) resolution = "480p";
                     else resolution = "SD";
                 }
             }
+
 
             const durationMs = item.RunTimeTicks ? BigInt(Math.floor(item.RunTimeTicks / 10000)) : null;
             const parentId = normalizeJellyfinId(item.AlbumId || item.SeasonId || item.SeriesId || item.ParentId || null);

@@ -687,7 +687,7 @@
     "bestMonth": "In {name}, you were at your peak with {hours}h of playtime!",
     "peakTitle": "Peak Hour",
     "peakSubtitle": "When the server heats up for you",
-    "peakContent": "That's at {bold}{bold} that you are most active ({count} sessions).",
+    "peakContent": "That's at {bold}{hour}{bold} that you are most active ({count} sessions).",
     "genresTitle": "Genre Explorer",
     "genresSubtitle": "Your favorite universes",
     "genreFirst": "The genre that dominated your year:",
@@ -699,8 +699,6 @@
     "pantheonSubtitle": "Your top 5 most watched contents",
     "bingeTitle": "Binge-Watcher",
     "bingeSubtitle": "The series that captivated you",
-    "artistsTitle": "Music Lover",
-    "artistsSubtitle": "The artists on repeat",
     "moviesTitle": "Cinephile",
     "moviesSubtitle": "Movies Retrospective",
     "moviesLabel": "Movies",
@@ -753,9 +751,15 @@
     "shareCardYear": "{year} Summary",
     "days": "days",
     "devices": "Devices",
-    "topDevice": "Your go-to device",
-    "topDeviceDesc": "You spent most of your time on {device}.",
+    "topDevice": "Your favorite device",
+    "topDeviceDesc": "You spent the most time on {device}.",
     "totalTimeDays": "{days} days and {hours} hours",
-    "totalTimeDaysDesc": "That's the total time you spent with us this year."
+    "totalTimeDaysDesc": "That's the total time you spent with us this year.",
+    "tracksTitle": "Your Soundscape",
+    "tracksSubtitle": "These were the tracks on repeat.",
+    "albumsTitle": "Top Albums",
+    "albumsSubtitle": "The records you couldn't stop playing.",
+    "artistsTitle": "Top Artists",
+    "artistsSubtitle": "The icons of your year."
   }
 }

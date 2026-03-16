@@ -236,15 +236,11 @@ const getDeepInsights = unstable_cache(
 
         const resolutionMap = new Map<string, number>();
         resolutionData.forEach(r => {
-            const res = r.media?.resolution;
-            if (res) {
-                resolutionMap.set(res, (resolutionMap.get(res) || 0) + 1);
-            }
+            let res = r.media?.resolution;
+            if (!res) res = "SD"; // Fallback for missing resolution
+            resolutionMap.set(res, (resolutionMap.get(res) || 0) + 1);
         });
 
-        if (resolutionMap.size === 0 && resolutionData.length > 0) {
-            resolutionMap.set("?", resolutionData.length);
-        }
 
         const resolutionChartData = Array.from(resolutionMap.entries())
             .map(([name, value]) => ({ name, value }))

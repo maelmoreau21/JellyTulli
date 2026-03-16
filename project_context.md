@@ -10,7 +10,7 @@
 - DataViz: **Recharts**
 - IP Localization: **geoip-country**
 
-## Phase 50 : Wrapped Enhancements & Availability
+## Phase 50: Wrapped Enhancements & Availability (Access window, historical access, conditional slides, new statistics).
 - **Wrapped Period Management**: Added `wrappedStartMonth/Day` and `wrappedEndMonth/Day` to `GlobalSettings` to control availability of the current year's retrospective.
 - **Historical Archives**: Users can now toggle between different years without restriction.
 - **Conditional Rendering**: Slides for categories with no data (e.g., zero music played) are automatically hidden for a cleaner UX.
@@ -836,7 +836,7 @@ Cette phase résout l'accumulation de sessions de lecture non fermées dans la b
 - **Fenêtre de réouverture intelligente** : Réduite à 5 minutes pour l'Audio (musique) contre 1 heure pour la Vidéo. Empêche la réutilisation de sessions musicales terminées depuis longtemps.
 - **Auto-fermeture concurrente** : Lorsqu'un utilisateur lance une nouvelle lecture, toutes ses autres sessions ouvertes sont automatiquement fermées. Garantit une cohérence logique du "Now Playing".
 
-#### 3. Fiabilité et Qualité
+- **Phase 52: Dashboard Widget Resilience & Deep Analysis Fixes**: Fixed broken dashboard widgets (Resolution Matrix, Top Content, Heatmap) by improving metadata capture in `sync.ts`, adding resolution fallbacks in `DeepInsights.tsx`, and fixing language distribution in `GranularAnalysis.tsx`.
 - **Guards Type-Safe** : Ajout de vérifications de nullité pour `activePlayback` dans le handler de télémétrie (`PlaybackProgress`) pour éviter les plantages runtime.
 - **Nettoyage Imports** : Suppression des doublons d'imports dans `src/lib/sync.ts`.
 

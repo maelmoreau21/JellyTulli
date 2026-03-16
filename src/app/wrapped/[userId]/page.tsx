@@ -250,8 +250,33 @@ export default async function WrappedPage({ params, searchParams }: WrappedPageP
         .slice(0, 5)
         .map(([title, seconds]) => ({ title, seconds }));
 
-    // Top artists/albums
+    // Top artists (now using dedicated artist field if available, or parent name as proxy)
     const topArtists = Array.from(artistCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([title, seconds]) => ({ title, seconds }));
+
+    // Top albums
+    const albumCounts = new Map<string, number>();
+    const trackCounts = new Map<string, number>();
+    user.playbackHistory.forEach((sessionItem: any) => {
+        if (sessionItem.media?.type === "Audio") {
+            trackCounts.set(sessionItem.media.title, (trackCounts.get(sessionItem.media.title) || 0) + sessionItem.durationWatched);
+            if (sessionItem.media.parentId) {
+                const parent = parentMap.get(sessionItem.media.parentId);
+                if (parent) {
+                    albumCounts.set(parent.title, (albumCounts.get(parent.title) || 0) + sessionItem.durationWatched);
+                }
+            }
+        }
+    });
+
+    const topAlbums = Array.from(albumCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([title, seconds]) => ({ title, seconds }));
+
+    const topTracks = Array.from(trackCounts.entries())
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5)
         .map(([title, seconds]) => ({ title, seconds }));
@@ -269,7 +294,7 @@ export default async function WrappedPage({ params, searchParams }: WrappedPageP
         const secs = categoryTotals[key];
         const top = Array.from(map.entries())
             .sort((a, b) => b[1] - a[1])
-            .slice(0, 3)
+            .slice(0, 5) // Increased to 5 for music/other lists
             .map(([title, seconds]) => ({ title, seconds }));
         return { totalSeconds: secs, totalHours: Math.round(secs / 3600), topMedia: top };
     };
@@ -289,6 +314,8 @@ export default async function WrappedPage({ params, searchParams }: WrappedPageP
         monthlyHours,
         topSeries,
         topArtists,
+        topAlbums,
+        topTracks,
         totalSessions: user.playbackHistory.length,
         categories: {
             movies: buildBreakdown("Movie"),

@@ -664,15 +664,7 @@
     "less": "Moins",
     "more": "Plus",
     "play": "lecture",
-    "plays": "lectures",
-    "months": "Jan,Fév,Mar,Avr,Mai,Juin,Juil,Aoû,Sep,Oct,Nov,Déc",
-    "weekdays": "Dim,Lun,Mar,Mer,Jeu,Ven,Sam",
-    "noPlatformData": "Aucune donnée plateforme",
-    "noGenreData": "Aucune donnée de genre disponible",
-    "server": "Serveur",
-    "all": "Tout",
-    "sessions": "sessions",
-    "dayNamesShort": "D,L,M,M,J,V,S"
+    "plays": "lectures"
   },
   "wrapped": {
     "introSubtitle": "Le Récap de {username}",
@@ -687,7 +679,7 @@
     "bestMonth": "En {name}, vous étiez au sommet avec {hours}h de lecture !",
     "peakTitle": "Heure de Pointe",
     "peakSubtitle": "Quand le serveur chauffe pour vous",
-    "peakContent": "C'est à {bold}{bold} que vous êtes le plus actif ({count} sessions).",
+    "peakContent": "C'est à {bold}{hour}{bold} que vous êtes le plus actif ({count} sessions).",
     "genresTitle": "Explorateur de Genres",
     "genresSubtitle": "Vos univers préférés",
     "genreFirst": "Le genre qui a dominé votre année :",
@@ -699,8 +691,6 @@
     "pantheonSubtitle": "Vos 5 contenus les plus visionnés",
     "bingeTitle": "Binge-Watcher",
     "bingeSubtitle": "La série qui vous a captivé",
-    "artistsTitle": "Mélomane",
-    "artistsSubtitle": "Les artistes en boucle",
     "moviesTitle": "Cinéphile",
     "moviesSubtitle": "Rétrospective Films",
     "moviesLabel": "Films",
@@ -753,9 +743,15 @@
     "shareCardYear": "Récapitulatif {year}",
     "days": "jours",
     "devices": "Appareils",
-    "topDevice": "Votre appareil de prédilection",
+    "topDevice": "Votre appareil favori",
     "topDeviceDesc": "Vous avez passé le plus clair de votre temps sur {device}.",
     "totalTimeDays": "{days} jours et {hours} heures",
-    "totalTimeDaysDesc": "C'est le temps total que vous avez passé avec nous cette année."
+    "totalTimeDaysDesc": "C'est le temps total que vous avez passé avec nous cette année.",
+    "tracksTitle": "Votre univers sonore",
+    "tracksSubtitle": "Ces morceaux ont tourné en boucle.",
+    "albumsTitle": "Top Albums",
+    "albumsSubtitle": "Les disques que vous avez saigné.",
+    "artistsTitle": "Top Artistes",
+    "artistsSubtitle": "Les icônes de votre année."
   }
 }
