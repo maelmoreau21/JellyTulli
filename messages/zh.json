@@ -404,7 +404,28 @@
     "episodeType": "剧集分集",
     "musicType": "曲目",
     "movieType": "电影",
-    "seasonType": "剧集分季"
+    "seasonType": "剧集分季",
+    "timeline": {
+      "label": {
+        "subtitle_change": "字幕切换",
+        "audio_change": "音频切换",
+        "seek": "跳转/定位",
+        "pause": "暂停动作",
+        "default": "会话内事件"
+      },
+      "legend": {
+        "subtitles": "字幕交互",
+        "pause": "播放暂停",
+        "audio": "音频调整"
+      },
+      "title": "交互时间线",
+      "toggle": {
+        "5s": "5秒级",
+        "exact": "精准级",
+        "30s": "30秒级"
+      },
+      "noEvents": "该会话内未记录到精细遥测事件。"
+    }
   },
   "media": {
     "title": "媒体库",
@@ -634,7 +655,7 @@
     "total": "合计数",
     "hours": "小时",
     "viewsTotal": "累计观看数",
-    "playsCount": "{count, plural, other {{count} 次播放}}",
+    "playsCount": "{count, plural, other {# 次播放}}",
     "maxActiveStreams": "峰值 {count} 个并发流",
     "watchTime": "观众总时长",
     "playbackVolume": "播放数据量",
@@ -738,27 +759,10 @@
     "topDevice": "您的首选设备",
     "topDeviceDesc": "您在 {device} 上花费的时间最多。",
     "totalTimeDays": "{days} 天 {hours} 小时",
-    "totalTimeDaysDesc": "这是您今年与我们共度的总时间。"
-  },
-  "timeline": {
-    "label": {
-      "subtitle_change": "字幕切换",
-      "audio_change": "音频切换",
-      "seek": "跳转/定位",
-      "pause": "暂停动作",
-      "default": "会话内事件"
-    },
-    "legend": {
-      "subtitles": "字幕交互",
-      "pause": "播放暂停",
-      "audio": "音频调整"
-    },
-    "title": "交互时间线",
-    "toggle": {
-      "5s": "5秒级",
-      "exact": "精准级",
-      "30s": "30秒级"
-    },
-    "noEvents": "该会话内未记录到精细遥测事件。"
+    "totalTimeDaysDesc": "这是您今年与我们共度的总时间。",
+    "tracksTitle": "Your Soundscape",
+    "tracksSubtitle": "These were the tracks on repeat.",
+    "albumsTitle": "Top Albums",
+    "albumsSubtitle": "The records you couldn't stop playing."
   }
 }

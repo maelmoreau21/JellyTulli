@@ -355,7 +355,13 @@
     "wrappedVisible": "Mostrar função Wrapped",
     "wrappedVisibleDesc": "Permitir que os usuários visualizem seu resumo anual.",
     "deleted": "Excluído",
-    "restoring": "Restaurando..."
+    "restoring": "Restaurando...",
+    "wrappedPeriod": "Availability period for the current year",
+    "wrappedPeriodDesc": "Defines when the current year's Wrapped (2025+) becomes accessible. Previous years always remain accessible.",
+    "wrappedStart": "Release Date",
+    "wrappedEnd": "Closing Date",
+    "month": "Month",
+    "day": "Day"
   },
   "logs": {
     "title": "Logs de auditoria",
@@ -753,27 +759,10 @@
     "topDevice": "Seu dispositivo favorito",
     "topDeviceDesc": "Você passou a maior parte do tempo no dispositivo {device}.",
     "totalTimeDays": "{days} dias e {hours} horas",
-    "totalTimeDaysDesc": "Esse é o tempo total que você passou conosco este ano."
-  },
-  "timeline": {
-    "label": {
-      "subtitle_change": "Alt. de legenda",
-      "audio_change": "Alt. de áudio",
-      "seek": "Seek",
-      "pause": "Pausa",
-      "default": "Evento"
-    },
-    "legend": {
-      "subtitles": "Legendas",
-      "pause": "Pausas",
-      "audio": "Áudio"
-    },
-    "title": "Linha do tempo",
-    "toggle": {
-      "5s": "5s",
-      "exact": "Exato",
-      "30s": "30s"
-    },
-    "noEvents": "Nenhum evento registrado."
+    "totalTimeDaysDesc": "Esse é o tempo total que você passou conosco este ano.",
+    "tracksTitle": "Your Soundscape",
+    "tracksSubtitle": "These were the tracks on repeat.",
+    "albumsTitle": "Top Albums",
+    "albumsSubtitle": "The records you couldn't stop playing."
   }
 }

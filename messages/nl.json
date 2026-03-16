@@ -759,27 +759,10 @@
     "topDevice": "Je favoriete apparaat",
     "topDeviceDesc": "Je hebt de meeste tijd doorgebracht op het apparaat {device}.",
     "totalTimeDays": "{days} dagen en {hours} uur",
-    "totalTimeDaysDesc": "Dat is de totale tijd die je dit jaar bij ons hebt doorgebracht."
-  },
-  "timeline": {
-    "label": {
-      "subtitle_change": "Ondertitelwijziging",
-      "audio_change": "Audiowijziging",
-      "seek": "Seek",
-      "pause": "Pauze",
-      "default": "Gebeurtenis"
-    },
-    "legend": {
-      "subtitles": "Ondertitels",
-      "pause": "Pauze",
-      "audio": "Audio"
-    },
-    "title": "Tijdlijn",
-    "toggle": {
-      "5s": "5s",
-      "exact": "Exact",
-      "30s": "30s"
-    },
-    "noEvents": "Geen gebeurtenissen geregistreerd."
+    "totalTimeDaysDesc": "Dat is de totale tijd die je dit jaar bij ons hebt doorgebracht.",
+    "tracksTitle": "Your Soundscape",
+    "tracksSubtitle": "These were the tracks on repeat.",
+    "albumsTitle": "Top Albums",
+    "albumsSubtitle": "The records you couldn't stop playing."
   }
 }

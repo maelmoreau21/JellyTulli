@@ -663,7 +663,7 @@
     "previousYear": "Año anterior",
     "nextYear": "Año siguiente",
     "playsInYear": "{count} {count, plural, one {reproducción} other {reproducciones}} en {year}",
-    "playsTotal": "{{count}} reproducciones en {{year}}",
+    "playsTotal": "{count} reproducciones en {year}",
     "less": "Menos",
     "more": "Más",
     "play": "reproducción",
@@ -759,27 +759,10 @@
     "topDevice": "Tu dispositivo favorito",
     "topDeviceDesc": "Pasaste la mayor parte del tiempo en el dispositivo {device}.",
     "totalTimeDays": "{days} días y {hours} horas",
-    "totalTimeDaysDesc": "Ese es el tiempo total que pasaste con nosotros este año."
-  },
-  "timeline": {
-    "label": {
-      "subtitle_change": "Cambio de subtítulo",
-      "audio_change": "Cambio de audio",
-      "seek": "Búsqueda (Seek)",
-      "pause": "Pausa",
-      "default": "Evento"
-    },
-    "legend": {
-      "subtitles": "Subtítulos",
-      "pause": "Pausa",
-      "audio": "Audio"
-    },
-    "title": "Línea de tiempo",
-    "toggle": {
-      "5s": "5s",
-      "exact": "Exacto",
-      "30s": "30s"
-    },
-    "noEvents": "No hay eventos registrados."
+    "totalTimeDaysDesc": "Ese es el tiempo total que pasaste con nosotros este año.",
+    "tracksTitle": "Your Soundscape",
+    "tracksSubtitle": "These were the tracks on repeat.",
+    "albumsTitle": "Top Albums",
+    "albumsSubtitle": "The records you couldn't stop playing."
   }
 }

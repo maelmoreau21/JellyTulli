@@ -422,7 +422,10 @@
         "30s": "30s"
       },
       "noEvents": "No events recorded."
-    }
+    },
+    "episodeType": "Episodio",
+    "musicType": "Traccia",
+    "movieType": "Film"
   },
   "media": {
     "title": "Library",
@@ -660,7 +663,7 @@
     "previousYear": "Previous year",
     "nextYear": "Next year",
     "playsInYear": "{count} {count, plural, one {play} other {plays}} in {year}",
-    "playsTotal": "{{count}} plays in {{year}}",
+    "playsTotal": "{count} plays in {year}",
     "less": "Less",
     "more": "More",
     "play": "play",

@@ -759,27 +759,10 @@
     "topDevice": "Ihr Lieblingsgerät",
     "topDeviceDesc": "Die meiste Zeit haben Sie auf dem Gerät {device} verbracht.",
     "totalTimeDays": "{days} Tage und {hours} Stunden",
-    "totalTimeDaysDesc": "Das ist die gesamte Zeit, die Sie dieses Jahr bei uns verbracht haben."
-  },
-  "timeline": {
-    "label": {
-      "subtitle_change": "Untertitelwechsel",
-      "audio_change": "Audiowechsel",
-      "seek": "Seek",
-      "pause": "Pause",
-      "default": "Ereignis"
-    },
-    "legend": {
-      "subtitles": "Untertitel",
-      "pause": "Pause",
-      "audio": "Audio"
-    },
-    "title": "Zeitachse",
-    "toggle": {
-      "5s": "5s",
-      "exact": "Exakt",
-      "30s": "30s"
-    },
-    "noEvents": "Keine Ereignisse aufgezeichnet."
+    "totalTimeDaysDesc": "Das ist die gesamte Zeit, die Sie dieses Jahr bei uns verbracht haben.",
+    "tracksTitle": "Your Soundscape",
+    "tracksSubtitle": "These were the tracks on repeat.",
+    "albumsTitle": "Top Albums",
+    "albumsSubtitle": "The records you couldn't stop playing."
   }
 }

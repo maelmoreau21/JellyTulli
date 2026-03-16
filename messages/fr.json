@@ -422,7 +422,10 @@
         "30s": "30s"
       },
       "noEvents": "Aucun événement enregistré."
-    }
+    },
+    "episodeType": "Episodio",
+    "musicType": "Traccia",
+    "movieType": "Film"
   },
   "media": {
     "title": "Bibliothèque",

@@ -758,27 +758,10 @@
     "topDevice": "Ваше любимое устройство",
     "topDeviceDesc": "Вы провели больше всего времени на устройстве {device}.",
     "totalTimeDays": "{days} дн. и {hours} ч.",
-    "totalTimeDaysDesc": "Это общее время, которое вы провели с нами в этом году."
-  },
-  "timeline": {
-    "label": {
-      "subtitle_change": "Смена субт.",
-      "audio_change": "Смена аудио",
-      "seek": "Перемотка",
-      "pause": "Пауза",
-      "default": "Событие"
-    },
-    "legend": {
-      "subtitles": "Субтитры",
-      "pause": "Паузы",
-      "audio": "Звук"
-    },
-    "title": "Хронология",
-    "toggle": {
-      "5s": "5с",
-      "exact": "Точно",
-      "30s": "30с"
-    },
-    "noEvents": "Событий не зафиксировано."
+    "totalTimeDaysDesc": "Это общее время, которое вы провели с нами в этом году.",
+    "tracksTitle": "Your Soundscape",
+    "tracksSubtitle": "These were the tracks on repeat.",
+    "albumsTitle": "Top Albums",
+    "albumsSubtitle": "The records you couldn't stop playing."
   }
 }
