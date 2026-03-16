@@ -172,8 +172,6 @@ export default function LogRow({ log, visibleColumns, onOpenDetails }: { log: an
                   )}
                   <span className={`px-1.5 py-0.5 rounded ${isTranscode ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>{log.playMethod || 'DirectPlay'}</span>
                   {log.clientName && <span className="truncate">{log.clientName}</span>}
-                  <span className="text-zinc-400">·</span>
-                  <span>{Math.floor((log.durationWatched || 0) / 60)} min</span>
                 </div>
 
               </div>

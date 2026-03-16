@@ -21,16 +21,28 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         console.error("[Sync Error] JELLYFIN_URL ou JELLYFIN_API_KEY manquants dans les variables d'environnement.");
         return { success: false, error: "Server not configured (JELLYFIN_URL/JELLYFIN_API_KEY env vars missing)." };
     }
-
     const jellyfinHeaders = {
         "X-Emby-Token": apiKey,
+    };
+
+    const fetchWithTimeout = async (url: string, options: any = {}, timeout = 30000) => {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+        try {
+            const response = await fetch(url, { ...options, signal: controller.signal });
+            clearTimeout(id);
+            return response;
+        } catch (e) {
+            clearTimeout(id);
+            throw e;
+        }
     };
 
     try {
         // 1. Synchronisation des Utilisateurs
         console.log("[Sync] Fetching Users...");
-        const usersRes = await fetch(`${baseUrl}/Users`, { headers: jellyfinHeaders });
-        if (!usersRes.ok) throw new Error("Erreur de récupération des utilisateurs");
+        const usersRes = await fetchWithTimeout(`${baseUrl}/Users`, { headers: jellyfinHeaders });
+        if (!usersRes.ok) throw new Error(`Erreur de récupération des utilisateurs: ${usersRes.status}`);
         const users = await usersRes.json();
 
         // Upsert massifs utilisateurs
@@ -49,7 +61,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
 
         // 2. Fetch library views to map CollectionType per library
         console.log("[Sync] Fetching Library Views...");
-        const viewsRes = await fetch(`${baseUrl}/Library/VirtualFolders`, { headers: jellyfinHeaders });
+        const viewsRes = await fetchWithTimeout(`${baseUrl}/Library/VirtualFolders`, { headers: jellyfinHeaders });
         const libraryCollectionMap = new Map<string, string>();
         const libraryNameMap = new Map<string, string>();
         if (viewsRes.ok) {
@@ -65,7 +77,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         }
 
         // Also fetch user views for parent mapping
-        const userViewsRes = await fetch(`${baseUrl}/UserViews`, { headers: jellyfinHeaders });
+        const userViewsRes = await fetchWithTimeout(`${baseUrl}/UserViews`, { headers: jellyfinHeaders });
         const parentCollectionMap = new Map<string, string>();
         const parentNameMap = new Map<string, string>();
         if (userViewsRes.ok) {
@@ -88,8 +100,8 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
             itemsUrl += `&MinDateCreated=${sevenDaysAgo.toISOString()}&SortBy=DateCreated&SortOrder=Descending`;
         }
         console.log(`[Sync] Fetching Media Items${options?.recentOnly ? ' (recent only)' : ''}...`);
-        const itemsRes = await fetch(itemsUrl, { headers: jellyfinHeaders });
-        if (!itemsRes.ok) throw new Error("Erreur de récupération des médias");
+        const itemsRes = await fetchWithTimeout(itemsUrl, { headers: jellyfinHeaders }, 60000);
+        if (!itemsRes.ok) throw new Error(`Erreur de récupération des médias: ${itemsRes.status}`);
         const itemsData = await itemsRes.json();
         const items = itemsData.Items || [];
 
@@ -173,9 +185,10 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         });
         return { success: true, users: usersCount, media: mediaCount };
     } catch (e: any) {
-        const isConnectionError = e.message === 'fetch failed' || e.cause?.code === 'ECONNREFUSED';
+        const isConnectionError = e.message === 'fetch failed' || e.cause?.code === 'ECONNREFUSED' || e.name === 'AbortError';
         if (isConnectionError) {
-            console.error(`[Sync Error] Jellyfin injoignable (${baseUrl}). Vérifiez JELLYFIN_URL — dans Docker, utilisez l'IP réelle du serveur (pas localhost/127.0.0.1).`);
+            console.error(`[Sync Error] Jellyfin injoignable ou timeout (${baseUrl}). Vérifiez JELLYFIN_URL — dans Docker, utilisez l'IP réelle du serveur (pas localhost/127.0.0.1).`);
+            if (e.name === 'AbortError') console.error(`[Sync Error] La requête a expiré après 30-60s.`);
         } else {
             console.error("[Sync Error]", e.message);
         }

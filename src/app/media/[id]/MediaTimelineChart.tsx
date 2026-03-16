@@ -143,7 +143,7 @@ export default function MediaTimelineChart({ events, durationMs, buckets = 50, s
                                     style={{ backgroundColor: color }}
                                 />
                                 <span className="text-zinc-700 dark:text-zinc-300">
-                                    {EVENT_ICONS[type]} {t(`timeline_${type}` as any)}
+                                    {EVENT_ICONS[type]} {t(`timeline.label.${type}` as any)}
                                 </span>
                             </button>
                         ))}

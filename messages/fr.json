@@ -395,10 +395,28 @@
     "toggleColumns": "Colonnes affichées",
     "unknown": "Inconnu",
     "unknownMedia": "Élément supprimé",
-    "episodeType": "Épisode",
-    "musicType": "Piste",
-    "movieType": "Film",
-    "seasonType": "Saison"
+    "seasonType": "Season",
+    "timeline": {
+      "label": {
+        "subtitle_change": "Chgt Sous-titre",
+        "audio_change": "Chgt Audio",
+        "seek": "Saut",
+        "pause": "Pause",
+        "default": "Event"
+      },
+      "legend": {
+        "subtitles": "Sous-titres",
+        "pause": "Pause",
+        "audio": "Audio"
+      },
+      "title": "Timeline",
+      "toggle": {
+        "5s": "5s",
+        "exact": "Exact",
+        "30s": "30s"
+      },
+      "noEvents": "Aucun événement enregistré."
+    }
   },
   "media": {
     "title": "Bibliothèque",
@@ -728,25 +746,5 @@
     "introTitle": "Récapitulatif {year}",
     "shareCardYear": "Récapitulatif {year}"
   },
-  "timeline": {
-    "label": {
-      "subtitle_change": "Chgt Sous-titre",
-      "audio_change": "Chgt Audio",
-      "seek": "Saut",
-      "pause": "Pause",
-      "default": "Event"
-    },
-    "legend": {
-      "subtitles": "Sous-titres",
-      "pause": "Pause",
-      "audio": "Audio"
-    },
-    "title": "Timeline",
-    "toggle": {
-      "5s": "5s",
-      "exact": "Exact",
-      "30s": "30s"
-    },
-    "noEvents": "Aucun événement enregistré."
   }
 }

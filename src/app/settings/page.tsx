@@ -32,6 +32,10 @@ export default function SettingsPage() {
     const [discordAlertCondition, setDiscordAlertCondition] = useState("ALL");
     const [maxConcurrentTranscodes, setMaxConcurrentTranscodes] = useState(0);
     const [wrappedVisible, setWrappedVisible] = useState(true);
+    const [wrappedStartMonth, setWrappedStartMonth] = useState(12);
+    const [wrappedStartDay, setWrappedStartDay] = useState(1);
+    const [wrappedEndMonth, setWrappedEndMonth] = useState(1);
+    const [wrappedEndDay, setWrappedEndDay] = useState(31);
     const [excludedLibraries, setExcludedLibraries] = useState<string[]>([]);
     const [availableLibraries, setAvailableLibraries] = useState<string[]>([]);
     const [libraryRules, setLibraryRules] = useState<Record<string, LibraryRule>>({});
@@ -113,6 +117,10 @@ export default function SettingsPage() {
                     setSyncCronMinute(data.syncCronMinute ?? 0);
                     setBackupCronHour(data.backupCronHour ?? 3);
                     setBackupCronMinute(data.backupCronMinute ?? 30);
+                    setWrappedStartMonth(data.wrappedStartMonth ?? 12);
+                    setWrappedStartDay(data.wrappedStartDay ?? 1);
+                    setWrappedEndMonth(data.wrappedEndMonth ?? 1);
+                    setWrappedEndDay(data.wrappedEndDay ?? 31);
                 }
             } catch {
                 console.error("Failed to load settings");
@@ -235,6 +243,10 @@ export default function SettingsPage() {
                     discordAlertsEnabled: discordEnabled,
                     maxConcurrentTranscodes: maxConcurrentTranscodes,
                     wrappedVisible,
+                    wrappedStartMonth,
+                    wrappedStartDay,
+                    wrappedEndMonth,
+                    wrappedEndDay,
                     excludedLibraries,
                     libraryRules,
                 })
@@ -645,6 +657,41 @@ export default function SettingsPage() {
                             </div>
                             <Switch id="wrapped-visibility" checked={wrappedVisible} onCheckedChange={setWrappedVisible} />
                         </div>
+
+                        {wrappedVisible && (
+                            <div className="space-y-4 border p-4 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
+                                <Label className="text-base underline mb-2 block">{t('wrappedPeriod')}</Label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-3">
+                                        <Label className="text-xs text-muted-foreground uppercase tracking-widest">{t('wrappedStart')}</Label>
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex-1">
+                                                <Label className="text-[10px] uppercase opacity-50 mb-1 block">{t('month')}</Label>
+                                                <Input type="number" min={1} max={12} value={wrappedStartMonth} onChange={(e) => setWrappedStartMonth(parseInt(e.target.value) || 1)} className="font-mono" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <Label className="text-[10px] uppercase opacity-50 mb-1 block">{t('day')}</Label>
+                                                <Input type="number" min={1} max={31} value={wrappedStartDay} onChange={(e) => setWrappedStartDay(parseInt(e.target.value) || 1)} className="font-mono" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <Label className="text-xs text-muted-foreground uppercase tracking-widest">{t('wrappedEnd')}</Label>
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex-1">
+                                                <Label className="text-[10px] uppercase opacity-50 mb-1 block">{t('month')}</Label>
+                                                <Input type="number" min={1} max={12} value={wrappedEndMonth} onChange={(e) => setWrappedEndMonth(parseInt(e.target.value) || 1)} className="font-mono" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <Label className="text-[10px] uppercase opacity-50 mb-1 block">{t('day')}</Label>
+                                                <Input type="number" min={1} max={31} value={wrappedEndDay} onChange={(e) => setWrappedEndDay(parseInt(e.target.value) || 1)} className="font-mono" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-zinc-500 italic mt-2">{t('wrappedPeriodDesc')}</p>
+                            </div>
+                        )}
 
                         {discordEnabled && (
                             <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">

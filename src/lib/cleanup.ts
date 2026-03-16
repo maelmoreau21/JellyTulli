@@ -43,15 +43,37 @@ export async function cleanupOrphanedSessions() {
 
         for (const playback of openPlaybacks) {
             const ageMs = now.getTime() - playback.startedAt.getTime();
-            const isActive = activePairs.has(`${playback.userId}:${playback.mediaId}`);
+            
+            // Try to find the specific ActiveStream record
+            const activeStream = await prisma.activeStream.findFirst({
+                where: { 
+                    userId: playback.userId as string, 
+                    mediaId: playback.mediaId as string 
+                },
+                select: { positionTicks: true, media: { select: { durationMs: true } } }
+            });
 
             // Close if not active OR too old
-            if (!isActive || ageMs > ORPHAN_THRESHOLD_MS) {
+            if (!activeStream || ageMs > ORPHAN_THRESHOLD_MS) {
                 const endedAt = ageMs > ORPHAN_THRESHOLD_MS 
                     ? new Date(playback.startedAt.getTime() + ORPHAN_THRESHOLD_MS) 
                     : now;
                 
-                const durationS = Math.floor((endedAt.getTime() - playback.startedAt.getTime()) / 1000);
+                const wallDurationS = Math.floor((endedAt.getTime() - playback.startedAt.getTime()) / 1000);
+                let durationS = wallDurationS;
+
+                // Use position ticks if available
+                if (activeStream?.positionTicks) {
+                    const posS = Math.floor(Number(activeStream.positionTicks) / 10_000_000);
+                    durationS = Math.min(wallDurationS, posS);
+                }
+
+                // Cap by media duration
+                const mediaDurationMs = activeStream?.media?.durationMs || null;
+                if (mediaDurationMs) {
+                    const mediaS = Math.ceil(Number(mediaDurationMs) / 1000);
+                    if (durationS > mediaS) durationS = mediaS;
+                }
 
                 await prisma.playbackHistory.update({
                     where: { id: playback.id },
@@ -62,7 +84,7 @@ export async function cleanupOrphanedSessions() {
                 });
 
                 closedCount++;
-                console.log(`[Cleanup] Closed orphaned session ${playback.id} for "${playback.media.title}" (${Math.floor(durationS/60)} min)`);
+                console.log(`[Cleanup] Closed orphaned session ${playback.id} for "${playback.media?.title || 'Unknown'}" (${Math.floor(durationS/60)} min)`);
             }
         }
 

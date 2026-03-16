@@ -10,6 +10,17 @@
 - DataViz: **Recharts**
 - IP Localization: **geoip-country**
 
+## Phase 50 : Wrapped Enhancements & Availability
+- **Wrapped Period Management**: Added `wrappedStartMonth/Day` and `wrappedEndMonth/Day` to `GlobalSettings` to control availability of the current year's retrospective.
+- **Historical Archives**: Users can now toggle between different years without restriction.
+- **Conditional Rendering**: Slides for categories with no data (e.g., zero music played) are automatically hidden for a cleaner UX.
+- **New Stats**: Integrated "Total Days" and "Top Device" visualizations into the Wrapped story flow.
+- **Translation Log Spam Fix**: Reorganized `fr.json` and `en.json` to nest `timeline` keys inside the `logs` object, resolving thousands of "Missing key" errors.
+- **Sync Reliability**: Added a custom `fetchWithTimeout` utility and increased default timeouts (30-60s) in `sync.ts` to handle large libraries and Docker network instability. Added detailed troubleshooting logs for Jellyfin reaching/timeout issues.
+- **Detailed Library Stats**: Enhanced the Media page (`/media`) with per-library "Top Content" (most played item) and "Recently Added" (last item added) details.
+- **Premium UI**: Redesigned `LibraryStats.tsx` with a dashboard-like experience, featuring media posters, progress bars, hover glows, and quick links to libraries.
+- **Duration Capping**: Implemented strict `durationMs` capping in both the Plugin API and cleanup logic to prevent abnormally long playback durations.
+
 ## Phase 3 : Tautulli Ultimate Clone Capabilities
 A massive analytical refactoring was introduced focusing on Data Context and Resilience on Edge Devices (Raspberry Pi).
 

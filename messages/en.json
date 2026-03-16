@@ -395,10 +395,28 @@
     "toggleColumns": "Toggle Columns",
     "unknown": "Unknown",
     "unknownMedia": "Deleted item",
-    "episodeType": "Episode",
-    "musicType": "Track",
-    "movieType": "Movie",
-    "seasonType": "Season"
+    "seasonType": "Season",
+    "timeline": {
+      "label": {
+        "subtitle_change": "Subtitle Change",
+        "audio_change": "Audio Change",
+        "seek": "Seek",
+        "pause": "Pause",
+        "default": "Event"
+      },
+      "legend": {
+        "subtitles": "Subtitles",
+        "pause": "Pause",
+        "audio": "Audio"
+      },
+      "title": "Timeline",
+      "toggle": {
+        "5s": "5s",
+        "exact": "Exact",
+        "30s": "30s"
+      },
+      "noEvents": "No events recorded."
+    }
   },
   "media": {
     "title": "Library",
@@ -728,25 +746,5 @@
     "introTitle": "{year} Summary",
     "shareCardYear": "{year} Summary"
   },
-  "timeline": {
-    "label": {
-      "subtitle_change": "Subtitle Change",
-      "audio_change": "Audio Change",
-      "seek": "Seek",
-      "pause": "Pause",
-      "default": "Event"
-    },
-    "legend": {
-      "subtitles": "Subtitles",
-      "pause": "Pause",
-      "audio": "Audio"
-    },
-    "title": "Timeline",
-    "toggle": {
-      "5s": "5s",
-      "exact": "Exact",
-      "30s": "30s"
-    },
-    "noEvents": "No events recorded."
   }
 }

@@ -760,13 +760,31 @@ export async function POST(req: Request) {
                 if (lastPlayback) {
                     const endedAt = new Date();
                     const wallClockS = Math.floor((endedAt.getTime() - lastPlayback.startedAt.getTime()) / 1000);
+                    
+                    // Fallback to ActiveStream position if payload position is 0
+                    let effectiveTicks = positionTicks;
+                    if (effectiveTicks <= 0 && sessionId) {
+                        const active = await prisma.activeStream.findUnique({ where: { sessionId }, select: { positionTicks: true } });
+                        if (active?.positionTicks) effectiveTicks = Number(active.positionTicks);
+                    }
+
                     let durationS: number;
-                    if (positionTicks > 0) {
-                        const positionS = Math.floor(positionTicks / 10_000_000);
+                    if (effectiveTicks > 0) {
+                        const positionS = Math.floor(effectiveTicks / 10_000_000);
                         durationS = Math.min(wallClockS, positionS);
                     } else {
                         durationS = wallClockS;
                     }
+
+                    // CAP duration by media length (plus small buffer) to prevent "zombie" durations
+                    if (media.durationMs) {
+                        const mediaDurationS = Math.ceil(Number(media.durationMs) / 1000);
+                        if (durationS > mediaDurationS + 10) {
+                            console.warn(`[Plugin] PlaybackStop: Capping duration from ${durationS}s to ${mediaDurationS}s for "${media.title}"`);
+                            durationS = mediaDurationS;
+                        }
+                    }
+
                     durationS = Math.max(0, Math.min(durationS, 86400));
                     await prisma.playbackHistory.update({
                         where: { id: lastPlayback.id },

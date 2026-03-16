@@ -278,9 +278,33 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
     const totalHoursAfterDays = Math.floor((Number(totalDurationMs) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const timeLabel = t('timeDays', { days: totalDays, hours: totalHoursAfterDays });
 
-    const libraryStatsList = Array.from(libraryStatsMap.entries())
-        .map(([name, stats]) => {
+    const libraryStatsList = await Promise.all(Array.from(libraryStatsMap.entries())
+        .map(async ([name, stats]) => {
             const size = formatSize(stats.size);
+            
+            // Fetch Top Content (most played) for this library
+            const topContent = await prisma.playbackHistory.groupBy({
+                by: ['mediaId'],
+                where: { media: { libraryName: name } },
+                _count: { mediaId: true },
+                orderBy: { _count: { mediaId: 'desc' } },
+                take: 1,
+            });
+            let topItem = null;
+            if (topContent.length > 0) {
+                topItem = await prisma.media.findUnique({
+                    where: { id: topContent[0].mediaId },
+                    select: { title: true, type: true, jellyfinMediaId: true }
+                });
+            }
+
+            // Fetch Recently Added for this library
+            const lastAdded = await prisma.media.findFirst({
+                where: { libraryName: name, type: { in: ['Movie', 'Series', 'MusicAlbum'] } },
+                orderBy: { dateAdded: 'desc' },
+                select: { title: true, dateAdded: true, jellyfinMediaId: true }
+            });
+
             // Prefer actual watched time (from playback history) when available, otherwise fall back to total media durations
             let d = 0;
             let h = 0;
@@ -300,10 +324,13 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                     stats.series > 0 && `${stats.series} ${tc('series').toLowerCase()}`,
                     stats.music > 0 && `${stats.music} albums`,
                     stats.books > 0 && `${stats.books} ${tc('books').toLowerCase()}`,
-                ].filter(Boolean).join(', ')
+                ].filter(Boolean).join(', '),
+                topItem: (topItem && topContent[0]._count.mediaId) ? { title: topItem.title, plays: topContent[0]._count.mediaId, id: topItem.jellyfinMediaId } : null,
+                lastAdded: lastAdded ? { title: lastAdded.title, date: lastAdded.dateAdded, id: lastAdded.jellyfinMediaId } : null
             };
-        })
-        .sort((a, b) => b.name.localeCompare(a.name));
+        }));
+    
+    libraryStatsList.sort((a, b) => b.name.localeCompare(a.name));
 
     // Sorting & Pagination
     if (sortBy === "duration") processedMedia.sort((a: any, b: any) => b.durationHours - a.durationHours);

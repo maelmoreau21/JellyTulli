@@ -36,10 +36,22 @@ export default async function WrappedPage({ params, searchParams }: WrappedPageP
         notFound();
     }
 
-    // Check Global Visibility
     const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } }) as any;
     if (!isAdmin && settings?.wrappedVisible === false) {
         notFound();
+    }
+
+    // Availability Period Check for Current Year
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    if (!isAdmin && requestedYear === currentYear && settings) {
+        const start = new Date(currentYear, (settings.wrappedStartMonth || 12) - 1, settings.wrappedStartDay || 1);
+        const end = new Date(currentYear + (settings.wrappedEndMonth < settings.wrappedStartMonth ? 1 : 0), (settings.wrappedEndMonth || 1) - 1, settings.wrappedEndDay || 31);
+        
+        // If end month is earlier than start month, it spans across New Year (e.g., Dec 1 to Jan 31)
+        if (now < start || now > end) {
+            notFound();
+        }
     }
 
     let user = await prisma.user.findUnique({
@@ -101,6 +113,7 @@ export default async function WrappedPage({ params, searchParams }: WrappedPageP
         Book: new Map(),
     };
     const categoryTotals: Record<string, number> = { Movie: 0, Episode: 0, Audio: 0, Book: 0 };
+    const deviceCounts = new Map<string, number>();
 
     // Collect unique parent IDs for series/album resolution
     const parentIds = new Set<string>();
@@ -185,6 +198,10 @@ export default async function WrappedPage({ params, searchParams }: WrappedPageP
             }
         }
 
+        if (sessionItem.clientName) {
+            deviceCounts.set(sessionItem.clientName, (deviceCounts.get(sessionItem.clientName) || 0) + sessionItem.durationWatched);
+        }
+
         const date = new Date(sessionItem.startedAt);
         dayCounts.set(date.getDay(), (dayCounts.get(date.getDay()) || 0) + 1);
         hourCounts.set(date.getHours(), (hourCounts.get(date.getHours()) || 0) + 1);
@@ -197,6 +214,10 @@ export default async function WrappedPage({ params, searchParams }: WrappedPageP
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5)
         .map(([title, seconds]) => ({ title, seconds }));
+
+    // Top device
+    const topDeviceEntry = Array.from(deviceCounts.entries()).sort((a, b) => b[1] - a[1])[0];
+    const topDevice = topDeviceEntry ? topDeviceEntry[0] : "N/A";
 
     const topGenres = Array.from(genreCounts.entries())
         .sort((a, b) => b[1] - a[1])
@@ -275,6 +296,7 @@ export default async function WrappedPage({ params, searchParams }: WrappedPageP
             music: buildBreakdown("Audio"),
             books: buildBreakdown("Book"),
         },
+        topDevice,
     };
 
     return <WrappedClient data={wrappedData} />;

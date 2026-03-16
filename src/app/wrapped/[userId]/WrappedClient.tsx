@@ -33,6 +33,7 @@ interface WrappedData {
         music: CategoryBreakdown;
         books: CategoryBreakdown;
     };
+    topDevice: string;
 }
 
 function formatDuration(seconds: number): string {
@@ -185,6 +186,23 @@ export default function WrappedClient({ data }: { data: WrappedData }) {
                 </div>
             )
         },
+        // 1b - Time in days (New!)
+        ...(data.totalHours >= 24 ? [{
+            title: t('totalTimeDays', { days: Math.floor(data.totalHours / 24), hours: data.totalHours % 24 }),
+            subtitle: t('totalTimeDaysDesc'),
+            icon: <Calendar className="w-16 h-16 mb-4 text-cyan-400" />,
+            bgColor: "bg-gradient-to-br from-cyan-900 via-blue-900 to-black",
+            content: (
+                <div className="flex flex-col items-center">
+                    <div className="relative w-32 h-32 mb-6">
+                        <div className="absolute inset-0 bg-cyan-400/20 rounded-full animate-ping" />
+                        <div className="relative flex items-center justify-center w-full h-full bg-cyan-400/20 rounded-full border-2 border-cyan-400">
+                             <Clock className="w-12 h-12 text-cyan-400" />
+                        </div>
+                    </div>
+                </div>
+            )
+        }] : []),
         // 2 - Monthly breakdown
         {
             title: t('monthlyTitle'),
@@ -220,6 +238,20 @@ export default function WrappedClient({ data }: { data: WrappedData }) {
                 </div>
             )
         },
+        // 3b - Top Device (New!)
+        ...(data.topDevice !== "N/A" ? [{
+            title: t('topDevice'),
+            subtitle: t('topDeviceDesc', { device: data.topDevice }),
+            icon: <Headphones className="w-16 h-16 mb-4 text-amber-400" />,
+            bgColor: "bg-gradient-to-br from-amber-900 via-orange-900 to-black",
+            content: (
+                <div className="flex flex-col items-center">
+                    <div className="p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-md">
+                        <span className="text-4xl font-black text-amber-400 uppercase tracking-tighter">{data.topDevice}</span>
+                    </div>
+                </div>
+            )
+        }] : []),
         // 4 - Top genres
         {
             title: t('genresTitle'),
@@ -288,34 +320,34 @@ export default function WrappedClient({ data }: { data: WrappedData }) {
             )
         }] : []),
         // Category slides
-        {
+        ...(data.categories.movies.totalSeconds > 0 ? [{
             title: t('moviesTitle'),
             subtitle: t('moviesSubtitle'),
             icon: <Film className="w-16 h-16 mb-4 text-red-400" />,
             bgColor: "bg-gradient-to-br from-red-900 via-rose-900 to-black",
             content: <CategorySlide icon={<Film className="w-8 h-8 text-red-400" />} breakdown={data.categories.movies} gradient="bg-gradient-to-r from-red-400 to-orange-400" noDataLabel={t('noDataFor', { label: t('moviesLabel').toLowerCase() })} ofLabel={t('ofLabel', { label: t('moviesLabel') })} />
-        },
-        {
+        }] : []),
+        ...(data.categories.series.totalSeconds > 0 ? [{
             title: t('episodesTitle'),
             subtitle: t('episodesSubtitle'),
             icon: <Tv className="w-16 h-16 mb-4 text-sky-400" />,
             bgColor: "bg-gradient-to-br from-sky-900 via-blue-900 to-black",
             content: <CategorySlide icon={<Tv className="w-8 h-8 text-sky-400" />} breakdown={data.categories.series} gradient="bg-gradient-to-r from-sky-400 to-blue-400" noDataLabel={t('noDataFor', { label: t('episodesLabel').toLowerCase() })} ofLabel={t('ofLabel', { label: t('episodesLabel') })} />
-        },
-        {
+        }] : []),
+        ...(data.categories.music.totalSeconds > 0 ? [{
             title: t('musicTitle'),
             subtitle: t('musicSubtitle'),
             icon: <Music className="w-16 h-16 mb-4 text-green-400" />,
             bgColor: "bg-gradient-to-br from-green-900 via-emerald-900 to-black",
             content: <CategorySlide icon={<Music className="w-8 h-8 text-green-400" />} breakdown={data.categories.music} gradient="bg-gradient-to-r from-green-400 to-emerald-400" noDataLabel={t('noDataFor', { label: t('musicLabel').toLowerCase() })} ofLabel={t('ofLabel', { label: t('musicLabel') })} />
-        },
-        {
+        }] : []),
+        ...(data.categories.books.totalSeconds > 0 ? [{
             title: t('booksTitle'),
             subtitle: t('booksSubtitle'),
             icon: <BookOpen className="w-16 h-16 mb-4 text-amber-500" />,
             bgColor: "bg-gradient-to-br from-amber-900 via-yellow-900 to-black",
             content: <CategorySlide icon={<BookOpen className="w-8 h-8 text-amber-500" />} breakdown={data.categories.books} gradient="bg-gradient-to-r from-amber-400 to-yellow-400" noDataLabel={t('noDataFor', { label: t('booksLabel').toLowerCase() })} ofLabel={t('ofLabel', { label: t('booksLabel') })} />
-        },
+        }] : []),
         // Share card
         {
             title: t('shareTitle'),
