@@ -12,6 +12,7 @@ import { GenreDistributionChart, GenreData } from "@/components/charts/GenreDist
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getTranslations } from 'next-intl/server';
 import { normalizeResolution } from '@/lib/utils';
+import { buildExcludedMediaClause } from '@/lib/mediaPolicy';
 
 export const dynamic = "force-dynamic";
 
@@ -60,16 +61,10 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
         : ['Movie', 'Series', 'MusicAlbum'];
 
     const buildMediaFilter = () => {
-        const AND: any[] = [{ type: { in: displayTypes } }];
-        if (excludedLibraries.length > 0) {
-            AND.push({
-                AND: [
-                    { collectionType: { notIn: excludedLibraries } },
-                    { libraryName: { notIn: excludedLibraries } }
-                ]
-            });
-        }
-        return { AND };
+        const clauses: any[] = [{ type: { in: displayTypes } }];
+        const excludedClause = buildExcludedMediaClause(excludedLibraries);
+        if (excludedClause) clauses.push(excludedClause);
+        return { AND: clauses };
     };
 
     const mediaWhere = buildMediaFilter();
@@ -168,12 +163,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
 
     // Library Metrics
     const allMedia = await prisma.media.findMany({
-        where: excludedLibraries.length > 0 ? { 
-            AND: [
-                { collectionType: { notIn: excludedLibraries } },
-                { libraryName: { notIn: excludedLibraries } }
-            ]
-        } : {},
+        where: buildExcludedMediaClause(excludedLibraries) || {},
         select: { type: true, size: true, durationMs: true, libraryName: true, title: true }
     });
 
@@ -238,8 +228,9 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
     try {
         const leafTypes = ['Movie', 'Episode', 'Audio', 'Book'];
         const sizeWhere: any = { type: { in: leafTypes } };
-        if (excludedLibraries.length > 0) {
-            sizeWhere.libraryName = { notIn: excludedLibraries };
+        const excludedForSize = buildExcludedMediaClause(excludedLibraries);
+        if (excludedForSize) {
+            sizeWhere.AND = [excludedForSize];
         }
 
         const sizeAgg = await prisma.media.aggregate({ where: sizeWhere, _sum: { size: true } });

@@ -11,6 +11,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { getTranslations, getLocale } from 'next-intl/server';
+import { buildExcludedMediaClause } from '@/lib/mediaPolicy';
 
 export const dynamic = "force-dynamic";
 
@@ -58,18 +59,12 @@ export default async function RecentPage({ searchParams }: { searchParams: Promi
     : type === "music" ? ["MusicAlbum"]
     : ["Movie", "Series", "MusicAlbum"];
 
-  const AND: any[] = [{ type: { in: displayTypes } }];
-  if (excludedLibraries.length > 0) {
-    AND.push({
-      NOT: {
-        OR: [
-          { libraryName: { in: excludedLibraries } },
-          { collectionType: { in: excludedLibraries } }
-        ]
-      }
-    });
-  }
-  const mediaWhere = { AND };
+  const mediaWhere = (() => {
+    const clauses: any[] = [{ type: { in: displayTypes } }];
+    const excluded = buildExcludedMediaClause(excludedLibraries);
+    if (excluded) clauses.push(excluded);
+    return { AND: clauses };
+  })();
 
   const totalCount = await prisma.media.count({ where: mediaWhere });
   console.log(`[RecentPage] Filters:`, JSON.stringify(mediaWhere, null, 2));

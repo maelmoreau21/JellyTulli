@@ -326,6 +326,8 @@ A massive analytical refactoring was introduced focusing on Data Context and Res
    - For sync problems (`La requête a expiré`), confirm `JELLYFIN_URL` and `JELLYFIN_API_KEY` are correct and reachable from the JellyTrack container (in Docker Compose use the real server IP or service name that resolves in the compose network). Cron: sync runs at 03:00, backup at 03:30 by default.
    - After deploying the changes, trigger a manual full sync (`POST /api/sync` with mode `full`) and a manual backup (`POST /api/backup/auto/trigger`) to validate behavior and permissions. Monitor the server logs for any remaining errors.
 
+- Plugin language support: the JellyTrack plugin now sends a `serverLanguage` field in the `Heartbeat` payload (defaulting to the Jellyfin process UI language). The plugin configuration exposes `PreferredLanguage` to override this default. JellyTrack will use this value to choose its UI locale by default when ingesting events from that Jellyfin instance.
+
 ## Phase Sécurité — Audit DevSecOps Complet
 
 Audit de sécurité réalisé par un agent IA (rôle Ingénieur Cybersécurité Sénior) couvrant l'ensemble de la base de code. Toutes les vulnérabilités identifiées ont été corrigées.

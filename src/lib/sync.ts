@@ -67,11 +67,12 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         if (viewsRes.ok) {
             const views = await viewsRes.json();
             for (const view of views) {
-                if (view.ItemId && view.CollectionType) {
-                    libraryCollectionMap.set(view.ItemId, view.CollectionType);
-                }
-                if (view.ItemId && view.Name) {
-                    libraryNameMap.set(view.ItemId, view.Name);
+                // Jellyfin/Emby sometimes returns different id fields depending on endpoint/version.
+                // Index by multiple candidate keys (ItemId, Id, ParentId) to be robust.
+                const keys = [view.ItemId, view.Id, view.ParentId].filter(Boolean);
+                for (const k of keys) {
+                    if (view.CollectionType) libraryCollectionMap.set(k, view.CollectionType);
+                    if (view.Name) libraryNameMap.set(k, view.Name);
                 }
             }
         }
@@ -83,11 +84,10 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         if (userViewsRes.ok) {
             const userViews = await userViewsRes.json();
             for (const v of (userViews.Items || [])) {
-                if (v.Id && v.CollectionType) {
-                    parentCollectionMap.set(v.Id, v.CollectionType);
-                }
-                if (v.Id && v.Name) {
-                    parentNameMap.set(v.Id, v.Name);
+                const keys = [v.Id, v.ItemId, v.ParentId].filter(Boolean);
+                for (const k of keys) {
+                    if (v.CollectionType) parentCollectionMap.set(k, v.CollectionType);
+                    if (v.Name) parentNameMap.set(k, v.Name);
                 }
             }
         }
@@ -153,13 +153,14 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
                 else if (item.Type === 'Book') collectionType = 'books';
             }
 
-            // Resolve actual Jellyfin library name from parent chain
+            // Resolve actual Jellyfin library name from parent chain (try multiple id variants)
             let libraryName: string | null = null;
             {
-                // Try to find the library name in the parent chain
-                const possibleParentIds = [item.ParentId, item.SeasonId, item.SeriesId, item.AlbumId].filter(Boolean);
+                // Try to find the library name in the parent chain using several candidate parent ids
+                const possibleParentIds = [item.ParentId, item.SeasonId, item.SeriesId, item.AlbumId, item.LibraryId].filter(Boolean);
                 for (const pid of possibleParentIds) {
-                    const name = parentNameMap.get(pid!) || libraryNameMap.get(pid!) || null;
+                    const idKey = pid as string;
+                    const name = parentNameMap.get(idKey) || libraryNameMap.get(idKey) || null;
                     if (name) {
                         libraryName = name;
                         break;
@@ -195,6 +196,9 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
                 update: { title: item.Name, type: item.Type, genres, directors, actors, studios, resolution, collectionType, durationMs, size, parentId, artist, dateAdded, libraryName },
                 create: { jellyfinMediaId, title: item.Name, type: item.Type, genres, directors, actors, studios, resolution, collectionType, durationMs, size, parentId, artist, dateAdded, libraryName },
             });
+            if (!libraryName) {
+                console.warn(`[Sync] Could not resolve libraryName for item ${item.Name} (id=${item.Id}) parents=[${[item.ParentId, item.SeasonId, item.SeriesId, item.AlbumId].filter(Boolean).join(',')}]`);
+            }
             mediaCount++;
         }
         console.log(`[Sync] ${mediaCount} médias synchronisés.`);

@@ -40,6 +40,7 @@ JellyTrack collecte et analyse les événements Jellyfin (playback start/progres
 - **Installation recommandée** : installez le serveur JellyTrack via Docker / GHCR, et installez le plugin Jellyfin via le dépôt Jellyfin.
 - **Pourquoi** : le plugin envoie les événements de lecture (start / progress / stop) vers JellyTrack. Sans plugin ni configuration de webhooks côté Jellyfin, JellyTrack ne recevra aucune donnée et l'interface restera vide. Inversement, le plugin doit être configuré avec l'URL d'une instance JellyTrack opérationnelle — installé seul il n'aura pas d'effet visible.
 - **Alternative** : si vous ne pouvez pas installer le plugin, vous pouvez configurer des webhooks Jellyfin pour pointer vers `/api/webhook/jellyfin`, mais le plugin reste la méthode la plus simple et complète.
+ - **Langue** : le plugin détecte par défaut la langue UI du serveur Jellyfin et l'envoie dans le `Heartbeat` vers JellyTrack. Vous pouvez également surcharger cette valeur dans la configuration du plugin si besoin.
 
 ## Quickstart — Docker (GHCR) — recommandé
 
