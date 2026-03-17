@@ -32,6 +32,7 @@ export default function SettingsPage() {
     const [discordAlertCondition, setDiscordAlertCondition] = useState("ALL");
     const [maxConcurrentTranscodes, setMaxConcurrentTranscodes] = useState(0);
     const [wrappedVisible, setWrappedVisible] = useState(true);
+    const [wrappedPeriodEnabled, setWrappedPeriodEnabled] = useState(true);
     const [wrappedStartMonth, setWrappedStartMonth] = useState(12);
     const [wrappedStartDay, setWrappedStartDay] = useState(1);
     const [wrappedEndMonth, setWrappedEndMonth] = useState(1);
@@ -107,6 +108,11 @@ export default function SettingsPage() {
                     setDiscordAlertCondition(data.discordAlertCondition || "ALL");
                     setMaxConcurrentTranscodes(data.maxConcurrentTranscodes ?? 0);
                     setWrappedVisible(data.wrappedVisible ?? true);
+                    setWrappedPeriodEnabled(data.wrappedPeriodEnabled ?? true);
+                    setWrappedStartMonth(data.wrappedStartMonth ?? 12);
+                    setWrappedStartDay(data.wrappedStartDay ?? 1);
+                    setWrappedEndMonth(data.wrappedEndMonth ?? 1);
+                    setWrappedEndDay(data.wrappedEndDay ?? 31);
                     setExcludedLibraries(data.excludedLibraries || []);
                     setAvailableLibraries(data.availableLibraries || []);
                     setLibraryRules(data.libraryRules || {});
@@ -117,10 +123,6 @@ export default function SettingsPage() {
                     setSyncCronMinute(data.syncCronMinute ?? 0);
                     setBackupCronHour(data.backupCronHour ?? 3);
                     setBackupCronMinute(data.backupCronMinute ?? 30);
-                    setWrappedStartMonth(data.wrappedStartMonth ?? 12);
-                    setWrappedStartDay(data.wrappedStartDay ?? 1);
-                    setWrappedEndMonth(data.wrappedEndMonth ?? 1);
-                    setWrappedEndDay(data.wrappedEndDay ?? 31);
                 }
             } catch {
                 console.error("Failed to load settings");
@@ -243,6 +245,7 @@ export default function SettingsPage() {
                     discordAlertsEnabled: discordEnabled,
                     maxConcurrentTranscodes: maxConcurrentTranscodes,
                     wrappedVisible,
+                    wrappedPeriodEnabled,
                     wrappedStartMonth,
                     wrappedStartDay,
                     wrappedEndMonth,
@@ -661,7 +664,20 @@ export default function SettingsPage() {
                         {wrappedVisible && (
                             <div className="space-y-4 border p-4 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
                                 <Label className="text-base underline mb-2 block">{t('wrappedPeriod')}</Label>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="flex items-center justify-between p-4 rounded-lg bg-zinc-900/40 border border-zinc-800/50">
+                                    <div className="space-y-0.5">
+                                        <Label className="text-sm font-medium text-zinc-200">Activer la période de disponibilité automatique</Label>
+                                        <p className="text-xs text-zinc-500">
+                                            Si activé, le Wrapped ne sera accessible qu'entre les dates définies ci-dessous.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={wrappedPeriodEnabled}
+                                        onCheckedChange={setWrappedPeriodEnabled}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-3">
                                         <Label className="text-xs text-muted-foreground uppercase tracking-widest">{t('wrappedStart')}</Label>
                                         <div className="flex items-center gap-2">

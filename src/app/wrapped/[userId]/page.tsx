@@ -44,7 +44,7 @@ export default async function WrappedPage({ params, searchParams }: WrappedPageP
     // Availability Period Check for Current Year
     const now = new Date();
     const currentYear = now.getFullYear();
-    if (!isAdmin && requestedYear === currentYear && settings) {
+    if (!isAdmin && requestedYear === currentYear && settings && settings.wrappedPeriodEnabled !== false) {
         const start = new Date(currentYear, (settings.wrappedStartMonth || 12) - 1, settings.wrappedStartDay || 1);
         const end = new Date(currentYear + (settings.wrappedEndMonth < settings.wrappedStartMonth ? 1 : 0), (settings.wrappedEndMonth || 1) - 1, settings.wrappedEndDay || 31);
         

@@ -13,11 +13,29 @@ import { appendHealthEvent } from "@/lib/systemHealth";
  * 4. Cap durationWatched at a maximum (24h).
  */
 export async function cleanupOrphanedSessions() {
-    const ORPHAN_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
+    const ORPHAN_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours (backstop)
+    const HEARTBEAT_TIMEOUT_MS = 5 * 60 * 1000;      // 5 minutes (stale stream)
     const now = new Date();
 
     try {
-        // Fetch all open playbacks
+        // 1. First, cleanup ActiveStream records that haven't sent a heartbeat recently
+        const staleThreshold = new Date(now.getTime() - HEARTBEAT_TIMEOUT_MS);
+        const staleStreams = await prisma.activeStream.findMany({
+            where: { lastPingAt: { lt: staleThreshold } },
+            select: { id: true, sessionId: true, media: { select: { title: true } } }
+        });
+
+        if (staleStreams.length > 0) {
+            console.log(`[Cleanup] Found ${staleStreams.length} stale streams (no heartbeat for 5+ mins).`);
+            for (const stream of staleStreams) {
+                console.log(`[Cleanup] Removing ghost stream: ${stream.sessionId} ("${stream.media?.title || 'Unknown'}")`);
+                // Note: We delete them. The loop below will then close the corresponding PlaybackHistory 
+                // because they will no longer have a matching ActiveStream.
+                await prisma.activeStream.delete({ where: { id: stream.id } });
+            }
+        }
+
+        // 2. Now cleanup PlaybackHistory where endedAt is null but no ActiveStream exists
         const openPlaybacks = await prisma.playbackHistory.findMany({
             where: { endedAt: null },
             select: {
@@ -31,7 +49,7 @@ export async function cleanupOrphanedSessions() {
 
         if (openPlaybacks.length === 0) return;
 
-        // Fetch all active streams (sessions currently considered "live")
+        // Fetch remaining active streams
         const activeStreams = await prisma.activeStream.findMany({
             select: { userId: true, mediaId: true }
         });
@@ -44,56 +62,40 @@ export async function cleanupOrphanedSessions() {
         for (const playback of openPlaybacks) {
             const ageMs = now.getTime() - playback.startedAt.getTime();
             
-            // Try to find the specific ActiveStream record
-            const activeStream = await prisma.activeStream.findFirst({
-                where: { 
-                    userId: playback.userId as string, 
-                    mediaId: playback.mediaId as string 
-                },
-                select: { positionTicks: true, media: { select: { durationMs: true } } }
-            });
+            // Check if this specific user+media pair still has an active stream
+            const isActive = activePairs.has(`${playback.userId}:${playback.mediaId}`);
 
-            // Close if not active OR too old
-            if (!activeStream || ageMs > ORPHAN_THRESHOLD_MS) {
+            // Close if not active OR way too old (24h backstop)
+            if (!isActive || ageMs > ORPHAN_THRESHOLD_MS) {
                 const endedAt = ageMs > ORPHAN_THRESHOLD_MS 
                     ? new Date(playback.startedAt.getTime() + ORPHAN_THRESHOLD_MS) 
                     : now;
                 
                 const wallDurationS = Math.floor((endedAt.getTime() - playback.startedAt.getTime()) / 1000);
-                let durationS = wallDurationS;
-
-                // Use position ticks if available
-                if (activeStream?.positionTicks) {
-                    const posS = Math.floor(Number(activeStream.positionTicks) / 10_000_000);
-                    durationS = Math.min(wallDurationS, posS);
-                }
-
-                // Cap by media duration
-                const mediaDurationMs = activeStream?.media?.durationMs || null;
-                if (mediaDurationMs) {
-                    const mediaS = Math.ceil(Number(mediaDurationMs) / 1000);
-                    if (durationS > mediaS) durationS = mediaS;
-                }
+                
+                // If it was just removed as a stale stream, we might still have the position in ActiveStream
+                // (but we deleted it above). For simplicity in ghost cleanup, we use wall clock or cap.
+                let durationS = Math.max(0, Math.min(wallDurationS, 86400));
 
                 await prisma.playbackHistory.update({
                     where: { id: playback.id },
                     data: {
                         endedAt,
-                        durationWatched: Math.max(0, Math.min(durationS, 86400)) // Cap at 24h
+                        durationWatched: durationS
                     }
                 });
 
                 closedCount++;
-                console.log(`[Cleanup] Closed orphaned session ${playback.id} for "${playback.media?.title || 'Unknown'}" (${Math.floor(durationS/60)} min)`);
+                console.log(`[Cleanup] Closed orphaned history ${playback.id} for "${playback.media?.title || 'Unknown'}"`);
             }
         }
 
-        if (closedCount > 0) {
+        if (closedCount > 0 || staleStreams.length > 0) {
             await appendHealthEvent({
                 source: 'monitor',
                 kind: 'orphan-cleanup',
-                message: `Nettoyage automatique : ${closedCount} lectures orphelines fermées.`,
-                details: { closedCount }
+                message: `Nettoyage : ${staleStreams.length} flux fantômes supprimés, ${closedCount} lectures fermées.`,
+                details: { staleStreams: staleStreams.length, closedHistory: closedCount }
             });
         }
 

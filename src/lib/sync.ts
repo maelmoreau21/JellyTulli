@@ -104,6 +104,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         if (!itemsRes.ok) throw new Error(`Erreur de récupération des médias: ${itemsRes.status}`);
         const itemsData = await itemsRes.json();
         const items = itemsData.Items || [];
+        console.log(`[Sync] Jellyfin returned ${items.length} items to index.`);
 
         let mediaCount = 0;
         for (const item of items) {

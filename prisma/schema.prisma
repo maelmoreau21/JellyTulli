@@ -154,6 +154,7 @@ model GlobalSettings {
   defaultLocale         String   @default("fr")  // Default language for new users (fr, en)
   timeFormat            String   @default("24h") // Time display format: "12h" or "24h"
   wrappedVisible        Boolean  @default(true)  // Whether the Wrapped feature is visible to users
+  wrappedPeriodEnabled  Boolean  @default(true)
   wrappedStartMonth     Int      @default(12)    // Month (1-12) when current year Wrapped becomes available
   wrappedStartDay       Int      @default(1)     // Day (1-31) when current year Wrapped becomes available
   wrappedEndMonth       Int      @default(1)     // Month (1-12) when current year Wrapped stops being available
