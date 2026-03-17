@@ -1,17 +1,13 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import {
-    ScatterChart,
-    Scatter,
-    XAxis,
-    YAxis,
-    ZAxis,
-    Tooltip,
-    ResponsiveContainer,
-    Cell
-} from 'recharts';
 import { useTranslations } from 'next-intl';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface HeatmapCell {
     day: number;
@@ -23,8 +19,6 @@ interface AttendanceHeatmapProps {
     data: HeatmapCell[];
 }
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
 export function AttendanceHeatmap({ data }: AttendanceHeatmapProps) {
     const t = useTranslations('charts');
     const dayNames = t('dayNamesShort').split(',');
@@ -32,73 +26,78 @@ export function AttendanceHeatmap({ data }: AttendanceHeatmapProps) {
     const maxVal = useMemo(() => Math.max(...data.map(d => d.value), 1), [data]);
 
     const getColor = (value: number) => {
-        if (value === 0) return 'transparent';
-        const opacity = Math.max(0.1, value / maxVal);
-        return `rgba(99, 102, 241, ${opacity})`; // Indigo-500 equivalent
+        if (value === 0) return 'bg-zinc-100 dark:bg-zinc-900/40';
+        const opacity = Math.max(0.2, value / maxVal);
+        
+        // Use indigo shades or similar
+        if (opacity <= 0.25) return 'bg-indigo-500/20';
+        if (opacity <= 0.5) return 'bg-indigo-500/40';
+        if (opacity <= 0.75) return 'bg-indigo-500/70';
+        return 'bg-indigo-500';
     };
 
-    const formatTooltip = (value: any, name: string | undefined, props: any) => {
-        const { payload } = props;
-        return [
-            `${payload.value} ${t('sessions')}`,
-            `${dayNames[payload.day]} @ ${payload.hour}h`
-        ];
-    };
+    // Organize data into 7x24 grid
+    const grid = useMemo(() => {
+        const g = Array.from({ length: 7 }, () => Array(24).fill(0));
+        data.forEach(d => {
+            if (d.day >= 0 && d.day < 7 && d.hour >= 0 && d.hour < 24) {
+                g[d.day][d.hour] = d.value;
+            }
+        });
+        return g;
+    }, [data]);
+
+    const hours = Array.from({ length: 24 }, (_, i) => i);
 
     return (
-        <div className="w-full h-[350px] mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-                <ScatterChart
-                    margin={{ top: 20, right: 20, bottom: 20, left: 40 }}
-                >
-                    <XAxis
-                        type="number"
-                        dataKey="hour"
-                        name="Hour"
-                        domain={[0, 23]}
-                        tickCount={24}
-                        interval={0}
-                        tick={{ fontSize: 10, fill: '#71717a' }}
-                        axisLine={false}
-                        tickLine={false}
-                        unit="h"
-                    />
-                    <YAxis
-                        type="number"
-                        dataKey="day"
-                        name="Day"
-                        domain={[0, 6]}
-                        tickCount={7}
-                        interval={0}
-                        tickFormatter={(val) => dayNames[val] || ''}
-                        tick={{ fontSize: 10, fill: '#71717a' }}
-                        axisLine={false}
-                        tickLine={false}
-                        reversed
-                    />
-                    <ZAxis type="number" dataKey="value" range={[50, 400]} />
-                    <Tooltip
-                        cursor={{ strokeDasharray: '3 3' }}
-                        contentStyle={{
-                            backgroundColor: '#18181b',
-                            border: '1px solid #27272a',
-                            borderRadius: '8px',
-                            color: '#f4f4f5',
-                            fontSize: '12px'
-                        }}
-                        formatter={formatTooltip}
-                    />
-                    <Scatter data={data} shape="square">
-                        {data.map((entry, index) => (
-                            <Cell 
-                                key={`cell-${index}`} 
-                                fill={getColor(entry.value)} 
-                                stroke={entry.value > 0 ? 'rgba(99, 102, 241, 0.2)' : 'transparent'}
-                            />
-                        ))}
-                    </Scatter>
-                </ScatterChart>
-            </ResponsiveContainer>
-        </div>
+        <TooltipProvider>
+            <div className="w-full space-y-2 mt-4 select-none">
+                <div className="flex text-[10px] text-zinc-500 ml-10 mb-2">
+                    {hours.map(h => (
+                        <div key={h} className="flex-1 text-center font-medium">
+                            {h % 4 === 0 ? `${h}h` : ''}
+                        </div>
+                    ))}
+                </div>
+
+                <div className="space-y-1">
+                    {grid.map((dayRow, dayIdx) => (
+                        <div key={dayIdx} className="flex items-center gap-2">
+                            <div className="w-8 text-[10px] font-medium text-zinc-500 text-right uppercase tracking-wider">
+                                {dayNames[dayIdx]}
+                            </div>
+                            <div className="flex-1 flex gap-1 h-6 md:h-8">
+                                {dayRow.map((val, hourIdx) => (
+                                    <Tooltip key={hourIdx}>
+                                        <TooltipTrigger asChild>
+                                            <div 
+                                                className={`flex-1 rounded-sm transition-all duration-300 hover:scale-110 hover:z-10 cursor-default ${getColor(val)}`}
+                                                style={val > 0 ? { boxShadow: `0 0 10px rgba(99, 102, 241, ${val / maxVal * 0.3})` } : {}}
+                                            />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-[10px] py-1 px-2">
+                                            <div className="font-bold">{dayNames[dayIdx]} — {hourIdx}h</div>
+                                            <div className="text-zinc-400">{val} {t('sessions')}</div>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                
+                <div className="flex justify-end items-center gap-2 pt-4 text-[10px] text-zinc-500">
+                    <span>Moins</span>
+                    <div className="flex gap-1">
+                        <div className="w-3 h-3 rounded-sm bg-zinc-100 dark:bg-zinc-900/40" />
+                        <div className="w-3 h-3 rounded-sm bg-indigo-500/20" />
+                        <div className="w-3 h-3 rounded-sm bg-indigo-500/40" />
+                        <div className="w-3 h-3 rounded-sm bg-indigo-500/70" />
+                        <div className="w-3 h-3 rounded-sm bg-indigo-500" />
+                    </div>
+                    <span>Plus</span>
+                </div>
+            </div>
+        </TooltipProvider>
     );
 }

@@ -13,8 +13,9 @@ import { loadLibraryRules } from "@/lib/libraryRules";
 function isValidLang(lang: string | null | undefined): boolean {
     if (!lang) return false;
     const l = lang.toLowerCase().trim();
-    if (l === 'und' || l === 'undefined' || l === 'null' || l === 'none' || l === '') return false;
-    return l.length <= 3; // Basic ISO 639-1 or 639-2 check
+    if (l === 'und' || l === 'undefined' || l === 'null' || l === 'none' || l === '' || l === 'unknown') return false;
+    // Allow ISO codes (2-3 chars) and common full names (up to 20 chars)
+    return l.length >= 2 && l.length <= 20;
 }
 
 const getGranularData = unstable_cache(

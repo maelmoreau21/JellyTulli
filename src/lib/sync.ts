@@ -158,9 +158,9 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
                     const w = videoStream.Width;
                     if (w >= 3800) resolution = "4K";
                     else if (w >= 2500) resolution = "1440p";
-                    else if (w >= 1900) resolution = "1080p";
+                    else if (w >= 1800) resolution = "1080p"; // More lenient (was 1900)
                     else if (w >= 1200) resolution = "720p";
-                    else if (w >= 800) resolution = "480p";
+                    else if (w >= 700) resolution = "480p"; // More lenient (was 800)
                     else resolution = "SD";
                 }
             }
@@ -169,7 +169,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
             const durationMs = item.RunTimeTicks ? BigInt(Math.floor(item.RunTimeTicks / 10000)) : null;
             const parentId = normalizeJellyfinId(item.AlbumId || item.SeasonId || item.SeriesId || item.ParentId || null);
             const artist = item.AlbumArtist || item.AlbumArtists?.[0]?.Name || item.Artists?.[0] || null;
-            const dateAdded = item.DateCreated ? new Date(item.DateCreated) : null;
+            const dateAdded = item.DateCreated ? new Date(item.DateCreated) : new Date(); // Fallback to current date for indexing
 
             await prisma.media.upsert({
                 where: { jellyfinMediaId },

@@ -237,15 +237,15 @@ const getDeepInsights = unstable_cache(
         const resolutionMap = new Map<string, number>();
         resolutionData.forEach(r => {
             let res = r.media?.resolution;
-            if (!res) res = "SD"; // Fallback for missing resolution
+            if (!res) res = "Unknown"; // Fallback for missing resolution
             resolutionMap.set(res, (resolutionMap.get(res) || 0) + 1);
         });
 
 
         const resolutionChartData = Array.from(resolutionMap.entries())
             .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 6);
+            .sort((a: any, b: any) => b.value - a.value)
+            .slice(0, 8);
 
         // --- Pro Telemetry: Device Ecosystem ---
         const deviceData = await prisma.playbackHistory.findMany({

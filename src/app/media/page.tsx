@@ -174,15 +174,16 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                 { libraryName: { notIn: excludedLibraries } }
             ]
         } : {},
-        select: { type: true, size: true, durationMs: true, libraryName: true }
+        select: { type: true, size: true, durationMs: true, libraryName: true, title: true }
     });
 
     const libraryStatsMap = new Map<string, { size: bigint; duration: bigint; watchedSeconds?: number; items: number; movies: number; series: number; music: number; books: number }>();
 
     console.log(`[MediaPage] Libraries in settings:`, JSON.stringify(excludedLibraries));
+    // Safe logging: don't stringify the whole object because of BigInt (durationMs)
     console.log(`[MediaPage] Found ${allMedia.length} total media items across all libraries.`);
     if (allMedia.length > 0) {
-        console.log(`[MediaPage] Sample item:`, JSON.stringify(allMedia[0]));
+      console.log(`[MediaPage] First item title: ${allMedia[0].title}`);
     }
 
     // Pre-populate library map with Jellyfin libraries so empty libraries appear in the UI
