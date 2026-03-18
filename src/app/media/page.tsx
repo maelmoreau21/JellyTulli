@@ -111,16 +111,18 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
     }
 
     const albumIdList = parentItems.filter((m: any) => m.type === 'MusicAlbum').map((m: any) => m.jellyfinMediaId);
-    const albumChildStats = new Map<string, { plays: number; dur: number; dp: number; childCount: number }>();
+    const albumChildStats = new Map<string, { plays: number; dur: number; dp: number; childCount: number; sizeBytes: bigint; totalTrackDurationMs: bigint }>();
     if (albumIdList.length > 0) {
         const tracks = await prisma.media.findMany({
             where: { type: 'Audio', parentId: { in: albumIdList } },
-            include: { playbackHistory: { select: { durationWatched: true, playMethod: true } } },
+            select: { parentId: true, size: true, durationMs: true, playbackHistory: { select: { durationWatched: true, playMethod: true } } },
         });
         for (const track of tracks) {
             if (!track.parentId) continue;
-            const s = albumChildStats.get(track.parentId) || { plays: 0, dur: 0, dp: 0, childCount: 0 };
+            const s = albumChildStats.get(track.parentId) || { plays: 0, dur: 0, dp: 0, childCount: 0, sizeBytes: BigInt(0), totalTrackDurationMs: BigInt(0) };
             s.childCount++;
+            s.sizeBytes += track.size || BigInt(0);
+            s.totalTrackDurationMs += track.durationMs || BigInt(0);
             s.plays += track.playbackHistory.length;
             s.dur += track.playbackHistory.reduce((a: number, h: any) => a + h.durationWatched, 0);
             s.dp += track.playbackHistory.filter((h: any) => h.playMethod === 'DirectPlay').length;
@@ -141,9 +143,18 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
             const stats = albumChildStats.get(media.jellyfinMediaId);
             if (stats) { plays = stats.plays; durationSeconds = stats.dur; dpCount = stats.dp; childCount = stats.childCount; }
         }
+        let bitrateKbps = null;
+        if (media.type === 'MusicAlbum') {
+            const stats = albumChildStats.get(media.jellyfinMediaId);
+            if (stats && stats.totalTrackDurationMs > 0) {
+                // (Bytes * 8) = Bits. (DurationMs / 1000) = Seconds. Bits / Seconds = bps. bps / 1000 = kbps.
+                bitrateKbps = Math.round(Number(stats.sizeBytes) * 8 / Number(stats.totalTrackDurationMs));
+            }
+        }
+
         const durationHours = parseFloat((durationSeconds / 3600).toFixed(1));
         const qualityPercent = plays > 0 ? Math.round((dpCount / plays) * 100) : 0;
-        return { ...media, plays, durationHours, qualityPercent, childCount, normalizedResolution: normalizeResolution(media.resolution) };
+        return { ...media, plays, durationHours, qualityPercent, childCount, normalizedResolution: normalizeResolution(media.resolution), bitrateKbps };
     });
 
     // Global Stats for Charts
@@ -287,8 +298,12 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
     const totalHoursAfterDays = Math.floor((Number(totalDurationMs) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const timeLabel = t('timeDays', { days: totalDays, hours: totalHoursAfterDays });
 
-    const libraryStatsList = await Promise.all(Array.from(libraryStatsMap.entries())
-        .map(async ([name, stats]) => {
+    const validLibraries = Array.from(libraryStatsMap.entries()).filter(([name, stats]) => {
+        const hasItems = stats.movies > 0 || stats.series > 0 || stats.music > 0 || stats.books > 0;
+        return hasItems;
+    });
+
+    const libraryStatsList = await Promise.all(validLibraries.map(async ([name, stats]) => {
             const size = formatSize(stats.size);
             
             // Fetch Top Content (most played) for this library
@@ -467,7 +482,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                             <h3 className="text-white font-bold text-lg leading-tight truncate">{media.title}</h3>
                                             <span className="text-zinc-300 text-xs">{media.productionYear}</span>
                                         </div>
-                                        {media.normalizedResolution && (
+                                        {(media.normalizedResolution && media.type !== 'MusicAlbum') && (
                                             <div className="absolute top-2 right-2 z-10">
                                                 <Badge className={`px-1.5 py-0 text-[10px] font-black tracking-tighter uppercase ${
                                                     media.normalizedResolution === '4K' ? 'bg-orange-500 text-black border-transparent' : 
@@ -475,6 +490,13 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                                                     'bg-zinc-800 text-zinc-300 border-zinc-700'
                                                 }`}>
                                                     {media.normalizedResolution === '4K' ? '4K UHD' : media.normalizedResolution}
+                                                </Badge>
+                                            </div>
+                                        )}
+                                        {(media.bitrateKbps && media.type === 'MusicAlbum') && (
+                                            <div className="absolute top-2 right-2 z-10">
+                                                <Badge className="px-1.5 py-0 text-[10px] font-black tracking-tighter uppercase bg-yellow-500/90 text-black border-transparent backdrop-blur-sm">
+                                                    {media.bitrateKbps} KBPS
                                                 </Badge>
                                             </div>
                                         )}

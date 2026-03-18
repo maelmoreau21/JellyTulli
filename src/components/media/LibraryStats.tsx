@@ -13,7 +13,7 @@ interface LibraryDetail {
     duration: string;
     counts: string;
     topItem?: { title: string; plays: number; id: string } | null;
-    lastAdded?: { title: string; date: Date | null; id: string } | null;
+    lastAdded?: { title: string; date: Date | string | null; id: string } | null;
 }
 
 interface LibraryStatsProps {
@@ -34,15 +34,14 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
     return (
         <div className="space-y-4 mb-8">
             <div className="grid gap-4 md:grid-cols-3">
-                <Card className="app-surface border-blue-500/20 shadow-lg shadow-blue-500/5 group hover:border-blue-500/40 transition-all duration-300">
+                <Card className="app-surface border-zinc-200/50 dark:border-zinc-800/50 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/80">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-bold uppercase tracking-wider text-blue-400 flex items-center justify-between">
-                            <span className="flex items-center gap-2"><HardDrive className="w-4 h-4" /> {t('statsVolume')}</span>
-                            <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                            <HardDrive className="w-4 h-4" /> {t('statsVolume')}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-black tracking-tight text-white group-hover:scale-105 transition-transform origin-left duration-300">
+                        <div className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
                             {totalTB}
                         </div>
                         <p className="text-[10px] text-zinc-500 mt-2 font-medium flex items-center gap-1">
@@ -51,15 +50,14 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
                     </CardContent>
                 </Card>
 
-                <Card className="app-surface border-purple-500/20 shadow-lg shadow-purple-500/5 group hover:border-purple-500/40 transition-all duration-300">
+                <Card className="app-surface border-zinc-200/50 dark:border-zinc-800/50 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/80">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-bold uppercase tracking-wider text-purple-400 flex items-center justify-between">
-                            <span className="flex items-center gap-2"><Library className="w-4 h-4" /> {t('statsContent')}</span>
-                            <div className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse" />
+                        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                            <Library className="w-4 h-4" /> {t('statsContent')}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-xl font-bold tracking-tight text-white line-clamp-1 group-hover:scale-105 transition-transform origin-left duration-300">
+                        <div className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 line-clamp-1">
                             {[
                                 movieCount > 0 && `${movieCount} ${tc('movies').toLowerCase()}`,
                                 seriesCount > 0 && `${seriesCount} ${tc('series').toLowerCase()}`,
@@ -73,15 +71,14 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
                     </CardContent>
                 </Card>
 
-                <Card className="app-surface border-emerald-500/20 shadow-lg shadow-emerald-500/5 group hover:border-emerald-500/40 transition-all duration-300">
+                <Card className="app-surface border-zinc-200/50 dark:border-zinc-800/50 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/80">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center justify-between">
-                            <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> {t('statsTime')}</span>
-                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                            <Clock className="w-4 h-4" /> {t('statsTime')}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-black tracking-tight text-white group-hover:scale-105 transition-transform origin-left duration-300">
+                        <div className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
                             {timeLabel}
                         </div>
                         <p className="text-[10px] text-zinc-500 mt-2 font-medium flex items-center gap-1">
@@ -137,7 +134,7 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
                                             {lib.topItem && (
                                                 <Link 
                                                     href={`/media/${lib.topItem.id}`}
-                                                    className="block p-3 rounded-xl bg-zinc-900/40 border border-zinc-800/50 hover:border-primary/30 hover:bg-zinc-900/60 transition-all group/item"
+                                                    className="block p-3 rounded-lg bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/50 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors group/item"
                                                 >
                                                     <div className="flex items-start gap-3">
                                                         <div className="relative w-12 h-18 aspect-[2/3] rounded overflow-hidden flex-shrink-0 shadow-lg">
@@ -164,7 +161,7 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
                                             {lib.lastAdded && (
                                                 <Link 
                                                     href={`/media/${lib.lastAdded.id}`}
-                                                    className="block p-3 rounded-xl bg-zinc-900/40 border border-zinc-800/50 hover:border-emerald-500/30 hover:bg-zinc-900/60 transition-all group/item"
+                                                    className="block p-3 rounded-lg bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200/50 dark:border-zinc-800/50 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors group/item"
                                                 >
                                                     <div className="flex items-start gap-3">
                                                         <div className="relative w-12 h-18 aspect-[2/3] rounded overflow-hidden flex-shrink-0 shadow-lg">

@@ -46,6 +46,7 @@ import { getLogHealthSnapshot } from "@/lib/logHealth";
 import { categorizeClient } from "@/lib/utils";
 import { SystemHealthWidgets } from "@/components/dashboard/SystemHealthWidgets";
 import { CollapsibleCard } from "@/components/dashboard/CollapsibleCard";
+import { LibraryFilter } from "@/components/dashboard/LibraryFilter";
 
 
 type LiveStream = {
@@ -487,7 +488,7 @@ async function HeatmapWrapper() {
   return <YearlyHeatmap data={heatmapDataByType['_total'] || []} availableYears={availableYears} dataByType={heatmapDataByType} libraryTypes={Array.from(libraryTypes)} />;
 }
 
-export default async function DashboardPage(props: { searchParams: Promise<{ type?: string; timeRange?: string; from?: string; to?: string }> }) {
+export default async function DashboardPage(props: { searchParams: Promise<{ type?: string; timeRange?: string; from?: string; to?: string; excludeLibs?: string }> }) {
   // RBAC: Non-admin users are redirected to their profile page
   const authSession = await getServerSession(authOptions);
   if (!authSession?.user?.isAdmin) {
@@ -495,11 +496,25 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
     redirect(uid ? `/users/${uid}` : "/login");
   }
 
-  const { type, timeRange = "7d", from, to } = await props.searchParams;
+  const searchParams = await props.searchParams;
+  const { type, timeRange = "7d", from, to, excludeLibs } = searchParams;
 
   const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
-  const excludedLibraries = settings?.excludedLibraries || [];
+  const dbExcluded = settings?.excludedLibraries || [];
+  
   const libraryRules = await loadLibraryRules();
+
+  // Combine DB settings with URL params for excluded libraries
+  const excludedLibsUrl = excludeLibs ? excludeLibs.split(',') : [];
+  const excludedLibraries = Array.from(new Set([...dbExcluded, ...excludedLibsUrl]));
+
+  // Fetch all available library names for the filter dropdown
+  const libraryRows = await prisma.media.findMany({
+    where: { libraryName: { not: null } },
+    select: { libraryName: true },
+    distinct: ['libraryName']
+  });
+  const availableLibraries = libraryRows.map(l => l.libraryName).filter(Boolean) as string[];
 
   const metrics = await getDashboardMetrics(type, timeRange, excludedLibraries, from, to, JSON.stringify(libraryRules));
   const healthSnapshot = await getLogHealthSnapshot();
@@ -653,6 +668,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
             <span className="dashboard-pill hidden sm:block rounded-md px-2 py-1.5 text-xs text-zinc-600 dark:text-zinc-300">
               {t('cachedData')}
             </span>
+            <LibraryFilter libraries={availableLibraries} />
             <TimeRangeSelector />
           </div>
         </div>
