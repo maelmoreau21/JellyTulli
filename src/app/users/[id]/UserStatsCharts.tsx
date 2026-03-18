@@ -39,15 +39,14 @@ export default async function UserStatsCharts({ userId }: { userId: string }) {
         if (hour >= 0 && hour <= 23) hourCounts[hour]++;
 
         const mediaDurS = session.media?.durationMs ? Number(session.media.durationMs) / 1000 : 0;
-        if (mediaDurS <= 0 || session.durationWatched <= 0) {
-            partial++;
+        if (session.durationWatched <= 0 || mediaDurS <= 0) {
             return;
         }
 
         const pct = session.durationWatched / mediaDurS;
         if (pct >= 0.8) completed++;
         else if (pct >= 0.2) partial++;
-        else abandoned++;
+        else if (pct >= 0.1) abandoned++;
     });
 
     const dayNames = t('dayNames').split(',');

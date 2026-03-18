@@ -8,9 +8,10 @@ import { useTranslations } from 'next-intl';
 interface LogFiltersProps {
     initialQuery: string;
     initialSort: string;
+    initialHideZapped: boolean;
 }
 
-export function LogFilters({ initialQuery, initialSort }: LogFiltersProps) {
+export function LogFilters({ initialQuery, initialSort, initialHideZapped }: LogFiltersProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const t = useTranslations('logs');
@@ -21,12 +22,16 @@ export function LogFilters({ initialQuery, initialSort }: LogFiltersProps) {
         const formData = new FormData(e.currentTarget);
         const query = formData.get("query") as string;
         const sort = formData.get("sort") as string;
+        const hideZapped = formData.get("hideZapped") === "on";
 
         const params = new URLSearchParams(searchParams.toString());
         if (query) params.set("query", query);
         else params.delete("query");
         if (sort) params.set("sort", sort);
         else params.delete("sort");
+        
+        if (!hideZapped) params.set("hideZapped", "false");
+        else params.delete("hideZapped");
 
         router.push(`/logs?${params.toString()}`);
     };
@@ -51,8 +56,25 @@ export function LogFilters({ initialQuery, initialSort }: LogFiltersProps) {
                     className="app-field pl-9 h-10 md:h-9"
                 />
             </div>
-            <div className="flex gap-2">
-                <div className="app-field rounded-md px-3 py-2 text-sm flex flex-row items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-slate-700/50 relative group h-10 md:h-9">
+            <div className="flex flex-col md:flex-row gap-2 md:items-center">
+                <div className="flex items-center gap-2 pl-1 md:pr-3">
+                    <input
+                        type="checkbox"
+                        id="hideZapped"
+                        name="hideZapped"
+                        defaultChecked={initialHideZapped}
+                        onChange={(e) => {
+                            const form = e.target.form;
+                            if (form) form.requestSubmit();
+                        }}
+                        className="w-4 h-4 rounded accent-primary cursor-pointer text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <label htmlFor="hideZapped" className="text-sm cursor-pointer whitespace-nowrap font-medium text-zinc-600 dark:text-zinc-300">
+                        {t('hideZapped')}
+                    </label>
+                </div>
+                <div className="flex gap-2">
+                    <div className="app-field rounded-md px-3 py-2 text-sm flex flex-row items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-slate-700/50 relative group h-10 md:h-9">
                     <span className="font-semibold mr-2 flex items-center gap-2"><ArrowUpDown className="w-4 h-4" /> {t('sortBy')}</span>
                     <ChevronDown className="w-4 h-4" />
                     <select
@@ -70,6 +92,7 @@ export function LogFilters({ initialQuery, initialSort }: LogFiltersProps) {
                 <button type="submit" className="bg-primary text-primary-foreground font-medium px-4 py-2 rounded-md hover:bg-primary/90 transition-colors h-10 md:h-9">
                     {tc('search')}
                 </button>
+                </div>
             </div>
         </form>
     );

@@ -364,6 +364,7 @@
     "restoring": "Restoring..."
   },
   "logs": {
+    "hideZapped": "Hide Zapped (< 1m)",
     "title": "Audit Logs",
     "description": "Full playback history and telemetry events.",
     "totalEntries": "total entries",

@@ -271,6 +271,13 @@ A massive analytical refactoring was introduced focusing on Data Context and Res
    - **Surveillance d'Activité (Activity Monitoring)**: New settings card in `/settings` page allowing real-time configuration of monitor polling intervals:
      - `monitorIntervalActive` (ms): polling frequency when sessions are active (default: 1000ms, min: 500ms)
      - `monitorIntervalIdle` (ms): polling frequency when idle (default: 5000ms, min: 1000ms)
+
+40.6 **Log Filtering, Non-Admin 404 & Charts Analytics Fixes (Phase 40.6)**:
+   - **Log Filtering (Zappés)**: Added a `hideZapped` toggle (default `true`) to the `/logs` page. Automatically filters out sessions with `durationWatched < 60` seconds when enabled, removing short zapping sessions. Added to translation keys (`fr.json`/`en.json`).
+   - **Completion Ratio Adjustments**: Fixed `UserStatsCharts.tsx` returning inflated 'abandoned' counts because it counted 'skipped' (<10%) as 'abandoned'. It now safely ignores `pct < 10%` or `duration = 0` to not pollute completion rates with false "abandoned" (Zappé) views.
+   - **Non-Admin 404 Fix on Log In**: Fixed a routing error where non-admin users got `404 Not Found` when opening their profile due to no local sync. Uses `prisma.user.upsert` to dynamically create their user entry.
+   - **Wrapped Button Condition**: To prevent another 404 on closed Wrapped, the "🎁 Voir le Wrapped" button is completely unmounted for non-admins if `wrappedVisible === false` or if outside the defined period.
+   - **Dashboard Transalations**: Standardized `DeepInsights.tsx` components to pull audio/subtitles definitions from `granular` translations namespace.
      - Changes applied in real-time without server restart via `updateMonitorIntervals()` export from `monitor.ts`
      - Prisma schema: Added `monitorIntervalActive Int @default(1000)` and `monitorIntervalIdle Int @default(5000)` to `GlobalSettings`
      - Monitor loads initial values from DB on startup in `startMonitoring()`

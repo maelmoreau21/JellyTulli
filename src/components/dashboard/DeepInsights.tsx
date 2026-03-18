@@ -326,6 +326,7 @@ const getDeepInsights = unstable_cache(
 export async function DeepInsights({ type, timeRange, excludedLibraries }: { type?: string, timeRange: string, excludedLibraries: string[] }) {
     const data = await getDeepInsights(type, timeRange, excludedLibraries);
     const t = await getTranslations('deepInsights');
+    const tGranular = await getTranslations('granular');
 
     const renderCategory = (title: string, items: any[], empty: string) => (
         <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
@@ -455,8 +456,8 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
             <div className="grid gap-4 md:grid-cols-2">
                 <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
-                        <CardTitle>{t('audioBreakdown')}</CardTitle>
-                        <CardDescription>{t('audioBreakdownDesc')}</CardDescription>
+                        <CardTitle>{tGranular('audioBreakdown')}</CardTitle>
+                        <CardDescription>{tGranular('audioBreakdownDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="h-[300px] flex items-center justify-center">
                         {data.audioChartData && data.audioChartData.length > 0 ? (
@@ -469,8 +470,8 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
 
                 <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
                     <CardHeader>
-                        <CardTitle>{t('subtitles')}</CardTitle>
-                        <CardDescription>{t('subtitlesDesc')}</CardDescription>
+                        <CardTitle>{tGranular('subtitles')}</CardTitle>
+                        <CardDescription>{tGranular('subtitlesDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="h-[300px] flex items-center justify-center">
                         {data.subtitleChartData && data.subtitleChartData.length > 0 ? (

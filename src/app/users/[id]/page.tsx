@@ -34,12 +34,41 @@ export default async function UserDetailPage({ params, searchParams }: UserPageP
         redirect(myJellyfinId ? `/users/${myJellyfinId}` : "/login");
     }
 
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
         where: { jellyfinUserId },
         select: { username: true, jellyfinUserId: true },
     });
 
-    if (!user) notFound();
+    if (!user) {
+        if (myJellyfinId === jellyfinUserId) {
+            user = await prisma.user.upsert({
+                where: { jellyfinUserId },
+                update: {},
+                create: { jellyfinUserId, username: session?.user?.name || "User" },
+                select: { username: true, jellyfinUserId: true },
+            });
+        } else {
+            notFound();
+        }
+    }
+
+    const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } }) as any;
+    let showWrappedButton = true;
+    if (!isAdmin) {
+        if (settings?.wrappedVisible === false) {
+            showWrappedButton = false;
+        } else if (settings?.wrappedPeriodEnabled !== false && settings) {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const start = new Date(currentYear, (settings.wrappedStartMonth || 12) - 1, settings.wrappedStartDay || 1);
+            const endMonthRaw = settings.wrappedEndMonth || 1;
+            const startMonthRaw = settings.wrappedStartMonth || 12;
+            const end = new Date(currentYear + (endMonthRaw < startMonthRaw ? 1 : 0), endMonthRaw - 1, settings.wrappedEndDay || 31);
+            if (now < start || now > end) {
+                showWrappedButton = false;
+            }
+        }
+    }
 
     const t = await getTranslations('userProfile');
     const tc = await getTranslations('common');
@@ -56,12 +85,14 @@ export default async function UserDetailPage({ params, searchParams }: UserPageP
                             {t('jellyfinId')} {user.jellyfinUserId}
                         </p>
                     </div>
-                    <a
-                        href={`/wrapped/${jellyfinUserId}`}
-                        className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white transition-all bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full hover:scale-105 hover:shadow-lg hover:shadow-purple-500/25"
-                    >
-                        🎁 {t('viewWrapped')}
-                    </a>
+                    {showWrappedButton && (
+                        <a
+                            href={`/wrapped/${jellyfinUserId}`}
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white transition-all bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full hover:scale-105 hover:shadow-lg hover:shadow-purple-500/25"
+                        >
+                            🎁 {t('viewWrapped')}
+                        </a>
+                    )}
                 </div>
 
                 <Suspense fallback={<Skeleton className="w-full h-[250px] rounded-xl bg-zinc-900/50" />}>

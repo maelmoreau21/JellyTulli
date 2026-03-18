@@ -132,7 +132,7 @@ function detectWatchParties(logs: any[]): Map<string, string> {
 export default async function LogsPage({
     searchParams
 }: {
-    searchParams: Promise<{ query?: string, sort?: string, page?: string, type?: string, cols?: string }>
+    searchParams: Promise<{ query?: string, sort?: string, page?: string, type?: string, cols?: string, hideZapped?: string }>
 }) {
     const params = await searchParams;
     const tl = await getTranslations('logs');
@@ -144,9 +144,14 @@ export default async function LogsPage({
     const currentPage = Math.max(1, parseInt(params.page || "1", 10) || 1);
     const typeFilter = params.type || "";
     const visibleColumns = parseVisibleColumns(params.cols);
+    const hideZapped = params.hideZapped !== 'false'; // default true
 
     // Build the non-fuzzy exact search constraint
     const whereClause: any = {};
+
+    if (hideZapped) {
+        whereClause.durationWatched = { gte: 60 };
+    }
 
     if (query) {
         whereClause.OR = [
@@ -337,7 +342,7 @@ export default async function LogsPage({
                     <CardContent className="space-y-4">
                         <div className="flex items-start gap-2 flex-wrap">
                             <div className="flex-1">
-                                <LogFilters initialQuery={query} initialSort={sort} />
+                                <LogFilters initialQuery={query} initialSort={sort} initialHideZapped={hideZapped} />
                             </div>
                             <ColumnToggle visibleColumns={visibleColumns} />
                         </div>

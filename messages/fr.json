@@ -364,6 +364,7 @@
     "restoring": "Restauration..."
   },
   "logs": {
+    "hideZapped": "Masquer Zappés (< 1m)",
     "title": "Journaux d'Audit",
     "description": "Historique complet des lectures et événements de télémétrie.",
     "totalEntries": "entrées au total",
