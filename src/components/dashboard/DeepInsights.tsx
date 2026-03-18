@@ -232,11 +232,13 @@ const getDeepInsights = unstable_cache(
         // --- Pro Telemetry: Resolution Matrix ---
         const resolutionData = await prisma.playbackHistory.findMany({
             where: filteredWhere,
-            select: { media: { select: { resolution: true } } },
+            select: { media: { select: { resolution: true, type: true } } },
         });
 
         const resolutionMap = new Map<string, number>();
         resolutionData.forEach(r => {
+            const type = r.media?.type || "Unknown";
+            if (['Audio', 'Track', 'MusicAlbum', 'Book', 'AudioBook'].includes(type)) return;
             const res = normalizeResolution(r.media?.resolution);
             resolutionMap.set(res, (resolutionMap.get(res) || 0) + 1);
         });
@@ -253,7 +255,15 @@ const getDeepInsights = unstable_cache(
         });
         const audioMap = new Map<string, number>();
         audioRows.forEach(a => {
-            const lang = a.audioLanguage || 'Unknown';
+            let lang = a.audioLanguage || 'Unknown';
+            if (lang !== 'Unknown') {
+                lang = String(lang).toUpperCase().trim();
+                lang = lang.replace(/\(.*\)/, '').trim(); 
+                lang = lang.split(/[\/\\,;]/)[0].trim(); 
+                lang = lang.replace(/[^A-Z0-9\- ]+/g, '').trim();
+                const quickMap: Record<string, string> = { 'FRE': 'FR', 'FRA': 'FR', 'ENG': 'EN', 'SPA': 'ES', 'POR': 'PT', 'DEU': 'DE', 'GER': 'DE', 'ITA': 'IT', 'NLD': 'NL', 'ZHO': 'ZH', 'CHI': 'ZH', 'JPN': 'JA' };
+                if (quickMap[lang]) lang = quickMap[lang];
+            }
             const key = a.audioCodec ? `${lang} (${a.audioCodec})` : lang;
             audioMap.set(key, (audioMap.get(key) || 0) + 1);
         });
@@ -271,7 +281,15 @@ const getDeepInsights = unstable_cache(
             if (!s.subtitleLanguage && !s.subtitleCodec) {
                 subtitleMap.set('None', (subtitleMap.get('None') || 0) + 1);
             } else {
-                const lang = s.subtitleLanguage || 'Unknown';
+                let lang = s.subtitleLanguage || 'Unknown';
+                if (lang !== 'Unknown') {
+                    lang = String(lang).toUpperCase().trim();
+                    lang = lang.replace(/\(.*\)/, '').trim();
+                    lang = lang.split(/[\/\\,;]/)[0].trim();
+                    lang = lang.replace(/[^A-Z0-9\- ]+/g, '').trim();
+                    const quickMap: Record<string, string> = { 'FRE': 'FR', 'FRA': 'FR', 'ENG': 'EN', 'SPA': 'ES', 'POR': 'PT', 'DEU': 'DE', 'GER': 'DE', 'ITA': 'IT', 'NLD': 'NL', 'ZHO': 'ZH', 'CHI': 'ZH', 'JPN': 'JA' };
+                    if (quickMap[lang]) lang = quickMap[lang];
+                }
                 const key = s.subtitleCodec ? `${lang} (${s.subtitleCodec})` : lang;
                 subtitleMap.set(key, (subtitleMap.get(key) || 0) + 1);
             }

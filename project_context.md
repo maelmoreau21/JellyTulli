@@ -493,6 +493,14 @@ Conversion intégrale de l'interface utilisateur du français codé en dur vers 
 - `src/components/SearchBar.tsx`
 - `src/components/TimeRangeSelector.tsx`
 
+#### Phase 40.5 : UI & Duration Bug Fixes
+- Fix crash logs "498 min" durations en utilisant `ActiveStream.lastPingAt` dans `cleanupOrphanedSessions` plutôt qu'un interval de 24h implicite.
+- Ajout de la gestion de delta temporel via `start_pos` stocké en Redis pour calculer avec précision `durationWatched` lors d'un `PlaybackStop` retardé par une pause longue.
+- Réparation du graphique "Répartition Audio" dans `GranularAnalysis.tsx` via correction de `isValidLang()`.
+- Nettoyage et filtrage de la liste des résolutions et des codecs audio/sous-titres dans la Matrice "DeepInsights".
+- Fixe "Détails par bibliothèque" rendu Next.js Hydration Mismatch via le formattage forcé de `lastAdded.date`.
+- Ajustement du label `4K UHD` "transparent" en ajoutant la classe css `bg-gradient-to-r` dans `media/page.tsx`.
+
 ### Problèmes techniques résolus
 1. **`unstable_cache` + traductions** : Les données cachées utilisent des clés neutres (ex: jours = "0"-"6", mois = "0_24"-"11_24", complétion = "completed"/"partial"/"abandoned"), traduites après l'appel cache avec `DAY_NAMES[parseInt(d.day)]` et `MONTH_NAMES[monthIdx] + yearSuffix`
 2. **Carte de couleurs dynamique** : `CompletionRatioChart` utilisait des noms français comme clés du map COLORS. Refactorisé avec `[t('completed')]: "#22c55e"` construit dynamiquement dans le composant

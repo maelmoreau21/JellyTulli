@@ -417,7 +417,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
                         </CardHeader>
                         <CardContent className="flex flex-col gap-4 mt-4">
                             {[
-                                { label: "4K UHD", val: res4K, color: "from-yellow-400 to-orange-500", text: "text-transparent bg-clip-text" },
+                                { label: "4K UHD", val: res4K, color: "bg-gradient-to-r from-yellow-400 to-orange-500", text: "text-transparent bg-clip-text" },
                                 { label: "1080p FHD", val: res1080p, color: "text-blue-400" },
                                 { label: "720p HD", val: res720p, color: "text-emerald-400" },
                                 { label: t('standardOther'), val: resSD, color: "text-zinc-500" }

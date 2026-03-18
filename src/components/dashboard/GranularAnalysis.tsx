@@ -137,8 +137,8 @@ const getGranularData = unstable_cache(
                 aKey = aKey.replace(/[^A-Z0-9\- ]+/g, '').trim();
 
                 // Quick mapping for common 3-letter codes returned by some Jellyfin instances
-                const quickMap: Record<string, string> = { 'FRE': 'FR', 'ENG': 'EN', 'SPA': 'ES', 'POR': 'PT', 'DEU': 'DE', 'GER': 'DE', 'ITA': 'IT', 'NLD': 'NL', 'ZHO': 'ZH', 'CHI': 'ZH' };
-                if (!isValidLang(aKey) && quickMap[aKey]) aKey = quickMap[aKey];
+                const quickMap: Record<string, string> = { 'FRE': 'FR', 'FRA': 'FR', 'ENG': 'EN', 'SPA': 'ES', 'POR': 'PT', 'DEU': 'DE', 'GER': 'DE', 'ITA': 'IT', 'NLD': 'NL', 'ZHO': 'ZH', 'CHI': 'ZH', 'JPN': 'JA' };
+                if (quickMap[aKey]) aKey = quickMap[aKey];
 
                 if (isValidLang(aKey)) {
                     audioMap.set(aKey, (audioMap.get(aKey) || 0) + 1);

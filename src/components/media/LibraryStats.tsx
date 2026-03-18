@@ -183,7 +183,7 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
                                                             <div className="text-xs font-bold text-zinc-200 truncate group-hover/item:text-emerald-400 transition-colors">{lib.lastAdded.title}</div>
                                                             <div className="text-[10px] text-zinc-500 mt-0.5 flex items-center gap-1">
                                                                 <Calendar className="w-2.5 h-2.5" />
-                                                                {lib.lastAdded.date ? new Date(lib.lastAdded.date).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }) : '-'}
+                                                                {lib.lastAdded.date ? `${new Date(lib.lastAdded.date).getDate().toString().padStart(2, '0')}/${(new Date(lib.lastAdded.date).getMonth() + 1).toString().padStart(2, '0')}` : '-'}
                                                             </div>
                                                         </div>
                                                     </div>

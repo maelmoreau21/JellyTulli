@@ -772,7 +772,22 @@ export async function POST(req: Request) {
                     let durationS: number;
                     if (effectiveTicks > 0) {
                         const positionS = Math.floor(effectiveTicks / 10_000_000);
-                        durationS = Math.min(wallClockS, positionS);
+                        
+                        // Try to get start position from Redis
+                        const startPosKey = `start_pos:${lastPlayback.id}`;
+                        const startPosRaw = await redis.get(startPosKey);
+                        const startPosTicks = startPosRaw ? parseInt(startPosRaw, 10) : 0;
+                        const startPosS = Math.floor(startPosTicks / 10_000_000);
+                        
+                        const watchedFromPosS = Math.max(0, positionS - startPosS);
+                        
+                        // If they seeked backwards or we lack start pos, fallback to old logic
+                        // Otherwise, we cap it by the delta of their watch position, protecting against huge wallClocks over pauses
+                        if (watchedFromPosS > 0) {
+                            durationS = Math.min(wallClockS, watchedFromPosS);
+                        } else {
+                            durationS = Math.min(wallClockS, positionS);
+                        }
                     } else {
                         durationS = wallClockS;
                     }
@@ -1072,6 +1087,13 @@ export async function POST(req: Request) {
             if (!activePlayback) {
                 console.warn("[Plugin] PlaybackProgress aborted: No active playback found or created", { jellyfinUserId, jellyfinMediaId });
                 return corsJson({ error: "No active playback session found." }, { status: 404 });
+            }
+
+            // Ensure we have a start position recorded
+            const startPosKey = `start_pos:${activePlayback.id}`;
+            const existingStart = await redis.get(startPosKey);
+            if (!existingStart && positionTicks >= 0) {
+                await redis.setex(startPosKey, 86400, positionTicks.toString());
             }
 
             const updates: Record<string, any> = {};
