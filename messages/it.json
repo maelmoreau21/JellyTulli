@@ -429,7 +429,7 @@
     }
   },
   "media": {
-    "title": "Libreria",
+    "title": "Collezione",
     "genreDiversity": "Diversità libreria (generi principali)",
     "videoQuality": "Qualità video complessiva",
     "videoQualityDesc": "Distribuzione per risoluzione certificata.",
@@ -449,7 +449,7 @@
     "statsContentDesc": "Totale elementi indicizzati.",
     "statsTime": "Tempo di riproduzione totale",
     "statsTimeDesc": "Durata cumulativa di tutti i media.",
-    "libraryDetailsTitle": "Dettagli per collezione",
+    "libraryDetailsTitle": "Dettagli della Collezione",
     "libraries": "collezioni",
     "timeDays": "{days}g {hours}h",
     "deepAnalysisTitle": "Analisi approfondita"

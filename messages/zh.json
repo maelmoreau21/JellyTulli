@@ -429,7 +429,7 @@
     }
   },
   "media": {
-    "title": "媒体库",
+    "title": "集合",
     "genreDiversity": "媒体库多样性（热门类型）",
     "videoQuality": "整体视频质量",
     "videoQualityDesc": "按认证分辨率分布。",
@@ -449,8 +449,8 @@
     "statsContentDesc": "已索引项总数。",
     "statsTime": "总播放时长",
     "statsTimeDesc": "所有媒体的累计时长。",
-    "libraryDetailsTitle": "按集合详情",
-    "libraries": "个集合",
+    "libraryDetailsTitle": "集合详情",
+    "libraries": "集合",
     "timeDays": "{days}天 {hours}小时",
     "deepAnalysisTitle": "深度分析"
   },

@@ -429,7 +429,7 @@
     }
   },
   "media": {
-    "title": "Bibliothek",
+    "title": "Sammlung",
     "genreDiversity": "Bibliotheksvielfalt (Top-Genres)",
     "videoQuality": "Gesamte Videoqualität",
     "videoQualityDesc": "Verteilung nach zertifizierter Auflösung.",
@@ -449,8 +449,8 @@
     "statsContentDesc": "Insgesamt indizierte Elemente.",
     "statsTime": "Gesamte Spielzeit",
     "statsTimeDesc": "Kumulative Dauer aller Medien.",
-    "libraryDetailsTitle": "Details nach Kollektion",
-    "libraries": "Kollektionen",
+    "libraryDetailsTitle": "Sammlungsdetails",
+    "libraries": "Sammlungen",
     "timeDays": "{days}t {hours}h",
     "deepAnalysisTitle": "Tiefenanalyse"
   },

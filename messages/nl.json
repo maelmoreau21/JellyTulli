@@ -429,7 +429,7 @@
     }
   },
   "media": {
-    "title": "Bibliotheek",
+    "title": "Collectie",
     "genreDiversity": "Bibliotheekdiversiteit (Topgenres)",
     "videoQuality": "Algemene videokwaliteit",
     "videoQualityDesc": "Verdeling op gecertificeerde resolutie.",
@@ -449,7 +449,7 @@
     "statsContentDesc": "Totaal aantal geïndexeerde items.",
     "statsTime": "Totale afspeeltijd",
     "statsTimeDesc": "Cumulatieve duur van alle media.",
-    "libraryDetailsTitle": "Details per collectie",
+    "libraryDetailsTitle": "Collectiedetails",
     "libraries": "collecties",
     "timeDays": "{days}d {hours}u",
     "deepAnalysisTitle": "Diepgaande analyse"

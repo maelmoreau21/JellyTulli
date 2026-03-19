@@ -429,7 +429,7 @@
     }
   },
   "media": {
-    "title": "Biblioteka",
+    "title": "Kolekcja",
     "genreDiversity": "Różnorodność (główne gatunki)",
     "videoQuality": "Jakość wideo",
     "videoQualityDesc": "Rozkład zasobów według ich jakości.",
@@ -449,7 +449,7 @@
     "statsContentDesc": "Suma zaindeksowanych mediów.",
     "statsTime": "Łączny czas",
     "statsTimeDesc": "Łączny czas trwania wszystkich mediów.",
-    "libraryDetailsTitle": "Szczegóły według kolekcji",
+    "libraryDetailsTitle": "Szczegóły kolekcji",
     "libraries": "kolekcje",
     "timeDays": "{days}d {hours}h",
     "deepAnalysisTitle": "Głęboka analiza"

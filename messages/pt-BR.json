@@ -429,7 +429,7 @@
     }
   },
   "media": {
-    "title": "Biblioteca",
+    "title": "Coleção",
     "genreDiversity": "Diversidade da biblioteca (gêneros principais)",
     "videoQuality": "Qualidade de vídeo geral",
     "videoQualityDesc": "Distribuição por resolução certificada.",
@@ -449,7 +449,7 @@
     "statsContentDesc": "Total de itens indexados.",
     "statsTime": "Tempo de reprodução total",
     "statsTimeDesc": "Duração cumulativa de todas as mídias.",
-    "libraryDetailsTitle": "Detalhes por coleção",
+    "libraryDetailsTitle": "Detalhes da Coleção",
     "libraries": "coleções",
     "timeDays": "{days}d {hours}h",
     "deepAnalysisTitle": "Análise profunda"

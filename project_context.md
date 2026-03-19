@@ -1,6 +1,7 @@
 # JellyTrack - Project Context & Architecture
 
 **Description** : JellyTrack (Jellyfin + Tautulli) est un wrapper analytique et un traceur autonome ("Ultimate Dashboard 2.0") pour Jellyfin.
+**Version actuelle** : 1.2.0 (Phase 57)
 
 ## Tech Stack
 - Frontend/Backend: **Next.js 15+ (App Router, Server Components)**
@@ -35,6 +36,11 @@
 - **Couverture 100% i18n** : Audit exhaustif et complétion de toutes les clés de traduction pour les 11 langues supportées (EN, FR, DE, ES, IT, NL, PL, PT-BR, RU, ZH). Utilisation d'un script d'audit automatisé pour garantir une parité parfaite avec `en.json`.
 - **Correction des Termes Techniques** : Harmonisation des termes "Épisode", "Piste", "Série", "Album" dans tous les fichiers JSON, supprimant les calques linguistiques incorrects (ex: termes italiens dans le fichier anglais).
 - **Stabilité de Build** : Validation par `npm run build` pour confirmer qu'aucune erreur de syntaxe JSON ou d'import Lucide (`BookText` supprimé) ne bloque la production.
+
+## Phase 57: AI Recommendations & Dashboard Category Filter Refactoring
+- **Category Filter Transformation**: Remplacé l'ancien filtre basé sur le nom des bibliothèques (`LibraryFilter.tsx`) par un filtre structuré par type de média (Films, Séries, Musiques, Livres) (`CategoryFilter.tsx`). Le backend et le cache `getDashboardMetrics` ont été étendus pour exclure localement ces catégories des calculs de statistiques globales de la page (volume, lectures, proportion, actifs) sans impacter les paramètres globaux.
+- **Détails par Collection Nomenclature**: Harmonisation de tous les termes "Bibliothèque" et `dashboard.allLibraries` en "Collection" via un batch d'update sur les 10+ locales JSON et les fallback UI, reflétant nativement la structure organisationnelle de Jellyfin.
+- **Moteur de Recommandations IA**: Création du module collaboratif `recommendations.ts` utilisant l'algorithme "Cosine Similarity". Le système vectorise la durée de visionnage (`PlaybackHistory`) utilisateur par utilisateur pour associer chaque membre aux profils les plus similaires. Expose de l'API `/api/recommendations` couplée au nouveau composant UI horizontal (`AIRecommendations.tsx`) intégré directement sur la page d'accueil (Dashboard) avec score de correspondance en pourcentage.
 
 ## Phase 3 : Tautulli Ultimate Clone Capabilities
 A massive analytical refactoring was introduced focusing on Data Context and Resilience on Edge Devices (Raspberry Pi).

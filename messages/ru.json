@@ -429,7 +429,7 @@
     }
   },
   "media": {
-    "title": "Библиотека",
+    "title": "Коллекция",
     "genreDiversity": "Разнообразие (топ жанры)",
     "videoQuality": "Общее качество видео",
     "videoQualityDesc": "Распределение контента по качеству.",
@@ -449,7 +449,7 @@
     "statsContentDesc": "Общее число проиндексированных элементов.",
     "statsTime": "Общий хронометраж",
     "statsTimeDesc": "Суммарная длительность всех файлов.",
-    "libraryDetailsTitle": "Детали по коллекциям",
+    "libraryDetailsTitle": "Сведения о коллекции",
     "libraries": "коллекции",
     "timeDays": "{days}д {hours}ч",
     "deepAnalysisTitle": "Глубокая аналитика"

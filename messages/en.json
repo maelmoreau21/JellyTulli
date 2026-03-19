@@ -429,7 +429,7 @@
     "movieType": "Movie"
   },
   "media": {
-    "title": "Library",
+    "title": "Collection",
     "genreDiversity": "Library Diversity (Top Genres)",
     "videoQuality": "Overall Video Quality",
     "videoQualityDesc": "Distribution by certified resolution.",
@@ -451,8 +451,8 @@
     "statsTimeDesc": "Cumulative duration of all media.",
     "timeDays": "{days}d {hours}h",
     "deepAnalysisTitle": "Deep Analysis",
-    "libraryDetailsTitle": "Library details",
-    "libraries": "libraries"
+    "libraryDetailsTitle": "Collection Details",
+    "libraries": "collections"
   },
   "recent": {
     "title": "Recently Added",

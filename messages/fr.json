@@ -429,7 +429,7 @@
     "movieType": "Film"
   },
   "media": {
-    "title": "Bibliothèque",
+    "title": "Collection",
     "genreDiversity": "Diversité de la Bibliothèque (Top Genres)",
     "videoQuality": "Qualité Vidéo Globale",
     "videoQualityDesc": "Répartition par résolution certifiée.",
@@ -451,8 +451,8 @@
     "statsTimeDesc": "Durée cumulative de tous les médias.",
     "timeDays": "{days}j {hours}h",
     "deepAnalysisTitle": "Analyse Profonde",
-    "libraryDetailsTitle": "Détails par Bibliothèque",
-    "libraries": "bibliothèques"
+    "libraryDetailsTitle": "Détails par Collection",
+    "libraries": "collections"
   },
   "recent": {
     "title": "Ajouts récents",

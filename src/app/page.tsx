@@ -46,7 +46,8 @@ import { getLogHealthSnapshot } from "@/lib/logHealth";
 import { categorizeClient } from "@/lib/utils";
 import { SystemHealthWidgets } from "@/components/dashboard/SystemHealthWidgets";
 import { CollapsibleCard } from "@/components/dashboard/CollapsibleCard";
-import { LibraryFilter } from "@/components/dashboard/LibraryFilter";
+import { CategoryFilter } from "@/components/dashboard/CategoryFilter";
+import { AIRecommendations } from "@/components/dashboard/AIRecommendations";
 
 
 type LiveStream = {
@@ -80,7 +81,7 @@ export const dynamic = "force-dynamic";
 
 // --- Aggregation Cache Helper ---
 const getDashboardMetrics = unstable_cache(
-  async (type: string | undefined, timeRange: string, excludedLibraries: string[], customFrom?: string, customTo?: string, libraryRulesJson?: string) => {
+  async (type: string | undefined, timeRange: string, excludedLibraries: string[], excludedTypes: string[], customFrom?: string, customTo?: string, libraryRulesJson?: string) => {
     const libraryRules = JSON.parse(libraryRulesJson || '{}');
     // 1. Calculate time windows
     let currentStartDate: Date | undefined;
@@ -139,6 +140,17 @@ const getDashboardMetrics = unstable_cache(
     else if (type === 'series') AND.push({ type: { in: ["Series", "Episode"] } });
     else if (type === 'music') AND.push({ type: { in: ["Audio", "Track"] } });
     else if (type === 'book') AND.push({ type: "Book" });
+
+    if (excludedTypes && excludedTypes.length > 0) {
+      const typeExclusions: string[] = [];
+      if (excludedTypes.includes('Movie')) typeExclusions.push('Movie');
+      if (excludedTypes.includes('Series')) typeExclusions.push('Series', 'Episode', 'Season');
+      if (excludedTypes.includes('MusicAlbum')) typeExclusions.push('MusicAlbum', 'Audio', 'Track');
+      if (excludedTypes.includes('Book')) typeExclusions.push('Book');
+      if (typeExclusions.length > 0) {
+        AND.push({ type: { notIn: typeExclusions } });
+      }
+    }
 
     const excludedClause = buildExcludedMediaClause(excludedLibraries);
     if (excludedClause) AND.push(excludedClause);
@@ -488,7 +500,7 @@ async function HeatmapWrapper() {
   return <YearlyHeatmap data={heatmapDataByType['_total'] || []} availableYears={availableYears} dataByType={heatmapDataByType} libraryTypes={Array.from(libraryTypes)} />;
 }
 
-export default async function DashboardPage(props: { searchParams: Promise<{ type?: string; timeRange?: string; from?: string; to?: string; excludeLibs?: string }> }) {
+export default async function DashboardPage(props: { searchParams: Promise<{ type?: string; timeRange?: string; from?: string; to?: string; excludeLibs?: string; excludeTypes?: string }> }) {
   // RBAC: Non-admin users are redirected to their profile page
   const authSession = await getServerSession(authOptions);
   if (!authSession?.user?.isAdmin) {
@@ -497,7 +509,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
   }
 
   const searchParams = await props.searchParams;
-  const { type, timeRange = "7d", from, to, excludeLibs } = searchParams;
+  const { type, timeRange = "7d", from, to, excludeLibs, excludeTypes } = searchParams;
 
   const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
   const dbExcluded = settings?.excludedLibraries || [];
@@ -507,16 +519,10 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
   // Combine DB settings with URL params for excluded libraries
   const excludedLibsUrl = excludeLibs ? excludeLibs.split(',') : [];
   const excludedLibraries = Array.from(new Set([...dbExcluded, ...excludedLibsUrl]));
+  
+  const excludedTypesArr = excludeTypes ? excludeTypes.split(',') : [];
 
-  // Fetch all available library names for the filter dropdown
-  const libraryRows = await prisma.media.findMany({
-    where: { libraryName: { not: null } },
-    select: { libraryName: true },
-    distinct: ['libraryName']
-  });
-  const availableLibraries = libraryRows.map(l => l.libraryName).filter(Boolean) as string[];
-
-  const metrics = await getDashboardMetrics(type, timeRange, excludedLibraries, from, to, JSON.stringify(libraryRules));
+  const metrics = await getDashboardMetrics(type, timeRange, excludedLibraries, excludedTypesArr, from, to, JSON.stringify(libraryRules));
   const healthSnapshot = await getLogHealthSnapshot();
 
   const t = await getTranslations('dashboard');
@@ -668,12 +674,14 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
             <span className="dashboard-pill hidden sm:block rounded-md px-2 py-1.5 text-xs text-zinc-600 dark:text-zinc-300">
               {t('cachedData')}
             </span>
-            <LibraryFilter libraries={availableLibraries} />
+            <CategoryFilter />
             <TimeRangeSelector />
           </div>
         </div>
 
         <SystemHealthWidgets initialSnapshot={healthSnapshot} />
+
+        <AIRecommendations />
 
         <HardwareMonitor />
 
