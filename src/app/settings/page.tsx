@@ -666,9 +666,9 @@ export default function SettingsPage() {
                                 <Label className="text-base underline mb-2 block">{t('wrappedPeriod')}</Label>
                                 <div className="flex items-center justify-between p-4 rounded-lg bg-zinc-900/40 border border-zinc-800/50">
                                     <div className="space-y-0.5">
-                                        <Label className="text-sm font-medium text-zinc-200">Activer la période de disponibilité automatique</Label>
+                                        <Label className="text-sm font-medium text-zinc-200">{t('autoAvailability')}</Label>
                                         <p className="text-xs text-zinc-500">
-                                            Si activé, le Wrapped ne sera accessible qu&apos;entre les dates définies ci-dessous.
+                                            {t('autoAvailabilityDesc')}
                                         </p>
                                     </div>
                                     <Switch
@@ -748,7 +748,7 @@ export default function SettingsPage() {
                                 </span>
                                 {libraryScanError && (
                                     <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-amber-200">
-                                        Jellyfin non joignable, affichage basé sur les médias déjà synchronisés.
+                                        Jellyfin unreachable, display based on already synced media.
                                     </span>
                                 )}
                             </div>
@@ -790,8 +790,8 @@ export default function SettingsPage() {
 
                 <Card className="app-surface mt-6">
                     <CardHeader>
-                        <CardTitle>Règles par bibliothèque</CardTitle>
-                        <CardDescription>Contrôlez les abandons et le taux de complétion par bibliothèque. Vous pouvez désactiver complètement la complétion pour une bibliothèque, comme la musique.</CardDescription>
+                        <CardTitle>{t('libraryRules')}</CardTitle>
+                        <CardDescription>{t('libraryRulesDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {availableLibraries.map((libraryKey) => {

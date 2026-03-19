@@ -242,8 +242,8 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
             }
         }
 
-        if (m.type === 'Movie') { movieCount++; lib.movies++; lib.items++; }
-        else if (m.type === 'Series') { seriesCount++; lib.series++; lib.items++; }
+        if (m.type === 'Movie' || m.type === 'BoxSet') { movieCount++; lib.movies++; lib.items++; }
+        else if (m.type === 'Series' || m.type === 'Season') { seriesCount++; lib.series++; lib.items++; }
         else if (m.type === 'MusicAlbum') { albumCount++; lib.music++; lib.items++; }
         else if (m.type === 'Book') { bookCount++; lib.books++; lib.items++; }
     });
@@ -338,7 +338,7 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
 
             // Fetch Recently Added for this library
             const lastAdded = await prisma.media.findFirst({
-                where: { libraryName: name, type: { in: ['Movie', 'Series', 'MusicAlbum'] } },
+                where: { libraryName: name, type: { in: ['Movie', 'Series', 'MusicAlbum', 'BoxSet'] } },
                 orderBy: { dateAdded: 'desc' },
                 select: { title: true, dateAdded: true, jellyfinMediaId: true }
             });

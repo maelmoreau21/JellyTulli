@@ -8,6 +8,8 @@ import { getJellyfinImageUrl } from "@/lib/jellyfin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { useTranslations } from "next-intl";
+
 interface Recommendation {
   id: string;
   score: number;
@@ -20,6 +22,8 @@ interface Recommendation {
 }
 
 export function AIRecommendations() {
+  const t = useTranslations('dashboard');
+  const tc = useTranslations('common');
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -49,7 +53,7 @@ export function AIRecommendations() {
       <div className="mt-8">
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="w-5 h-5 text-indigo-500 animate-pulse" />
-          <h3 className="text-xl font-bold tracking-tight">Recommandations IA</h3>
+          <h3 className="text-xl font-bold tracking-tight">{t('aiRecommendations')}</h3>
         </div>
         <div className="flex gap-4 overflow-x-hidden">
           {[1, 2, 3, 4, 5].map(i => (
@@ -68,9 +72,9 @@ export function AIRecommendations() {
     <div className="mt-8 mb-6">
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="w-5 h-5 text-indigo-500" />
-        <h3 className="text-xl font-bold tracking-tight">Recommandations IA</h3>
+        <h3 className="text-xl font-bold tracking-tight">{t('aiRecommendations')}</h3>
         <span className="text-xs text-zinc-500 font-medium ml-2 px-2 py-1 bg-indigo-500/10 text-indigo-500 rounded-full border border-indigo-500/20">
-          Basé sur votre profil
+          {t('basedOnProfile')}
         </span>
       </div>
 
@@ -110,7 +114,7 @@ export function AIRecommendations() {
                 {rec.media.title}
               </h4>
               <p className="text-xs text-zinc-500 flex items-center gap-1">
-                {rec.media.type === "Movie" ? "Film" : rec.media.type === "Series" ? "Série" : "Audio"}
+                {rec.media.type === "Movie" ? tc('movie') : (rec.media.type === "Series" ? tc('seriesSingular') : tc('track'))}
               </p>
             </div>
           </Link>

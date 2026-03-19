@@ -152,7 +152,7 @@ export default function LogRow({ log, visibleColumns, onOpenDetails }: { log: an
                     className="object-cover"
                   />
                 ) : (
-                  <FallbackImage src={undefined} alt={'Unknown'} fill className="object-cover" />
+                  <FallbackImage src="" alt={'Unknown'} fill className="object-cover" />
                 )}
               </div>
               <div className="flex flex-col min-w-0 flex-1">
@@ -199,7 +199,14 @@ export default function LogRow({ log, visibleColumns, onOpenDetails }: { log: an
         {/* Country */}
         {visibleColumns.includes('country') && (
           <TableCell className="hidden lg:table-cell">
-            <div className="text-xs">{log.city && log.country ? `${log.city}, ${log.country}` : (log.country || '—')}</div>
+            <div className="text-xs">
+              {(() => {
+                if (!log.country || log.country === 'Unknown') {
+                  return log.city && log.city !== 'Unknown' ? log.city : '—';
+                }
+                return log.city && log.city !== 'Unknown' ? `${log.city}, ${log.country}` : log.country;
+              })()}
+            </div>
           </TableCell>
         )}
 

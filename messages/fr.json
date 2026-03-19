@@ -192,7 +192,13 @@
     "mode": "Mode",
     "file": "Fichier",
     "filterCategories": "Filtrer les Catégories",
-    "uncheckToHide": "Décochez pour masquer du tableau de bord"
+    "uncheckToHide": "Décochez pour masquer du tableau de bord",
+    "aiRecommendations": "Recommandations IA",
+    "basedOnProfile": "Basé sur votre profil",
+    "libraryRules": "Règles par bibliothèque",
+    "libraryRulesDesc": "Contrôlez les abandons et le taux de complétion par bibliothèque. Vous pouvez désactiver complètement la complétion pour une bibliothèque, comme la musique.",
+    "autoAvailability": "Activer la période de disponibilité automatique",
+    "autoAvailabilityDesc": "Si activé, le Wrapped ne sera accessible qu'entre les dates définies ci-dessous."
   },
   "draggable": {
     "finishEdit": "Terminer l'édition",
@@ -410,8 +416,9 @@
         "subtitle_change": "Chgt Sous-titre",
         "audio_change": "Chgt Audio",
         "seek": "Saut",
+        "stop": "Arrêt",
         "pause": "Pause",
-        "default": "Event"
+        "default": "Événement"
       },
       "legend": {
         "subtitles": "Sous-titres",
@@ -424,7 +431,8 @@
         "exact": "Exact",
         "30s": "30s"
       },
-      "noEvents": "Aucun événement enregistré."
+      "noEvents": "Aucun événement enregistré.",
+      "stop": "Arrêt"
     },
     "episodeType": "Épisode",
     "musicType": "Piste",

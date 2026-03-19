@@ -11,11 +11,18 @@
 - DataViz: **Recharts**
 - IP Localization: **geoip-country**
 
-## Phase 52: Dashboard Widget Resilience & Deep Analysis Fixes
-- **Resolution Matrix Fix**: Added proactive resolution extraction in the monitor to ensure "4K/1080p" badges appear instead of "?".
-- **Library Grid Aggregation**: Fixed Series/Album playback stats aggregation via children (Grandparents → Parents → Children).
-- **Audio/Language Sanitization**: Implemented `isValidLang` filter to prevent codec info from polluting language charts.
-- **Worst Completion Rates**: Lowered threshold to 1 view to make playback failures more visible.
+## Phase 58: Sync Robustness & Data Integrity (Final Release v1.2.0)
+- **Sync Logic Rewrite**: Refonte du moteur de synchronisation (`sync.ts`) pour une meilleure résolution des bibliothèques (`libraryName`) via un mapping bidirectionnel (VirtualFolders ↔ UserViews). Ajout d'une gestion robuste des erreurs avec retries exponentiels et détection intelligente des types de collection.
+- **Correction BigInt & Schéma**: Correction des erreurs de type dans les upserts Prisma (`sizeBytes` → `size` BigInt) et ajout de guards pour les valeurs nulles dans l'agrégation des statistiques.
+- **Localisation Dashboard**: Intégration complète des clés `dashboard.filterCategories` et `dashboard.uncheckToHide` dans les 10 langues. Mise à jour automatique des fichiers de traduction via script d'injection pour garantir la cohérence multi-langue.
+- **Filtres Médias Intelligents**: Le composant `MediaFilter` affiche désormais des labels localisés et permet de masquer dynamiquement des catégories (Musique, Livres, etc.) du tableau de bord principal.
+- **Stabilité Totale**: Vérification de la synergie entre la "Synchro Récente" et la "Synchro Totale" pour assurer l'intégrité des données historiques et des statistiques de bibliothèque.
+
+## Phase 59: Collection Discovery & Global i18n Sync (v1.2.0 Final)
+- **BoxSet Synchronization**: Added `BoxSet` (Collections) to the synchronized item types to ensure user-defined collections appear in analytics.
+- **Recursive Library Resolution**: Improved `sync.ts` with a parent-lookup cache to correctly attribute nested items (Episodes, Seasons) to their root libraries.
+- **Global 10-Locale Synchronization**: Automated script-based sync of all 10 translation files (`de`, `en`, `es`, `fr`, `it`, `nl`, `pl`, `pt-BR`, `ru`, `zh`) ensuring 100% key parity and no missing UI labels.
+- **MediaFilter UI Polish**: Refined the dashboard category filter with a "Toolbar" integrated design, adding icons and removing redundant labels for a premium feel.
 
 ## Phase 53: Critical i18n Synchronization & Crash Prevention
 - **fr.json Emergency Restore**: Restored missing `charts` keys (`months`, `weekdays`, `dayNamesShort`, etc.) that were causing a client-side crash in French.
