@@ -4,6 +4,7 @@ import { requireAdmin, isAuthError } from "@/lib/auth";
 import { apiT } from "@/lib/i18n-api";
 import { AVAILABLE_LOCALES } from "@/i18n/locales";
 import { loadLibraryRules, saveLibraryRules } from "@/lib/libraryRules";
+import { getSanitizedLibraryNames } from "@/lib/libraryUtils";
 import { revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
@@ -77,39 +78,19 @@ export async function GET() {
             });
         }
 
-        const [mediaLibraryNames, jellyfinScan] = await Promise.all([
-            prisma.media.findMany({
-                distinct: ["libraryName"],
-                where: { libraryName: { not: null } },
-                select: { libraryName: true }
-            }),
+        const [availableLibraries, jellyfinScanNames] = await Promise.all([
+            getSanitizedLibraryNames(),
             fetchJellyfinLibraryNames(),
         ]);
 
         const libraryRules = await loadLibraryRules();
 
-        // Build available libraries: prefer Jellyfin names, fallback to DB libraryNames
-        // Filter out old hardcoded fallbacks if they are not real Jellyfin libraries
-        const ghostNames = new Set(['Movies', 'TV Shows', 'Music', 'Books', 'movies', 'tvshows', 'music', 'books', 'Collections']);
-        const realJellyfinNames = new Set(jellyfinScan.names);
-        
-        const allNames = new Set<string>([
-            ...jellyfinScan.names,
-            ...mediaLibraryNames
-                .map((entry) => entry.libraryName)
-                .filter((n): n is string => {
-                    if (!n) return false;
-                    return !ghostNames.has(n) || realJellyfinNames.has(n);
-                }),
-        ]);
-        const availableLibraries = Array.from(allNames).sort((a, b) => a.localeCompare(b));
-
         return NextResponse.json({
             ...settings,
             availableLibraries,
             libraryRules,
-            libraryScanSource: jellyfinScan.source,
-            libraryScanError: jellyfinScan.error || undefined,
+            libraryScanSource: jellyfinScanNames.source,
+            libraryScanError: jellyfinScanNames.error || undefined,
         }, { status: 200 });
     } catch (error) {
         console.error("Failed to fetch settings:", error);

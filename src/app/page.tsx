@@ -45,6 +45,7 @@ import { isZapped, ZAPPING_CONDITION } from '@/lib/statsUtils';
 import { loadLibraryRules } from "@/lib/libraryRules";
 import { getLogHealthSnapshot } from "@/lib/logHealth";
 import { categorizeClient } from "@/lib/utils";
+import { GHOST_LIBRARY_NAMES } from "@/lib/libraryUtils";
 import { SystemHealthWidgets } from "@/components/dashboard/SystemHealthWidgets";
 import { CollapsibleCard } from "@/components/dashboard/CollapsibleCard";
 import { MediaFilter } from "@/components/dashboard/MediaFilter";
@@ -149,6 +150,13 @@ const getDashboardMetrics = unstable_cache(
         AND.push({ type: { notIn: typeExclusions } });
       }
     }
+
+    // 2.5 Hard Exclusion (Ghosts & Collections)
+    // We always exclude ghost names and 'boxsets' from global stats
+    AND.push({ 
+      libraryName: { notIn: GHOST_LIBRARY_NAMES },
+      collectionType: { not: 'boxsets' }
+    });
 
     const excludedClause = buildExcludedMediaClause(excludedLibraries);
     if (excludedClause) AND.push(excludedClause);

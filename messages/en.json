@@ -280,6 +280,9 @@
     "topClientsDesc": "Most used applications.",
     "topMovies": "Top Movies",
     "topSeries": "Top Series",
+    "topActors": "Top Actors",
+    "topDirectors": "Top Directors",
+    "noData": "No data available.",
     "views": "views"
   },
   "draggable": {

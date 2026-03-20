@@ -2,6 +2,7 @@ import prisma from "./prisma";
 import { appendHealthEvent, markSyncFinished, markSyncStarted } from "@/lib/systemHealth";
 import { normalizeJellyfinId } from "@/lib/jellyfinId";
 import { cleanupOrphanedSessions } from "@/lib/cleanup";
+import { GHOST_LIBRARY_NAMES } from "./libraryUtils";
 
 /**
  * Fonction maîtresse de synchronisation de la librairie Jellyfin.
@@ -41,6 +42,30 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
     };
 
     try {
+        // --- AUTOMATIC GHOST CLEANUP ---
+        // If we have items assigned to "ghost" libraries (Movies, TV Shows, etc.),
+        // we nullify them to force re-evaluation or simple exclusion from stats.
+        try {
+            const cleanup = await prisma.media.updateMany({
+                where: {
+                    OR: [
+                        { libraryName: { in: GHOST_LIBRARY_NAMES } },
+                        { collectionType: 'boxsets' }
+                    ]
+                },
+                data: {
+                    libraryName: null,
+                    collectionType: null
+                }
+            });
+            if (cleanup.count > 0) {
+                console.log(`[Sync] Cleaned up ${cleanup.count} ghost/collection entries.`);
+            }
+        } catch (e) {
+            console.error("[Sync] Ghost cleanup failed:", e);
+        }
+        // -------------------------------
+
         // 1. Sync Users
         const usersRes = await fetchWithRetry(`${baseUrl}/Users`, { headers: jellyfinHeaders });
         const users = await usersRes.json();

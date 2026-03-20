@@ -6,6 +6,7 @@ import { StandardPieChart } from "@/components/charts/StandardMetricsCharts";
 import { getTranslations } from 'next-intl/server';
 import { normalizeResolution } from '@/lib/utils';
 import { ZAPPING_CONDITION } from "@/lib/statsUtils";
+import { GHOST_LIBRARY_NAMES } from "@/lib/libraryUtils";
 
 function buildDateFilter(timeRange: string): any {
     const now = new Date();
@@ -39,6 +40,13 @@ function buildMediaTypeFilter(type: string | undefined, excludedLibraries: strin
             }
         });
     }
+
+    // Hard Exclusion (Ghosts & Collections)
+    AND.push({
+        libraryName: { notIn: GHOST_LIBRARY_NAMES },
+        collectionType: { not: 'boxsets' }
+    });
+
     return AND.length > 0 ? { AND } : {};
 }
 
@@ -64,7 +72,7 @@ const getDeepInsights = unstable_cache(
         const popMediaId = topMedia.map(m => m.mediaId);
         const resolvedMedia = await prisma.media.findMany({
             where: { id: { in: popMediaId } },
-            select: { id: true, title: true, type: true, parentId: true, jellyfinMediaId: true, genres: true }
+            select: { id: true, title: true, type: true, parentId: true, jellyfinMediaId: true, genres: true, directors: true, actors: true }
         });
 
         // === Preload ALL Seasons, Series, and Albums for robust parent chain resolution ===
@@ -166,6 +174,8 @@ const getDeepInsights = unstable_cache(
         // Group movies, books, genres from the top 200
         const categorized = { movie: [] as any[], series: [] as any[], album: [] as any[], book: [] as any[] };
         const genreAgg = new Map<string, { plays: number; duration: number }>();
+        const directorAgg = new Map<string, { plays: number; duration: number }>();
+        const actorAgg = new Map<string, { plays: number; duration: number }>();
 
         topMedia.forEach(m => {
             const media = resolvedMedia.find(r => r.id === m.mediaId);
@@ -180,6 +190,24 @@ const getDeepInsights = unstable_cache(
                     existing.plays += plays;
                     existing.duration += duration;
                     genreAgg.set(genre, existing);
+                }
+            }
+
+            if (media.directors && media.directors.length > 0) {
+                for (const d of media.directors) {
+                    const existing = directorAgg.get(d) || { plays: 0, duration: 0 };
+                    existing.plays += plays;
+                    existing.duration += duration;
+                    directorAgg.set(d, existing);
+                }
+            }
+
+            if (media.actors && media.actors.length > 0) {
+                for (const a of media.actors) {
+                    const existing = actorAgg.get(a) || { plays: 0, duration: 0 };
+                    existing.plays += plays;
+                    existing.duration += duration;
+                    actorAgg.set(a, existing);
                 }
             }
 
@@ -202,6 +230,16 @@ const getDeepInsights = unstable_cache(
             .map(([name, data]) => ({ name, plays: data?.plays || 0, duration: parseFloat((data?.duration || 0).toFixed(1)) }))
             .sort((a, b) => b.plays - a.plays)
             .slice(0, 10);
+
+        const topDirectors = Array.from(directorAgg.entries())
+            .map(([name, data]) => ({ name, plays: data?.plays || 0, duration: parseFloat((data?.duration || 0).toFixed(1)) }))
+            .sort((a, b) => b.plays - a.plays)
+            .slice(0, 5);
+
+        const topActors = Array.from(actorAgg.entries())
+            .map(([name, data]) => ({ name, plays: data?.plays || 0, duration: parseFloat((data?.duration || 0).toFixed(1)) }))
+            .sort((a, b) => b.plays - a.plays)
+            .slice(0, 5);
 
         categorized.movie = categorized.movie.slice(0, 5);
         categorized.series = categorized.series.slice(0, 5);
@@ -330,35 +368,45 @@ const getDeepInsights = unstable_cache(
             .sort((a, b) => b.value - a.value)
             .slice(0, 8);
 
-        return { categorized, topClients, streamMethodsChartData, resolutionChartData, deviceChartData, topGenres, audioChartData, subtitleChartData };
+        return { categorized, topClients, streamMethodsChartData, resolutionChartData, deviceChartData, topGenres, topDirectors, topActors, audioChartData, subtitleChartData };
     },
     // Dynamic cache key — varies with params so different filters get different cached results
-    ['JellyTrack-deep-insights-v3'],
+    ['JellyTrack-deep-insights-v4'],
     { revalidate: 300 }
 );
+
+import Link from 'next/link';
+import { User, Film as FilmIcon, Star } from 'lucide-react';
 
 export async function DeepInsights({ type, timeRange, excludedLibraries }: { type?: string, timeRange: string, excludedLibraries: string[] }) {
     const data = await getDeepInsights(type, timeRange, excludedLibraries);
     const t = await getTranslations('deepInsights');
     const tGranular = await getTranslations('granular');
 
-    const renderCategory = (title: string, items: any[], empty: string) => (
+    const renderCategory = (title: string, items: any[], empty: string, icon?: React.ReactNode) => (
         <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm">
             <CardHeader className="pb-2">
-                <CardTitle className="text-md">{title}</CardTitle>
+                <CardTitle className="text-md flex items-center gap-2">{icon}{title}</CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
                     {items.length === 0 ? <p className="text-xs text-muted-foreground">{empty}</p> : null}
-                    {items.map((m, i) => (
-                        <div key={i} className="flex justify-between items-center text-sm">
-                            <div className="truncate pr-2 max-w-[180px]">
-                                <span className="text-zinc-500 w-4 inline-block">{i + 1}.</span>
-                                {m.title}
-                            </div>
-                            <div className="font-semibold text-xs bg-zinc-200/50 dark:bg-zinc-800/50 px-2 py-1 rounded">{m?.plays || 0} {t('views')}</div>
-                        </div>
-                    ))}
+                    {items.map((m, i) => {
+                        const label = m.title || m.name;
+                        return (
+                            <Link 
+                                key={i} 
+                                href={`/media?q=${encodeURIComponent(label)}`}
+                                className="flex justify-between items-center text-sm group cursor-pointer"
+                            >
+                                <div className="truncate pr-2 max-w-[180px] group-hover:text-cyan-500 transition-colors">
+                                    <span className="text-zinc-500 w-4 inline-block">{i + 1}.</span>
+                                    {label}
+                                </div>
+                                <div className="font-semibold text-xs bg-zinc-200/50 dark:bg-zinc-800/50 px-2 py-1 rounded group-hover:bg-cyan-500/10 transition-colors">{m?.plays || 0} {t('views')}</div>
+                            </Link>
+                        );
+                    })}
                 </div>
             </CardContent>
         </Card>
@@ -369,6 +417,10 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {renderCategory(t('topMovies'), data.categorized.movie, t('noMovies'))}
                 {renderCategory(t('topSeries'), data.categorized.series, t('noSeries'))}
+                {renderCategory(t('topActors'), data.topActors, t('noData'), <Star className="w-4 h-4 text-yellow-500" />)}
+                {renderCategory(t('topDirectors'), data.topDirectors, t('noData'), <User className="w-4 h-4 text-cyan-500" />)}
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
                 {renderCategory(t('topAlbums'), data.categorized.album, t('noAlbums'))}
                 {renderCategory(t('topBooks'), data.categorized.book, t('noBooks'))}
             </div>
@@ -387,10 +439,14 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
                                 const pct = Math.round(((g?.plays || 0) / maxPlays) * 100);
                                 const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500', 'bg-cyan-500', 'bg-yellow-500', 'bg-red-500', 'bg-indigo-500', 'bg-teal-500'];
                                 return (
-                                    <div key={g.name} className="flex items-center gap-3 text-sm">
+                                    <Link 
+                                        key={g.name} 
+                                        href={`/media?q=${encodeURIComponent(g.name)}`}
+                                        className="flex items-center gap-3 text-sm group cursor-pointer"
+                                    >
                                         <span className="text-zinc-500 w-5 text-right shrink-0">{i + 1}.</span>
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between mb-1">
+                                            <div className="flex justify-between mb-1 group-hover:text-cyan-500 transition-colors">
                                                 <span className="truncate">{g.name}</span>
                                                 <span className="text-xs text-zinc-400 shrink-0 ml-2">{g?.plays || 0} {t('views')} · {g?.duration || 0}h</span>
                                             </div>
@@ -398,7 +454,7 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
                                                 <div className={`h-full rounded-full ${colors[i % colors.length]}`} style={{ width: `${pct}%` }} />
                                             </div>
                                         </div>
-                                    </div>
+                                    </Link>
                                 );
                             })}
                         </div>
@@ -416,10 +472,14 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
                     <CardContent>
                         <div className="space-y-4">
                             {data.topClients.map((c, i) => (
-                                <div key={i} className="flex justify-between items-center text-sm">
-                                    <div className="truncate pr-2">{c.clientName || '?'}</div>
-                                    <div className="font-semibold">{c._count.id} sessions</div>
-                                </div>
+                                <Link 
+                                    key={i} 
+                                    href={`/logs?query=${encodeURIComponent(c.clientName || '')}`}
+                                    className="flex justify-between items-center text-sm group cursor-pointer"
+                                >
+                                    <div className="truncate pr-2 group-hover:text-cyan-500 transition-colors">{c.clientName || '?'}</div>
+                                    <div className="font-semibold group-hover:bg-cyan-500/10 px-1 rounded transition-colors">{c._count.id} sessions</div>
+                                </Link>
                             ))}
                         </div>
                     </CardContent>

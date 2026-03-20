@@ -1,7 +1,19 @@
 # JellyTrack - Project Context & Architecture
 
 **Description** : JellyTrack (Jellyfin + Tautulli) est un wrapper analytique et un traceur autonome ("Ultimate Dashboard 2.0") pour Jellyfin.
-**Version actuelle** : 1.2.0 (Phase 63)
+**Version actuelle** : 1.2.0 (Phase 65)
+
+## Phase 65: Interactive Analytics & SVG Flags
+- **Interactive Deep Insights**: All "Top 10" categories (Movies, Series, Albums, Genres, Clients) are now interactive. Titles and names link to filtered searches in `/media` or specific client logs in `/logs`.
+- **Top Actors & Directors**: Added dedicated sections to the Deep Insights dashboard to track the most-watched cast and crew members across the library.
+- **SVG Language Flags**: Replaced OS-dependent emoji flags with high-quality SVG icons from `flagcdn.com` in the `LanguageSwitcher`, ensuring consistent display on Windows, Linux, and Mobile.
+- **Localized UI**: Synchronized `fr.json` and `en.json` with the new interactive elements and analytics sections.
+
+## Phase 64: Ghost Libraries & Collections Filter (Clean Sync)
+- **Filtered "boxsets" (Collections)**: Updated `sync.ts` and `api/settings` to prevent Jellyfin pseudo-libraries from appearing as media libraries.
+- **Library Consistency Utility**: Created `src/lib/libraryUtils.ts` to centralize the library listing logic, ensuring "Filtre par Collection" in Settings always matches the "Bibliothèques" page.
+- **Ghost Entry Cleanup**: Implemented automatic database purging in the sync engine to nullify and re-categorize items associated with old fallback names (Movies, TV Shows, etc.).
+- **Translation Fixes**: Resolved missing keys in `fr.json` for "Période de disponibilité automatique" in settings.
 
 ## Phase 63: Stats Accuracy & Localized UI (March 2026 Audit)
 - **Centralized Zapping Filter**: Created `src/lib/statsUtils.ts` containing a unified `ZAPPING_CONDITION` (<30s video, <10s audio).

@@ -14,6 +14,7 @@ import { getTranslations } from 'next-intl/server';
 import { normalizeResolution } from '@/lib/utils';
 import { isZapped, ZAPPING_CONDITION } from '@/lib/statsUtils';
 import { buildExcludedMediaClause } from '@/lib/mediaPolicy';
+import { getSanitizedLibraryNames, GHOST_LIBRARY_NAMES } from "@/lib/libraryUtils";
 
 export const dynamic = "force-dynamic";
 
@@ -235,13 +236,12 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
         }
     }
 
-    // Ensure DB-derived library names are present (fallback when Jellyfin views are not available)
-    const ghostNames = new Set(['Movies', 'TV Shows', 'Music', 'Books', 'movies', 'tvshows', 'music', 'books', 'Collections']);
-    const uniqueLibs = new Set(allMedia
-        .map(m => m.libraryName || tc('other'))
-        .filter(name => !ghostNames.has(name))
-    );
-    for (const name of uniqueLibs) {
+    // Use consolidated library logic
+    const sanitizedLibraries = await getSanitizedLibraryNames();
+    const ghostNames = new Set(GHOST_LIBRARY_NAMES);
+
+    // Ensure all sanitized libraries are in the map (even if empty in DB)
+    for (const name of sanitizedLibraries) {
         if (!libraryStatsMap.has(name)) {
             libraryStatsMap.set(name, { size: BigInt(0), duration: BigInt(0), watchedSeconds: 0, items: 0, movies: 0, series: 0, music: 0, books: 0, collectionType: null });
         }
@@ -255,8 +255,10 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
     let bookCount = 0;
 
     allMedia.forEach(m => {
-        const libName = m.libraryName || tc('other');
-        if (ghostNames.has(libName) || m.collectionType === 'boxsets') return;
+        // We skip items without a library name (orphans/ghosts) OR explicitly blacklisted names
+        if (!m.libraryName || ghostNames.has(m.libraryName) || m.collectionType === 'boxsets') return;
+        
+        const libName = m.libraryName;
         
         if (!libraryStatsMap.has(libName)) {
             libraryStatsMap.set(libName, { size: BigInt(0), duration: BigInt(0), watchedSeconds: 0, items: 0, movies: 0, series: 0, music: 0, books: 0, collectionType: m.collectionType });
@@ -345,8 +347,9 @@ export default async function MediaPage({ searchParams }: MediaPageProps) {
     const timeLabel = t('timeDays', { days: totalDays, hours: totalHoursAfterDays });
 
     const validLibraries = Array.from(libraryStatsMap.entries()).filter(([name, stats]) => {
-        // We hide the fallback "Other" library if it's empty, but we show all real libraries
-        // even if they are empty, to reflect what's on the Jellyfin server.
+        // We hide the fallback "Other" library if it's empty, or if it's a ghost name
+        if (ghostNames.has(name)) return false;
+        
         if (name === tc('other')) {
             const hasItems = stats.movies > 0 || stats.series > 0 || stats.music > 0 || stats.books > 0;
             return hasItems;

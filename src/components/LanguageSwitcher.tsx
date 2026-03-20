@@ -47,7 +47,11 @@ export function LanguageSwitcher() {
                 <div className="min-w-0 flex-1 text-left">
                     <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-400 dark:text-zinc-500">Langue</div>
                     <div className="mt-0.5 flex items-center gap-2">
-                        <span className="emoji-flag text-base leading-none">{current.flag}</span>
+                        <img 
+                            src={`https://flagcdn.com/w40/${current.iso}.png`} 
+                            alt={current.label}
+                            className="w-5 h-3.5 object-cover rounded-sm shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
+                        />
                         <span className="truncate font-medium">{current.label}</span>
                     </div>
                 </div>
@@ -64,7 +68,11 @@ export function LanguageSwitcher() {
                             onClick={() => switchLocale(loc.code)}
                             className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-all ${loc.code === selectedLocale ? 'border-cyan-400/20 bg-cyan-400/10 text-cyan-700 dark:text-cyan-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]' : 'border-transparent text-zinc-600 dark:text-zinc-300 hover:border-zinc-200 dark:hover:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900/90 hover:text-zinc-900 dark:hover:text-zinc-100'}`}
                         >
-                            <span className="emoji-flag text-lg leading-none">{loc.flag}</span>
+                            <img 
+                                src={`https://flagcdn.com/w40/${loc.iso}.png`} 
+                                alt=""
+                                className="w-5 h-3.5 object-cover rounded-sm shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
+                            />
                             <span className="flex-1 text-left">{loc.label}</span>
                             {loc.code === selectedLocale && <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-600 dark:text-cyan-300">Actif</span>}
                         </button>
