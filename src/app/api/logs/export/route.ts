@@ -12,7 +12,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("query")?.toLowerCase() || "";
     const sort = searchParams.get("sort") || "date_desc";
-    const typeFilter = searchParams.get("type") || "";
+    const typeFilterStr = searchParams.get("type") || "";
+    const typeFilters = typeFilterStr ? typeFilterStr.split(',').map(s => s.trim()).filter(Boolean) : [];
     const hideZapped = searchParams.get("hideZapped") !== 'false';
     const clientStr = searchParams.get("client") || "";
     const audioStr = searchParams.get("audio") || "";
@@ -34,7 +35,8 @@ export async function GET(request: Request) {
         });
     }
 
-    if (typeFilter) conditions.push({ media: { type: typeFilter } });
+    if (typeFilters.length === 1) conditions.push({ media: { type: typeFilters[0] } });
+    else if (typeFilters.length > 1) conditions.push({ media: { type: { in: typeFilters } } });
     if (clientStr) conditions.push({ clientName: { contains: clientStr, mode: "insensitive" } });
     if (audioStr) conditions.push({ OR: [{audioCodec: { contains: audioStr, mode: "insensitive" }}, {audioLanguage: { contains: audioStr, mode: "insensitive" }}] });
     if (subStr) conditions.push({ OR: [{subtitleCodec: { contains: subStr, mode: "insensitive" }}, {subtitleLanguage: { contains: subStr, mode: "insensitive" }}] });

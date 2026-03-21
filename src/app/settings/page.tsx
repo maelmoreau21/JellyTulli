@@ -385,11 +385,39 @@ export default function SettingsPage() {
 
     return (
         <div className="flex-col md:flex">
-            <div className="flex-1 space-y-4 md:space-y-6 p-4 md:p-8 pt-4 md:pt-6 max-w-4xl mx-auto w-full">
-                <div className="flex items-center justify-between space-y-2 mb-6">
-                    <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{t('title')}</h2>
-                </div>
+            <div className="flex-1 p-4 md:p-8 pt-4 md:pt-6 w-full">
+                    <div className="max-w-[1400px] mx-auto">
+                        <div className="flex gap-6">
+                            <aside className="w-64 hidden lg:block shrink-0">
+                                <div className="sticky top-20 space-y-4">
+                                    <div className="text-sm font-semibold text-zinc-400">{t('title')}</div>
+                                    <nav className="space-y-1 mt-2">
+                                        <a href="#plugin" className="flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"><Plug className="w-4 h-4" /> {t('pluginTitle')}</a>
+                                        <a href="#scheduler" className="flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"><Zap className="w-4 h-4" /> {t('taskScheduler')}</a>
+                                        <a href="#notifications" className="flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"><Save className="w-4 h-4" /> {t('notifications')}</a>
+                                        <a href="#libraryRules" className="flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"><Database className="w-4 h-4" /> {t('libraryRules')}</a>
+                                        <a href="#dataBackups" className="flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"><Download className="w-4 h-4" /> {t('dataBackups')}</a>
+                                        <a href="#backupManagement" className="flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"><Clock className="w-4 h-4" /> {t('backupManagement')}</a>
+                                    </nav>
+                                </div>
+                            </aside>
+                            <main className="flex-1 space-y-4 md:space-y-6">
+                                <div className="flex items-center justify-between space-y-2 mb-6">
+                                    <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{t('title')}</h2>
+                                    <div className="lg:hidden">
+                                        <select onChange={(e) => { if (e.target.value) window.location.hash = e.target.value; }} className="app-field rounded-md p-1 text-sm">
+                                            <option value="">{t('all') || 'All'}</option>
+                                            <option value="#plugin">{t('pluginTitle')}</option>
+                                            <option value="#scheduler">{t('taskScheduler')}</option>
+                                            <option value="#notifications">{t('notifications')}</option>
+                                            <option value="#libraryRules">{t('libraryRules')}</option>
+                                            <option value="#dataBackups">{t('dataBackups')}</option>
+                                            <option value="#backupManagement">{t('backupManagement')}</option>
+                                        </select>
+                                    </div>
+                                </div>
 
+                <section id="plugin" className="space-y-4">
                 {/* PLUGIN CONNECTION CARD */}
                 <Card className="app-surface">
                     <CardHeader>
@@ -521,6 +549,8 @@ export default function SettingsPage() {
                     )}
                 </Card>
 
+                </section>
+                <section id="scheduler" className="space-y-4">
                 {/* TASK SCHEDULER CARD */}
                 <Card className="app-surface">
                     <CardHeader>
@@ -630,6 +660,8 @@ export default function SettingsPage() {
                     </CardFooter>
                 </Card>
 
+                </section>
+                <section id="notifications" className="space-y-4">
                 {/* DISCORD SETTINGS CARD */}
                 <Card className="app-surface mt-6">
                     <CardHeader>
@@ -786,13 +818,14 @@ export default function SettingsPage() {
                             {isSavingSettings ? tc('saving') : t('saveSettings')}
                         </button>
                     </CardFooter>
-                </Card>
-
-                <Card className="app-surface mt-6">
-                    <CardHeader>
-                        <CardTitle>{t('libraryRules')}</CardTitle>
-                        <CardDescription>{t('libraryRulesDesc')}</CardDescription>
-                    </CardHeader>
+                    </Card>
+                    </section>
+                    <section id="libraryRules" className="space-y-4">
+                    <Card className="app-surface mt-6">
+                        <CardHeader>
+                            <CardTitle>{t('libraryRules')}</CardTitle>
+                            <CardDescription>{t('libraryRulesDesc')}</CardDescription>
+                        </CardHeader>
                     <CardContent className="space-y-4">
                         {availableLibraries.map((libraryKey) => {
                             const rule = libraryRules[libraryKey] || {
@@ -836,7 +869,8 @@ export default function SettingsPage() {
                         <p className="text-xs text-zinc-500">Ces seuils s’appliquent au dashboard, aux statistiques utilisateur et au nettoyage des médias abandonnés.</p>
                     </CardFooter>
                 </Card>
-
+                </section>
+                <section id="dataBackups" className="space-y-4">
                 {/* BACKUP & RESTORE CARD */}
                 <Card className="app-surface mt-6">
                     <CardHeader>
@@ -861,8 +895,9 @@ export default function SettingsPage() {
                             {isRestoring ? t('importing') : t('importBackup')}
                         </button>
                     </CardFooter>
-                </Card>
-
+                    </Card>
+                    </section>
+                <section id="backupManagement" className="space-y-4">
                 {/* AUTO-BACKUPS CARD */}
                 <Card className="app-surface mt-6">
                     <CardHeader>
@@ -958,7 +993,11 @@ export default function SettingsPage() {
                         )}
                     </CardContent>
                 </Card>
-            </div>
+                </section>
+            </main>
         </div>
+    </div>
+</div>
+</div>
     );
 }

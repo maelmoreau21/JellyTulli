@@ -296,8 +296,12 @@ export default function LogRow({ log, visibleColumns, onOpenDetails }: { log: an
               </div>
 
               <div className="w-full">
-                <div className="app-surface-soft p-2 rounded">
-                  <div className="relative h-3 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                <div className="app-surface-soft border rounded-md p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs text-zinc-400">{t('timeline.title')}</div>
+                    <div className="text-xs text-zinc-400">{`Events: ${events.length}`}</div>
+                  </div>
+                  <div className="relative h-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-full overflow-hidden">
                     {/* subtle progress tint to match app style */}
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-40 pointer-events-none" />
 

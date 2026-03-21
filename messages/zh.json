@@ -124,6 +124,8 @@
     "saveError": "保存出错。",
     "saving": "保存中...",
     "search": "搜索",
+    "export": "导出",
+    "close": "关闭",
     "season": "季",
     "series": "剧集",
     "seriesSingular": "剧集",
@@ -350,6 +352,8 @@
   },
   "logs": {
     "activeFilter": "活动过滤器：",
+    "typeFilter": "媒体类型",
+    "clientFilter": "客户端 / 应用",
     "booksFilter": "仅显示书籍",
     "colAudioChanges": "音频切换",
     "colClient": "客户端应用",

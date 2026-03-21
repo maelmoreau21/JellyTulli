@@ -143,6 +143,7 @@ export default async function LogsPage({
     const sort = params.sort || "date_desc";
     const currentPage = Math.max(1, parseInt(params.page || "1", 10) || 1);
     const typeFilter = params.type || "";
+    const typeFilters = (typeof typeFilter === 'string' && typeFilter) ? typeFilter.split(',').map(s => s.trim()).filter(Boolean) : [];
     const visibleColumns = parseVisibleColumns(params.cols);
     const hideZapped = params.hideZapped !== 'false'; // default true
 
@@ -171,8 +172,10 @@ export default async function LogsPage({
         });
     }
 
-    if (typeFilter) {
-        conditions.push({ media: { type: typeFilter } });
+    if (typeFilters.length === 1) {
+        conditions.push({ media: { type: typeFilters[0] } });
+    } else if (typeFilters.length > 1) {
+        conditions.push({ media: { type: { in: typeFilters } } });
     }
 
     if (clientParams) conditions.push({ clientName: { contains: clientParams, mode: "insensitive" } });
@@ -358,6 +361,13 @@ export default async function LogsPage({
     // Track which partyId has already shown the banner
     const shownPartyBanners = new Set<string>();
 
+    // Parse optional `colsState` query param (format: key:width,key2:width2)
+    const rawColsState = typeof params.colsState === 'string' ? params.colsState : '';
+    const initialColumns = rawColsState ? rawColsState.split(',').map(s => {
+        const [k, w] = s.split(':');
+        return { key: (k || '').trim(), width: Number(w || 0) || 0 };
+    }).filter(c => c.key && visibleColumns.includes(c.key)) : undefined;
+
     return (
         <div className="flex-col md:flex dashboard-page">
             <div className="flex-1 space-y-4 md:space-y-6 p-4 md:p-8 pt-4 md:pt-6 max-w-[1800px] mx-auto w-full">
@@ -401,7 +411,7 @@ export default async function LogsPage({
                     </Card>
 
                         <div className="app-surface-soft border rounded-md overflow-x-auto w-full mt-6">
-                            <LogsListClient serverLogs={safeLogs} visibleColumns={visibleColumns as string[]} />
+                            <LogsListClient serverLogs={safeLogs} visibleColumns={visibleColumns as string[]} initialColumns={initialColumns} />
                         </div>
 
                         {/* Pagination */}

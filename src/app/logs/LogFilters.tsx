@@ -28,7 +28,8 @@ export function LogFilters({ initialQuery, initialSort, initialHideZapped, initi
     const [isAdvancedOpen, setIsAdvancedOpen] = useState(
         !!initialType || !!initialClient || !!initialAudio || !!initialSubtitle || !!initialDateFrom || !!initialDateTo
     );
-    const [mediaType, setMediaType] = useState(initialType || "");
+    const initialMediaTypes = initialType ? initialType.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const [mediaTypes, setMediaTypes] = useState<string[]>(initialMediaTypes);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -49,7 +50,7 @@ export function LogFilters({ initialQuery, initialSort, initialHideZapped, initi
         if (sort) params.set("sort", sort); else params.delete("sort");
         if (!hideZapped) params.set("hideZapped", "false"); else params.delete("hideZapped");
 
-        if (mediaType) params.set("type", mediaType); else params.delete("type");
+        if (mediaTypes.length) params.set("type", mediaTypes.join(",")); else params.delete("type");
         if (client) params.set("client", client); else params.delete("client");
         if (audio) params.set("audio", audio); else params.delete("audio");
         if (subtitle) params.set("subtitle", subtitle); else params.delete("subtitle");
@@ -150,12 +151,18 @@ export function LogFilters({ initialQuery, initialSort, initialHideZapped, initi
                                 { value: "Audio", icon: Music, labelKey: "musicFilter" },
                                 { value: "AudioBook", icon: BookOpen, labelKey: "booksFilter" },
                             ].map(({ value, icon: Icon, labelKey }) => {
-                                const isActive = mediaType === value;
+                                const isActive = value ? mediaTypes.includes(value) : mediaTypes.length === 0;
                                 return (
                                     <button
                                         key={value || "all"}
                                         type="button"
-                                        onClick={() => setMediaType(value)}
+                                        onClick={() => {
+                                            if (!value) {
+                                                setMediaTypes([]);
+                                            } else {
+                                                setMediaTypes(prev => prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]);
+                                            }
+                                        }}
                                         className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
                                             isActive
                                                 ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 shadow-sm"

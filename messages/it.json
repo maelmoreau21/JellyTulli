@@ -124,6 +124,8 @@
     "saveError": "Errore durante il salvataggio.",
     "saving": "Salvataggio...",
     "search": "Cerca",
+    "export": "Esporta",
+    "close": "Chiudi",
     "season": "Stagione",
     "series": "Serie",
     "seriesSingular": "Serie",
@@ -350,6 +352,8 @@
   },
   "logs": {
     "activeFilter": "Filtro attivo:",
+    "typeFilter": "Tipo di media",
+    "clientFilter": "Client / App",
     "booksFilter": "Solo libri",
     "colAudioChanges": "Cambi audio",
     "colClient": "Applicazione",

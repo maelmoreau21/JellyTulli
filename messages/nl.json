@@ -124,6 +124,8 @@
     "saveError": "Fout bij opslaan.",
     "saving": "Opslaan...",
     "search": "Zoeken",
+    "export": "Exporteren",
+    "close": "Sluiten",
     "season": "Seizoen",
     "series": "Series",
     "seriesSingular": "Serie",
@@ -350,6 +352,8 @@
   },
   "logs": {
     "activeFilter": "Actief filter:",
+    "typeFilter": "Mediatype",
+    "clientFilter": "Client / App",
     "booksFilter": "Alleen boeken",
     "colAudioChanges": "Audiowijzigingen",
     "colClient": "Applicatie",

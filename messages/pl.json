@@ -123,6 +123,8 @@
     "saveError": "Błąd podczas zapisywania.",
     "saving": "Zapisywanie...",
     "search": "Szukaj",
+    "export": "Eksportuj",
+    "close": "Zamknij",
     "season": "Sezon",
     "series": "Seriale",
     "seriesSingular": "Serial",
@@ -349,6 +351,8 @@
   },
   "logs": {
     "activeFilter": "Aktywny filtr:",
+    "typeFilter": "Typ mediów",
+    "clientFilter": "Klient / Aplikacja",
     "booksFilter": "Tylko książki",
     "colAudioChanges": "Zmiany audio",
     "colClient": "Aplikacja",

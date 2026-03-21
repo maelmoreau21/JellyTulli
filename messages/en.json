@@ -124,6 +124,8 @@
     "saveError": "Error saving.",
     "saving": "Saving...",
     "search": "Search",
+    "export": "Export",
+    "close": "Close",
     "season": "Season",
     "series": "Series",
     "seriesSingular": "Series",
@@ -350,6 +352,8 @@
   },
   "logs": {
     "activeFilter": "Active Filter:",
+    "typeFilter": "Media type",
+    "clientFilter": "Client / App",
     "booksFilter": "Books only",
     "colAudioChanges": "Audio Changes",
     "colClient": "Application",

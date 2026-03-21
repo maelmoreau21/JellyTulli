@@ -5,6 +5,7 @@ import { User, Video, Building2, TrendingUp, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import MediaSearchModal from '@/components/MediaSearchModal';
 
 type StatItem = { name: string; count: number };
 
@@ -44,6 +45,14 @@ export default function StatsDeepAnalysis() {
         );
     }
 
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalQuery, setModalQuery] = useState<string | null>(null);
+
+    const openModal = (q: string) => {
+        setModalQuery(q);
+        setModalOpen(true);
+    };
+
     if (!data) return null;
 
     const sections = [
@@ -53,6 +62,7 @@ export default function StatsDeepAnalysis() {
     ];
 
     return (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {sections.map((section) => (
                 <Card key={section.title} className="app-surface overflow-hidden group">
@@ -71,7 +81,7 @@ export default function StatsDeepAnalysis() {
                         <div className="divide-y divide-white/[0.03]">
                             {section.items.length > 0 ? (
                                 section.items.map((item, idx) => (
-                                    <Link key={item.name} href={`/media?q=${encodeURIComponent(item.name)}`} className="flex items-center px-4 py-3 hover:bg-white/[0.04] transition-colors group/item block">
+                                    <button key={item.name} onClick={() => openModal(item.name)} className="w-full text-left flex items-center px-4 py-3 hover:bg-white/[0.04] transition-colors group/item block">
                                         <div className="flex items-center justify-center w-6 h-6 shrink-0 rounded-full bg-zinc-800/50 text-[10px] font-mono font-bold text-zinc-500 mr-3 group-hover/item:text-zinc-300 group-hover/item:bg-zinc-700/50 transition-colors">
                                             {idx + 1}
                                         </div>
@@ -82,7 +92,7 @@ export default function StatsDeepAnalysis() {
                                             </div>
                                         </div>
                                         <ChevronRight className="w-4 h-4 text-zinc-700 shrink-0 group-hover/item:text-primary transition-colors" />
-                                    </Link>
+                                    </button>
                                 ))
                             ) : (
                                 <div className="p-8 text-center text-sm text-zinc-500 italic">
@@ -94,5 +104,7 @@ export default function StatsDeepAnalysis() {
                 </Card>
             ))}
         </div>
+        <MediaSearchModal open={modalOpen} onClose={() => setModalOpen(false)} query={modalQuery} />
+        </>
     );
 }

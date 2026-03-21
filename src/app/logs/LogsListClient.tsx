@@ -1,16 +1,95 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import LogRow from './LogRow';
 import SessionModal from '@/components/SessionModal';
 import { useTranslations } from 'next-intl';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function LogsListClient({ serverLogs, visibleColumns }: { serverLogs: any[]; visibleColumns: string[] }) {
+export default function LogsListClient({ serverLogs, visibleColumns, initialColumns }: { serverLogs: any[]; visibleColumns: string[]; initialColumns?: { key: string; width: number }[] }) {
   const t = useTranslations('logs');
 
   const [selectedLog, setSelectedLog] = useState<any | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Column state: order + widths (persisted to localStorage)
+  const STORAGE_KEY = 'jellytrack.logs.columns.v1';
+
+  type ColState = { key: string; width: number };
+
+  const computeDefaultWidths = (keys: string[]) => {
+    const base: Record<string, number> = {
+      date: 220, startedAt: 160, endedAt: 160, user: 140, media: 420,
+      client: 140, ip: 140, country: 120, status: 120, codecs: 120,
+      duration: 100, pauseCount: 80, audioChanges: 80, subtitleChanges: 80,
+    };
+    const arr = keys.map(k => base[k] ?? 100);
+    const total = arr.reduce((s, v) => s + v, 0);
+    if (total <= 1920) return arr.map(v => Math.max(40, v));
+    const scale = 1920 / total;
+    return arr.map(v => Math.max(40, Math.floor(v * scale)));
+  };
+
+  const [columns, setColumns] = useState<ColState[]>(() => {
+    // Prefer initialColumns prop (from server / query param) when provided
+    try {
+      if (initialColumns && initialColumns.length > 0) {
+        const filtered = initialColumns.filter(ic => visibleColumns.includes(ic.key));
+        const missing = visibleColumns.filter(k => !filtered.some(f => f.key === k));
+        const missingWidths = computeDefaultWidths(missing);
+        const missingCols = missing.map((k, i) => ({ key: k, width: missingWidths[i] }));
+        return [...filtered, ...missingCols];
+      }
+    } catch {}
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEY) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw) as ColState[];
+        // Keep only keys that are present in visibleColumns (server-side source of truth)
+        const filtered = parsed.filter(p => visibleColumns.includes(p.key));
+        const missing = visibleColumns.filter(k => !filtered.some(f => f.key === k));
+        const missingWidths = computeDefaultWidths(missing);
+        const missingCols = missing.map((k, i) => ({ key: k, width: missingWidths[i] }));
+        return [...filtered, ...missingCols];
+      }
+    } catch {}
+    const defaults = computeDefaultWidths(visibleColumns);
+    return visibleColumns.map((k, i) => ({ key: k, width: defaults[i] || 100 }));
+  });
+
+  // Keep columns in sync when server-side visibleColumns change (e.g., toggles)
+  useEffect(() => {
+    setColumns(prev => {
+      const prevKeys = prev.map(p => p.key);
+      // If lists are identical, do nothing
+      if (prevKeys.length === visibleColumns.length && prevKeys.every((k, i) => k === visibleColumns[i])) return prev;
+      // Merge saved order with new visibleColumns
+      const filtered = prev.filter(p => visibleColumns.includes(p.key));
+      const missing = visibleColumns.filter(k => !filtered.some(f => f.key === k));
+      if (missing.length === 0) return filtered;
+      const missingWidths = computeDefaultWidths(missing);
+      const missingCols = missing.map((k, i) => ({ key: k, width: missingWidths[i] }));
+      return [...filtered, ...missingCols];
+    });
+  }, [visibleColumns.join(',')]);
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Persist column settings when changed (localStorage + update query param `colsState`)
+  useEffect(() => {
+    try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(columns)); } catch {}
+    try {
+      const params = new URLSearchParams(typeof searchParams === 'object' ? String(searchParams.toString()) : '');
+      const colsState = columns.map(c => `${c.key}:${c.width}`).join(',');
+      if (params.get('colsState') !== colsState) {
+        params.set('colsState', colsState);
+        const base = `/logs${params.toString() ? `?${params.toString()}` : ''}`;
+        router.replace(base);
+      }
+    } catch {}
+  }, [columns, router, searchParams]);
 
   // No client-side search here; server-side LogFilters drives the results.
   const filtered = useMemo(() => serverLogs || [], [serverLogs]);
@@ -46,64 +125,90 @@ export default function LogsListClient({ serverLogs, visibleColumns }: { serverL
     });
     return map;
   }, [filtered]);
+  // Drag & drop + resize logic
+  const dragIndexRef = useRef<number | null>(null);
 
-  const flattened = useMemo(() => {
-    const seenParty = new Set<string>();
-    const out: any[] = [];
-    filtered.forEach((log: any) => {
-      const pid = watchPartyMap.get(log.id);
-      const isFirst = pid && !seenParty.has(pid);
-      if (isFirst) {
-        seenParty.add(pid);
-        out.push({ type: 'party', id: pid, members: [] as string[], mediaTitle: log.media?.title || '' });
-      }
-      out.push({ type: 'log', log });
+  const onDragStart = (e: React.DragEvent, idx: number) => {
+    dragIndexRef.current = idx;
+    try { e.dataTransfer.setData('text/plain', String(columns[idx].key)); } catch {}
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const onDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+  const onDrop = (e: React.DragEvent, toIdx: number) => {
+    e.preventDefault();
+    const from = dragIndexRef.current ?? (() => {
+      const key = e.dataTransfer.getData('text/plain');
+      return columns.findIndex(c => c.key === key);
+    })();
+    if (from === -1 || from === null || from === undefined) return;
+    if (from === toIdx) return;
+    setColumns(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
     });
-    return out;
-  }, [filtered, watchPartyMap]);
+    dragIndexRef.current = null;
+  };
 
-  const headingForKey = (k: string) => {
-    switch (k) {
-      case 'date': return t('colDate');
-      case 'startedAt': return t('colStartedAt');
-      case 'endedAt': return t('colEndedAt');
-      case 'user': return t('colUser');
-      case 'media': return t('colMedia');
-      case 'client': return t('colClient');
-      case 'ip': return t('colClientIp');
-      case 'country': return t('colCountry');
-      case 'status': return t('colStatus');
-      case 'codecs': return t('colCodecs');
-      case 'duration': return t('colDuration');
-      case 'pauseCount': return t('colPauseCount');
-      case 'audioChanges': return t('colAudioChanges');
-      case 'subtitleChanges': return t('colSubtitleChanges');
-      default: return k;
-    }
+  const startResize = (e: React.MouseEvent, idx: number) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = columns[idx].width;
+    const onMove = (ev: MouseEvent) => {
+      const delta = ev.clientX - startX;
+      const newW = Math.max(40, Math.round(startWidth + delta));
+      setColumns(prev => {
+        const next = [...prev];
+        next[idx] = { ...next[idx], width: newW };
+        return next;
+      });
+    };
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   };
 
   return (
     <div ref={containerRef} className="w-full">
-      <Table>
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow>
-            {visibleColumns.map((col) => (
-              <TableHead key={col}>{headingForKey(col)}</TableHead>
+            {columns.map((col, idx) => (
+              <TableHead
+                key={col.key}
+                draggable
+                onDragStart={(e) => onDragStart(e, idx)}
+                onDragOver={onDragOver}
+                onDrop={(e) => onDrop(e, idx)}
+                style={{ width: `${col.width}px` }}
+                className="relative"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="cursor-move opacity-70">≡</span>
+                  <span className="truncate">{headingForKey(col.key)}</span>
+                </div>
+                <div
+                  onMouseDown={(e) => startResize(e, idx)}
+                  className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-20"
+                  aria-hidden
+                />
+              </TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
           {flattened.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={visibleColumns.length} className="text-center py-8 text-zinc-400">{t('noResults')}</TableCell>
+              <TableCell colSpan={columns.length} className="text-center py-8 text-zinc-400">{t('noResults')}</TableCell>
             </TableRow>
           ) : (
             flattened.map((item, idx) => item.type === 'party' ? (
               <TableRow key={`party-${idx}`} className="bg-gradient-to-r from-violet-50 to-fuchsia-50">
-                <TableCell colSpan={visibleColumns.length} className="p-2 font-medium">Watch Party — {item.mediaTitle}</TableCell>
+                <TableCell colSpan={columns.length} className="p-2 font-medium">Watch Party — {item.mediaTitle}</TableCell>
               </TableRow>
             ) : (
-              <LogRow key={item.log.id} log={item.log} visibleColumns={visibleColumns} onOpenDetails={(l: any) => setSelectedLog(l)} />
+              <LogRow key={item.log.id} log={item.log} visibleColumns={columns.map(c => c.key)} onOpenDetails={(l: any) => setSelectedLog(l)} />
             ))
           )}
         </TableBody>
@@ -114,4 +219,4 @@ export default function LogsListClient({ serverLogs, visibleColumns }: { serverL
       )}
     </div>
   );
-}
+    }

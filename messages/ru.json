@@ -123,6 +123,8 @@
     "saveError": "Ошибка сохранения.",
     "saving": "Сохранение...",
     "search": "Поиск",
+    "export": "Экспорт",
+    "close": "Закрыть",
     "season": "Сезон",
     "series": "Сериалы",
     "seriesSingular": "Сериал",
@@ -349,6 +351,8 @@
   },
   "logs": {
     "activeFilter": "Активный фильтр:",
+    "typeFilter": "Тип медиа",
+    "clientFilter": "Клиент / Приложение",
     "booksFilter": "Только книги",
     "colAudioChanges": "Смен аудио",
     "colClient": "Приложение",
