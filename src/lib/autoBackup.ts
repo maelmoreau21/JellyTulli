@@ -7,7 +7,7 @@ import { appendHealthEvent, markBackupFinished, markBackupStarted, readSystemHea
 const MAX_BACKUPS = 5;
 
 function getBackupDir() {
-    return process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
+    return process.env.BACKUP_DIR || path.join(/*turbopackIgnore: true*/ process.cwd(), "backups");
 }
 
 /**

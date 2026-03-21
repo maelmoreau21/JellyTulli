@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: await apiT('fileAutoOnly') }, { status: 400 });
         }
 
-        const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
+        const BACKUP_DIR = process.env.BACKUP_DIR || path.join(/*turbopackIgnore: true*/ process.cwd(), "backups");
         const filePath = path.join(BACKUP_DIR, sanitized);
 
         if (!existsSync(filePath)) {

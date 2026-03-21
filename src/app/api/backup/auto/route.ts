@@ -8,7 +8,7 @@ export async function GET() {
     if (isAuthError(auth)) return auth;
 
     try {
-        const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
+        const BACKUP_DIR = process.env.BACKUP_DIR || path.join(/*turbopackIgnore: true*/ process.cwd(), "backups");
         const files = readdirSync(BACKUP_DIR)
             .filter(f => f.endsWith(".json") && f.startsWith("JellyTrack-auto-"))
             .map(f => {
