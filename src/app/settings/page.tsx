@@ -384,37 +384,9 @@ export default function SettingsPage() {
     const pluginEndpoint = typeof window !== 'undefined' ? `${window.location.origin}/api/plugin/events` : '/api/plugin/events';
 
     return (
-        <div className="flex-col md:flex">
-            <div className="flex-1 p-4 md:p-8 pt-4 md:pt-6 w-full">
-                    <div className="max-w-[1400px] mx-auto">
-                        <div className="flex gap-6">
-                            <aside className="w-64 hidden lg:block shrink-0">
-                                <div className="sticky top-20 space-y-4">
-                                    <div className="text-sm font-semibold text-zinc-400">{t('title')}</div>
-                                    <nav className="space-y-1 mt-2">
-                                        <a href="#plugin" className="flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"><Plug className="w-4 h-4" /> {t('pluginTitle')}</a>
-                                        <a href="#scheduler" className="flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"><Zap className="w-4 h-4" /> {t('taskScheduler')}</a>
-                                        <a href="#notifications" className="flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"><Save className="w-4 h-4" /> {t('notifications')}</a>
-                                        <a href="#libraryRules" className="flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"><Database className="w-4 h-4" /> {t('libraryRules')}</a>
-                                        <a href="#dataBackups" className="flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"><Download className="w-4 h-4" /> {t('dataBackups')}</a>
-                                        <a href="#backupManagement" className="flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"><Clock className="w-4 h-4" /> {t('backupManagement')}</a>
-                                    </nav>
-                                </div>
-                            </aside>
-                            <main className="flex-1 space-y-4 md:space-y-6">
+        <>
                                 <div className="flex items-center justify-between space-y-2 mb-6">
                                     <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{t('title')}</h2>
-                                    <div className="lg:hidden">
-                                        <select onChange={(e) => { if (e.target.value) window.location.hash = e.target.value; }} className="app-field rounded-md p-1 text-sm">
-                                            <option value="">{t('all') || 'All'}</option>
-                                            <option value="#plugin">{t('pluginTitle')}</option>
-                                            <option value="#scheduler">{t('taskScheduler')}</option>
-                                            <option value="#notifications">{t('notifications')}</option>
-                                            <option value="#libraryRules">{t('libraryRules')}</option>
-                                            <option value="#dataBackups">{t('dataBackups')}</option>
-                                            <option value="#backupManagement">{t('backupManagement')}</option>
-                                        </select>
-                                    </div>
                                 </div>
 
                 <section id="plugin" className="space-y-4">
@@ -994,10 +966,7 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
                 </section>
-            </main>
-        </div>
-    </div>
-</div>
-</div>
+        </>
+
     );
 }

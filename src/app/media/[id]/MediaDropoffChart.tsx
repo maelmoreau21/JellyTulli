@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from 'next-intl';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, LabelList } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, LabelList } from "recharts";
+import ResponsiveContainer from "../../../components/charts/ResponsiveContainerGuard";
 
 interface DropoffData {
     range: string;

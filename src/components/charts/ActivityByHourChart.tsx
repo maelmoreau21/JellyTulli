@@ -8,10 +8,10 @@ import {
     YAxis,
     CartesianGrid,
     Tooltip,
-    ResponsiveContainer,
     Cell,
     ReferenceLine,
 } from "recharts";
+import ResponsiveContainer from "./ResponsiveContainerGuard";
 // Read colors from CSS variables at runtime so charts follow light/dark theme.
 
 export interface ActivityHourData {

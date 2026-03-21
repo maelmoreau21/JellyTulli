@@ -6,11 +6,11 @@ import {
     PieChart,
     Pie,
     Cell,
-    ResponsiveContainer,
     Tooltip,
     Legend,
     Sector,
 } from "recharts";
+import ResponsiveContainer from "./ResponsiveContainerGuard";
 import { chartItemStyle, chartLabelStyle, chartPalette, chartTooltipStyle } from "@/lib/chartTheme";
 
 export interface PlatformData {

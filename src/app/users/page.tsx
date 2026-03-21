@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
+import { SearchBar } from "@/components/SearchBar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Clock, Monitor } from "lucide-react";
@@ -72,9 +73,10 @@ export default async function UsersPage() {
                 <div className="flex items-center justify-between space-y-2 mb-6">
                     <div>
                         <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{t('title')}</h2>
-                        <p className="text-muted-foreground text-sm mt-1">
-                            {t('description')}
-                        </p>
+                        <p className="text-muted-foreground text-sm mt-1">{t('description')}</p>
+                    </div>
+                    <div className="w-full max-w-xs">
+                        <SearchBar />
                     </div>
                 </div>
 

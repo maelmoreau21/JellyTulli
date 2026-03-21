@@ -7,8 +7,8 @@ import {
     YAxis,
     CartesianGrid,
     Tooltip,
-    ResponsiveContainer,
 } from "recharts";
+import ResponsiveContainer from "./charts/ResponsiveContainerGuard";
 
 interface ChartDataPoint {
     name: string;

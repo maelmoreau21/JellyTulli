@@ -125,6 +125,45 @@ export default function LogsListClient({ serverLogs, visibleColumns, initialColu
     });
     return map;
   }, [filtered]);
+
+  // Helper: localized column headings
+  const headingForKey = (key: string) => {
+    switch (key) {
+      case 'date': return t('colDate');
+      case 'startedAt': return t('colStartedAt');
+      case 'endedAt': return t('colEndedAt');
+      case 'user': return t('colUser');
+      case 'media': return t('colMedia');
+      case 'client': return t('colClient');
+      case 'ip': return t('colIp');
+      case 'country': return t('colCountry');
+      case 'status': return t('colStatus');
+      case 'codecs': return t('colCodecs');
+      case 'duration': return t('colDuration');
+      case 'pauseCount': return t('colPauseCount');
+      case 'audioChanges': return t('colAudioChanges');
+      case 'subtitleChanges': return t('colSubtitleChanges');
+      default: return key;
+    }
+  };
+
+  // Flatten logs and inject watch-party banners (client-side)
+  const flattened = useMemo(() => {
+    const out: any[] = [];
+    const shown = new Set<string>();
+    for (const log of filtered) {
+      const pid = watchPartyMap.get(log.id);
+      if (pid && !shown.has(pid)) {
+        const cluster = filtered.filter((l: any) => watchPartyMap.get(l.id) === pid);
+        const members = Array.from(new Set(cluster.map((c: any) => c.user?.username || '?')));
+        const mediaTitle = cluster[0]?.media?.title || '';
+        out.push({ type: 'party', mediaTitle, members });
+        shown.add(pid);
+      }
+      out.push({ type: 'log', log });
+    }
+    return out;
+  }, [filtered, watchPartyMap]);
   // Drag & drop + resize logic
   const dragIndexRef = useRef<number | null>(null);
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
+import ResponsiveContainer from "./ResponsiveContainerGuard";
 
 const COLORS: Record<string, string> = {
     "DirectPlay": "#10b981", // Emerald 500

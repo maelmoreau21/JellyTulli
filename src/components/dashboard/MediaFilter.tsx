@@ -65,15 +65,6 @@ export function MediaFilter() {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-3 bg-zinc-100/50 dark:bg-zinc-900/40 p-1.5 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50 backdrop-blur-sm transition-all hover:bg-zinc-100/80 dark:hover:bg-zinc-900/60 group">
-        <div className="hidden md:flex items-center gap-2.5 px-3 border-r border-zinc-200/60 dark:border-zinc-800/60 h-7 shrink-0">
-          <div className="p-1.5 bg-zinc-200/50 dark:bg-zinc-800/50 rounded-md group-hover:bg-primary/10 transition-colors">
-            <Filter className="w-3 h-3 text-zinc-500 group-hover:text-primary transition-colors" />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500 dark:text-zinc-500 whitespace-nowrap">
-            {td('filterCategories')}
-          </span>
-        </div>
-
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-0.5 px-1">
           {categories.map((cat) => {
             // An item is active if it's NOT in the excluded list, or if 'all' is selected
@@ -99,11 +90,7 @@ export function MediaFilter() {
           })}
         </div>
         
-        <div className="hidden lg:flex items-center ml-auto px-3 border-l border-zinc-200/60 dark:border-zinc-800/60 h-7">
-           <span className="text-[9px] text-zinc-400 dark:text-zinc-600 font-medium italic whitespace-nowrap">
-              {td('uncheckToHide')}
-            </span>
-        </div>
+        {/* helper text removed per UX request */}
       </div>
     </div>
   );

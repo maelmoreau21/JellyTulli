@@ -6,11 +6,11 @@ import {
     PieChart,
     Pie,
     Cell,
-    ResponsiveContainer,
     Tooltip,
     Legend,
     Sector,
 } from "recharts";
+import ResponsiveContainer from "./ResponsiveContainerGuard";
 // Read chart CSS variables at runtime for theme-aware colors
 
 export interface CompletionData {

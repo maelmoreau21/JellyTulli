@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from 'next-intl';
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
+import { Area, AreaChart, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
+import ResponsiveContainer from "./ResponsiveContainerGuard";
 
 export type VolumeHourData = {
     name: string;

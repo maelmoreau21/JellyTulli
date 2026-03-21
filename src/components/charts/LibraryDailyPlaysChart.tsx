@@ -10,8 +10,8 @@ import {
     CartesianGrid,
     Tooltip,
     Legend,
-    ResponsiveContainer,
 } from 'recharts';
+import ResponsiveContainer from "./ResponsiveContainerGuard";
 import { chartAxisColor, chartGridColor, chartItemStyle, chartLabelStyle, chartTooltipStyle } from '@/lib/chartTheme';
 
 interface LibraryPlaysData {

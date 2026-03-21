@@ -1,0 +1,19 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+
+export default function SettingsPluginRedirect() {
+    const router = useRouter();
+    useEffect(() => {
+        // Redirect to the index settings page and jump to the plugin section
+        router.replace('/settings#plugin');
+    }, [router]);
+
+    return (
+        <div className="p-8 max-w-[900px] mx-auto">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Redirection vers Paramètres…</div>
+        </div>
+    );
+}

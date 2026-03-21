@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from 'next-intl';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import ResponsiveContainer from "./ResponsiveContainerGuard";
 import { chartItemStyle, chartLabelStyle, chartPalette, chartTooltipStyle } from '@/lib/chartTheme';
 
 interface CategoryData {

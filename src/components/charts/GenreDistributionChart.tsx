@@ -8,9 +8,9 @@ import {
     YAxis,
     CartesianGrid,
     Tooltip,
-    ResponsiveContainer,
     Cell
 } from "recharts";
+import ResponsiveContainer from "./ResponsiveContainerGuard";
 
 export interface GenreData {
     name: string;

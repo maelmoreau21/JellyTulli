@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from 'next-intl';
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
+import { Bar, BarChart, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
+import ResponsiveContainer from "./ResponsiveContainerGuard";
 
 export type ActivityData = {
     date: string;

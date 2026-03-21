@@ -671,9 +671,6 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-4 shrink-0">
-            <span className="dashboard-pill hidden sm:block rounded-md px-2 py-1.5 text-xs text-zinc-600 dark:text-zinc-300">
-              {t('cachedData')}
-            </span>
             <TimeRangeSelector />
           </div>
         </div>

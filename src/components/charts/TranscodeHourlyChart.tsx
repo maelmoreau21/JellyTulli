@@ -9,8 +9,8 @@ import {
     CartesianGrid,
     Tooltip,
     Legend,
-    ResponsiveContainer,
 } from 'recharts';
+import ResponsiveContainer from "./ResponsiveContainerGuard";
 
 interface HourlyMethodData {
     time: string;
