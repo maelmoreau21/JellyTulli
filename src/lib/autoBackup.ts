@@ -4,8 +4,11 @@ import path from "path";
 import { loadLibraryRules } from "@/lib/libraryRules";
 import { appendHealthEvent, markBackupFinished, markBackupStarted, readSystemHealthState } from "@/lib/systemHealth";
 
-const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
 const MAX_BACKUPS = 5;
+
+function getBackupDir() {
+    return process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
+}
 
 /**
  * Performs a full auto-backup of the database to a JSON file.
@@ -18,6 +21,7 @@ export async function performAutoBackup(): Promise<string> {
     try {
 
     // Ensure directory exists
+    const BACKUP_DIR = getBackupDir();
     if (!existsSync(BACKUP_DIR)) {
         mkdirSync(BACKUP_DIR, { recursive: true });
         console.log(`[Auto-Backup] Created backup directory: ${BACKUP_DIR}`);

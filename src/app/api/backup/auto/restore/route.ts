@@ -7,10 +7,6 @@ import { apiT } from "@/lib/i18n-api";
 import { saveLibraryRules } from "@/lib/libraryRules";
 import { replaceSystemHealthState } from "@/lib/systemHealth";
 
-export const dynamic = "force-dynamic";
-
-const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
-
 export async function POST(req: NextRequest) {
     const auth = await requireAdmin();
     if (isAuthError(auth)) return auth;
@@ -30,6 +26,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: await apiT('fileAutoOnly') }, { status: 400 });
         }
 
+        const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
         const filePath = path.join(BACKUP_DIR, sanitized);
 
         if (!existsSync(filePath)) {
