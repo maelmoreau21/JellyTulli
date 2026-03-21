@@ -665,6 +665,8 @@
     "savedSuccess": "Impostazioni salvate con successo",
     "taskScheduler": "Pianificatore attività",
     "taskSchedulerDesc": "Gestisci le attività automatiche di sincronizzazione e backup.",
+    "overviewTab": "Panoramica",
+    "libraryRules": "Regole per libreria",
     "title": "Impostazioni",
     "wrappedEnd": "Data di chiusura",
     "wrappedPeriod": "Periodo di disponibilità per l'anno in corso",

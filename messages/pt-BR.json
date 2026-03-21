@@ -665,6 +665,8 @@
     "savedSuccess": "Configurações salvas com sucesso",
     "taskScheduler": "Agendador de tarefas",
     "taskSchedulerDesc": "Gerencie tarefas automáticas de sincronização e backup.",
+    "overviewTab": "Visão geral",
+    "libraryRules": "Regras por biblioteca",
     "title": "Configurações",
     "wrappedEnd": "Closing Date",
     "wrappedPeriod": "Availability period for the current year",

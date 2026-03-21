@@ -664,6 +664,8 @@
     "savedSuccess": "Zmiany zostały zapisane",
     "taskScheduler": "Harmonogram zadań",
     "taskSchedulerDesc": "Zarządzanie synchronizacją i kopiami zapasowymi.",
+    "overviewTab": "Przegląd",
+    "libraryRules": "Zasady według biblioteki",
     "title": "Ustawienia",
     "wrappedEnd": "Data zamknięcia",
     "wrappedPeriod": "Okres dostępności dla bieżącego roku",

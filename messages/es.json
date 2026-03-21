@@ -665,6 +665,8 @@
     "savedSuccess": "Ajustes guardados correctamente",
     "taskScheduler": "Programador de tareas",
     "taskSchedulerDesc": "Administre las tareas de sincronización y copia de seguridad automáticas.",
+    "overviewTab": "Resumen",
+    "libraryRules": "Reglas por biblioteca",
     "title": "Ajustes",
     "wrappedEnd": "Fecha de cierre",
     "wrappedPeriod": "Periodo de disponibilidad para el año en curso",

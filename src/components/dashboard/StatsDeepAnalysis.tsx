@@ -18,6 +18,10 @@ export default function StatsDeepAnalysis() {
     } | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // Modal state must be declared unconditionally before any early returns
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalQuery, setModalQuery] = useState<string | null>(null);
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -34,7 +38,6 @@ export default function StatsDeepAnalysis() {
         };
         fetchData();
     }, []);
-
     if (loading) {
         return (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
@@ -44,10 +47,6 @@ export default function StatsDeepAnalysis() {
             </div>
         );
     }
-
-    const [modalOpen, setModalOpen] = useState(false);
-    const [modalQuery, setModalQuery] = useState<string | null>(null);
-
     const openModal = (q: string) => {
         setModalQuery(q);
         setModalOpen(true);

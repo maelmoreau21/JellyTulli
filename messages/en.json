@@ -665,6 +665,8 @@
     "savedSuccess": "Settings saved successfully",
     "taskScheduler": "Task Scheduler",
     "taskSchedulerDesc": "Manage automatic synchronization and backup tasks.",
+    "overviewTab": "Overview",
+    "libraryRules": "Per-library rules",
     "title": "Settings",
     "wrappedEnd": "Closing Date",
     "wrappedPeriod": "Availability period for the current year",

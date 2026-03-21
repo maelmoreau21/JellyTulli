@@ -665,6 +665,8 @@
     "savedSuccess": "Instellingen succesvol opgeslagen",
     "taskScheduler": "Taakplanner",
     "taskSchedulerDesc": "Beheer automatische synchronisatie- en back-uptaken.",
+    "overviewTab": "Overzicht",
+    "libraryRules": "Regels per bibliotheek",
     "title": "Instellingen",
     "wrappedEnd": "Sluitingsdatum",
     "wrappedPeriod": "Beschikbaarheidsperiode voor het huidige jaar",

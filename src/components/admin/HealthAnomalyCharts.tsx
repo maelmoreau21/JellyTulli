@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useId } from "react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from "recharts";
 import ResponsiveContainer from "../charts/ResponsiveContainerGuard";
 import { chartAxisColor, chartGridColor, chartItemStyle, chartLabelStyle, chartPalette, chartTooltipStyle } from "@/lib/chartTheme";
@@ -18,25 +19,50 @@ type BreakdownPoint = {
 };
 
 export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: TimelinePoint[]; breakdown: BreakdownPoint[] }) {
+    const uid = useId();
+
+    const safeTimeline: TimelinePoint[] = (timeline || []).map((pt) => ({
+        day: pt?.day ?? "",
+        monitorErrors: typeof pt?.monitorErrors === "number" && Number.isFinite(pt.monitorErrors) ? pt.monitorErrors : 0,
+        syncErrors: typeof pt?.syncErrors === "number" && Number.isFinite(pt.syncErrors) ? pt.syncErrors : 0,
+        backupErrors: typeof pt?.backupErrors === "number" && Number.isFinite(pt.backupErrors) ? pt.backupErrors : 0,
+        cleanupOps: typeof pt?.cleanupOps === "number" && Number.isFinite(pt.cleanupOps) ? pt.cleanupOps : 0,
+    }));
+
+    const safeBreakdown: BreakdownPoint[] = (breakdown || []).map((b) => ({
+        source: b?.source ?? "unknown",
+        value: typeof b?.value === "number" && Number.isFinite(b.value) ? b.value : 0,
+    }));
+
+    if (safeTimeline.length === 0 && safeBreakdown.length === 0) {
+        return <div className="text-sm text-zinc-400">Aucune anomalie détectée</div>;
+    }
+
+    const monitorId = `monitorErrorsGradient-${uid}`;
+    const syncId = `syncErrorsGradient-${uid}`;
+    const backupId = `backupErrorsGradient-${uid}`;
+    const cleanupId = `cleanupOpsGradient-${uid}`;
+    const sourceGradientId = `sourceBreakdownGradient-${uid}`;
+
     return (
         <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2 h-[320px] min-h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={timeline} margin={{ top: 18, right: 20, left: -10, bottom: 4 }}>
+                    <AreaChart data={safeTimeline} margin={{ top: 18, right: 20, left: -10, bottom: 4 }}>
                         <defs>
-                            <linearGradient id="monitorErrorsGradient" x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id={monitorId} x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.55} />
                                 <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
                             </linearGradient>
-                            <linearGradient id="syncErrorsGradient" x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id={syncId} x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.45} />
                                 <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                             </linearGradient>
-                            <linearGradient id="backupErrorsGradient" x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id={backupId} x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.45} />
                                 <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
                             </linearGradient>
-                            <linearGradient id="cleanupOpsGradient" x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient id={cleanupId} x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#22c55e" stopOpacity={0.45} />
                                 <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                             </linearGradient>
@@ -46,19 +72,19 @@ export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: Timelin
                         <YAxis stroke={chartAxisColor} fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
                         <Tooltip contentStyle={chartTooltipStyle} labelStyle={chartLabelStyle} itemStyle={chartItemStyle} />
                         <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }} />
-                        <Area type="monotone" dataKey="cleanupOps" name="Nettoyages" stroke="#22c55e" fill="url(#cleanupOpsGradient)" strokeWidth={2.4} />
-                        <Area type="monotone" dataKey="monitorErrors" name="Erreurs monitor" stroke="#38bdf8" fill="url(#monitorErrorsGradient)" strokeWidth={2.4} />
-                        <Area type="monotone" dataKey="syncErrors" name="Erreurs sync" stroke="#f59e0b" fill="url(#syncErrorsGradient)" strokeWidth={2.4} />
-                        <Area type="monotone" dataKey="backupErrors" name="Erreurs backup" stroke="#f43f5e" fill="url(#backupErrorsGradient)" strokeWidth={2.4} />
+                        <Area type="monotone" dataKey="cleanupOps" name="Nettoyages" stroke="#22c55e" fill={`url(#${cleanupId})`} strokeWidth={2.4} />
+                        <Area type="monotone" dataKey="monitorErrors" name="Erreurs monitor" stroke="#38bdf8" fill={`url(#${monitorId})`} strokeWidth={2.4} />
+                        <Area type="monotone" dataKey="syncErrors" name="Erreurs sync" stroke="#f59e0b" fill={`url(#${syncId})`} strokeWidth={2.4} />
+                        <Area type="monotone" dataKey="backupErrors" name="Erreurs backup" stroke="#f43f5e" fill={`url(#${backupId})`} strokeWidth={2.4} />
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
 
             <div className="h-[320px] min-h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={breakdown} margin={{ top: 18, right: 8, left: -18, bottom: 4 }}>
+                    <BarChart data={safeBreakdown} margin={{ top: 18, right: 8, left: -18, bottom: 4 }}>
                         <defs>
-                            <linearGradient id="sourceBreakdownGradient" x1="0" y1="0" x2="1" y2="0">
+                            <linearGradient id={sourceGradientId} x1="0" y1="0" x2="1" y2="0">
                                 <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.95} />
                                 <stop offset="100%" stopColor="#a855f7" stopOpacity={0.95} />
                             </linearGradient>
@@ -67,8 +93,8 @@ export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: Timelin
                         <XAxis dataKey="source" stroke={chartAxisColor} fontSize={12} tickLine={false} axisLine={false} />
                         <YAxis stroke={chartAxisColor} fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
                         <Tooltip contentStyle={chartTooltipStyle} labelStyle={chartLabelStyle} itemStyle={chartItemStyle} />
-                        <Bar dataKey="value" name="Impact cumulé" radius={[10, 10, 0, 0]} fill="url(#sourceBreakdownGradient)">
-                            {breakdown.map((entry, index) => (
+                        <Bar dataKey="value" name="Impact cumulé" radius={[10, 10, 0, 0]} fill={`url(#${sourceGradientId})`}>
+                            {safeBreakdown.map((entry, index) => (
                                 <Cell key={`${entry.source}-${index}`} fill={chartPalette[index % chartPalette.length]} fillOpacity={0.92} />
                             ))}
                         </Bar>
