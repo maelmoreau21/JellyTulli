@@ -137,7 +137,7 @@ const getDashboardMetrics = unstable_cache(
     const prevDateFilter = (previousStartDate && previousEndDate) ? { gte: previousStartDate, lt: previousEndDate } : undefined;
 
     // 2. Build Media Filter
-    let AND: any[] = [];
+    const AND: any[] = [];
     
     // We solely rely on excludedTypes here for dashboard filtering now
     if (excludedTypes && excludedTypes.length > 0) {

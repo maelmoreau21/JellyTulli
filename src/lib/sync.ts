@@ -132,7 +132,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
         }
 
         const pageSize = 200;
-        let items: any[] = [];
+        const items: any[] = [];
         let startIndex = 0;
         while (true) {
             const pageUrl = `${baseUrl}/Items?${baseItemsQuery}${minDateParam}&StartIndex=${startIndex}&Limit=${pageSize}`;

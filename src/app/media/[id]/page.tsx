@@ -159,8 +159,8 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
         : media.playbackHistory;
 
     // Global stats (include children's playback for parent items like Series/Season/Album)
-    let totalViews = effectiveHistory.length;
-    let totalSeconds = effectiveHistory.reduce((acc: number, h: any) => acc + h.durationWatched, 0);
+    const totalViews = effectiveHistory.length;
+    const totalSeconds = effectiveHistory.reduce((acc: number, h: any) => acc + h.durationWatched, 0);
 
     const totalHours = parseFloat((totalSeconds / 3600).toFixed(1));
     const avgMinutes = totalViews > 0 ? Math.round(totalSeconds / totalViews / 60) : 0;

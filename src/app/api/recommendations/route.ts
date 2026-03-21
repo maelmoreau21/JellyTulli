@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     
     // In JellyTrack auth, the user ID in session is usually the internal ID or Jellyfin ID.
     // Let's look up to be safe:
-    let dbUserId = (session.user as any).id;
+    const dbUserId = (session.user as any).id;
     const dbUser = await prisma.user.findFirst({
         where: {
             OR: [
