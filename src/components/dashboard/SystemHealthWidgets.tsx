@@ -20,10 +20,16 @@ type Snapshot = {
 export function SystemHealthWidgets({ initialSnapshot }: { initialSnapshot: Snapshot }) {
     const t = useTranslations('dashboard');
     const [snapshot, setSnapshot] = useState(initialSnapshot);
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        const id = setInterval(() => setNow(Date.now()), 60_000);
+        return () => clearInterval(id);
+    }, []);
 
     function formatRelative(dateString: string | null) {
         if (!dateString) return t('never') || 'Never';
-        const deltaMinutes = Math.max(0, Math.round((Date.now() - new Date(dateString).getTime()) / 60000));
+        const deltaMinutes = Math.max(0, Math.round((now - new Date(dateString).getTime()) / 60000));
         if (deltaMinutes < 1) return t('justNow') || 'just now';
         if (deltaMinutes < 60) return t('minutesAgo', { count: deltaMinutes }) || `about ${deltaMinutes} min ago`;
         const deltaHours = Math.round(deltaMinutes / 60);

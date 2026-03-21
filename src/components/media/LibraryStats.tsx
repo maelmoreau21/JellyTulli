@@ -111,7 +111,7 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
                                 seriesCount > 0 && <span key="series" className="text-emerald-500">{seriesCount} {tc('series').toLowerCase()}</span>,
                                 albumCount > 0 && <span key="music" className="text-yellow-500">{albumCount} albums</span>,
                                 bookCount > 0 && <span key="books" className="text-purple-500">{bookCount} {tc('books').toLowerCase()}</span>
-                            ].reduce((prev: any, curr: any) => prev === null ? [curr] : [...prev, <span key={`sep-${Math.random()}`} className="text-zinc-400 font-normal">, </span>, curr], null)}
+                            ].reduce((prev: any, curr: any, i: number) => prev === null ? [curr] : [...prev, <span key={`sep-${i}`} className="text-zinc-400 font-normal">, </span>, curr], null)}
                         </div>
                         <p className="text-xs text-zinc-500 mt-2 font-medium flex items-center gap-1.5 opacity-80">
                              <Info className="w-3.5 h-3.5" /> {t('statsContentDesc')}
