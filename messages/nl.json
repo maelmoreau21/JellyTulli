@@ -62,7 +62,6 @@
   "cleanup": {
     "abandonedDesc": "Content die is gestart maar waarvan de voltooiingsgraad nooit boven 80% kwam.",
     "abandonedMedia": "Verlaten media",
-    "abandoned": "Verlaten",
     "albumType": "Album",
     "albumsFilter": "Albums",
     "allFilter": "Alles",
@@ -356,10 +355,6 @@
     "activeFilter": "Actief filter:",
     "typeFilter": "Mediatype",
     "clientFilter": "Client / App",
-    "audioFilter": "Audio (Codec/Taal)",
-    "subtitleFilter": "Ondertitels (Codec/Taal)",
-    "dateFrom": "Datum (Vanaf)",
-    "dateTo": "Datum (Tot)",
     "booksFilter": "Alleen boeken",
     "colAudioChanges": "Audiowijzigingen",
     "colClient": "Applicatie",

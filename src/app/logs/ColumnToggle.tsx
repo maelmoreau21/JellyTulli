@@ -54,8 +54,24 @@ export function ColumnToggle({ visibleColumns }: { visibleColumns: Column[] }) {
         const compute = () => {
             const overlayEl = overlayRef.current;
             const width = overlayEl?.offsetWidth ?? 220;
-            const left = Math.max(8, rect.right + window.scrollX - width);
-            const top = rect.bottom + window.scrollY + 6;
+            const height = overlayEl?.offsetHeight ?? 200;
+
+            const viewportLeft = window.scrollX || 0;
+            const viewportRight = (window.scrollX || 0) + window.innerWidth;
+            const minLeft = viewportLeft + 8;
+            const maxLeft = Math.max(minLeft, viewportRight - width - 8);
+
+            // Prefer aligning overlay's right edge with the button's right edge, but clamp to viewport
+            let left = rect.right + window.scrollX - width;
+            left = Math.min(Math.max(minLeft, left), maxLeft);
+
+            // Try to open below the button, but if there's not enough vertical space, open above
+            let top = rect.bottom + window.scrollY + 6;
+            const maxTop = (window.scrollY || 0) + window.innerHeight - height - 8;
+            if (top > maxTop) {
+                top = Math.max((window.scrollY || 0) + 8, rect.top + window.scrollY - height - 6);
+            }
+
             setPos({ left, top });
         };
         compute();
@@ -85,7 +101,7 @@ export function ColumnToggle({ visibleColumns }: { visibleColumns: Column[] }) {
         <div
             ref={overlayRef}
             style={pos ? { position: 'fixed', left: `${pos.left}px`, top: `${pos.top}px` } : { display: 'none' }}
-            className="app-surface-soft z-[99999] border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl p-2 min-w-[220px] md:min-w-[180px]"
+            className="z-[99999] border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl p-2 min-w-[220px] md:min-w-[180px] bg-white dark:bg-zinc-900"
         >
             {ALL_COLUMNS.map(col => (
                 <label

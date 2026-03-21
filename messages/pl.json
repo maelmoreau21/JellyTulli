@@ -61,7 +61,6 @@
   "cleanup": {
     "abandonedDesc": "Rozpoczęte, ale nigdy nie ukończone (poniżej 80%).",
     "abandonedMedia": "Porzucone tytuły",
-    "abandoned": "Porzucone",
     "albumType": "Album",
     "albumsFilter": "Albumy",
     "allFilter": "Wszystko",
@@ -355,10 +354,6 @@
     "activeFilter": "Aktywny filtr:",
     "typeFilter": "Typ mediów",
     "clientFilter": "Klient / Aplikacja",
-    "audioFilter": "Audio (Kodek/Język)",
-    "subtitleFilter": "Napisy (Kodek/Język)",
-    "dateFrom": "Data (Od)",
-    "dateTo": "Data (Do)",
     "booksFilter": "Tylko książki",
     "colAudioChanges": "Zmiany audio",
     "colClient": "Aplikacja",

@@ -385,11 +385,7 @@ export default async function LogsPage({
                 </div>
 
                 <div className="space-y-4">
-                    <Card className="border-0 shadow-sm bg-white dark:bg-zinc-900/50 backdrop-blur-xl ring-1 ring-zinc-200 dark:ring-zinc-800">
-                        <CardHeader className="pb-4">
-                            <CardTitle className="text-lg">{tl('searchFilters')}</CardTitle>
-                            <CardDescription>{tl('searchFiltersDesc')}</CardDescription>
-                        </CardHeader>
+                    <Card className="border-0 shadow-sm bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-800">
                         <CardContent className="space-y-4">
                             <div className="flex items-start gap-2 flex-wrap">
                                 <div className="flex-1 w-full relative z-10">

@@ -301,8 +301,7 @@ export default function LogRow({ log, visibleColumns, onOpenDetails }: { log: an
                     <div className="text-xs text-zinc-400">{t('timeline.title')}</div>
                     <div className="text-xs text-zinc-400">{`Events: ${events.length}`}</div>
                   </div>
-                  <div className="relative h-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-full overflow-hidden">
-                    {/* subtle progress tint to match app style */}
+                  <div className="relative h-8 md:h-6 bg-zinc-50 dark:bg-zinc-900/50 rounded-full overflow-visible py-2">
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-40 pointer-events-none" />
 
                     {groupedEvents.length === 0 ? (
@@ -315,11 +314,11 @@ export default function LogRow({ log, visibleColumns, onOpenDetails }: { log: an
                         const size = g.count > 1 ? 10 : 8;
                         const detail = formatChangeDetail(g.events && g.events[0] ? g.events[0] : null);
                         return (
-                          <div key={g.key ?? idx} className="absolute top-1/2" style={{ left: `${pct}%`, transform: 'translate(-50%, -50%)' }}>
+                          <div key={g.key ?? idx} className="absolute top-1/2 z-20" style={{ left: `${pct}%`, transform: 'translate(-50%, -50%)' }}>
                             <button
                               title={`${meta.icon} ${meta.label}${detail ? ` — ${detail}` : ''} — ${formatTime(pos)}${g.count > 1 ? ` (${g.count} events)` : ''}`}
                               aria-label={`${meta.label} at ${formatTime(pos)}`}
-                              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs text-white shadow ${meta.color} ring-1 ring-white/20 focus:outline-none focus:ring-2 focus:ring-offset-1`}
+                              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs text-white shadow ${meta.color} ring-1 ring-white/20 focus:outline-none focus:ring-2 focus:ring-offset-1 z-30`}
                             >
                               <span className="leading-none">{meta.icon}</span>
                             </button>

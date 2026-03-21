@@ -62,7 +62,6 @@
   "cleanup": {
     "abandonedDesc": "Contenuti avviati ma il cui tasso di completamento non ha mai superato l'80%.",
     "abandonedMedia": "Media abbandonati",
-    "abandoned": "Abbandonato",
     "albumType": "Album",
     "albumsFilter": "Album",
     "allFilter": "Tutti",
@@ -356,10 +355,6 @@
     "activeFilter": "Filtro attivo:",
     "typeFilter": "Tipo di media",
     "clientFilter": "Client / App",
-    "audioFilter": "Audio (Codec/Lingua)",
-    "subtitleFilter": "Sottotitoli (Codec/Lingua)",
-    "dateFrom": "Data (Da)",
-    "dateTo": "Data (A)",
     "booksFilter": "Solo libri",
     "colAudioChanges": "Cambi audio",
     "colClient": "Applicazione",

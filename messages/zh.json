@@ -62,7 +62,6 @@
   "cleanup": {
     "abandonedDesc": "已被开始播放但从未到达 80% 完成进度的内容。",
     "abandonedMedia": "搁置的内容",
-    "abandoned": "已放弃",
     "albumType": "专辑",
     "albumsFilter": "专辑",
     "allFilter": "全部",
@@ -356,10 +355,6 @@
     "activeFilter": "活动过滤器：",
     "typeFilter": "媒体类型",
     "clientFilter": "客户端 / 应用",
-    "audioFilter": "音频 (编解码/语言)",
-    "subtitleFilter": "字幕 (编解码/语言)",
-    "dateFrom": "日期 (从)",
-    "dateTo": "日期 (到)",
     "booksFilter": "仅显示书籍",
     "colAudioChanges": "音频切换",
     "colClient": "客户端应用",
