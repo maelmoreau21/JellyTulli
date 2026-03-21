@@ -8,11 +8,18 @@ type Props = React.ComponentProps<typeof RechartsResponsiveContainer>;
 export default function ResponsiveContainerGuard(props: Props) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const [hasSize, setHasSize] = useState(false);
+    const minH = (() => {
+        const anyProps = props as any;
+        if (typeof anyProps.minHeight === "number") return anyProps.minHeight;
+        if (typeof anyProps.height === "number") return anyProps.height;
+        return 300;
+    })();
 
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
 
+        let raf: number | null = null;
         const update = () => {
             const rect = el.getBoundingClientRect();
             setHasSize(rect.width > 0 && rect.height > 0);
@@ -23,18 +30,23 @@ export default function ResponsiveContainerGuard(props: Props) {
             return;
         }
 
+        // Run an initial update so placeholder/minHeight is taken into account
         update();
-        const ro = new ResizeObserver(() => update());
+        const ro = new ResizeObserver(() => {
+            if (raf) cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(update);
+        });
         ro.observe(el);
-        return () => ro.disconnect();
-    }, []);
+        return () => {
+            ro.disconnect();
+            if (raf) cancelAnimationFrame(raf);
+        };
+    }, [minH]);
 
-    const minH = (() => {
-        const anyProps = props as any;
-        if (typeof anyProps.minHeight === "number") return anyProps.minHeight;
-        if (typeof anyProps.height === "number") return anyProps.height;
-        return 300;
-    })();
+    const containerStyle: React.CSSProperties = {
+        width: "100%",
+        minHeight: minH,
+    };
 
     const placeholderStyle: React.CSSProperties = {
         width: "100%",
@@ -42,7 +54,7 @@ export default function ResponsiveContainerGuard(props: Props) {
     };
 
     return (
-        <div ref={containerRef} style={{ width: "100%" }}>
+        <div ref={containerRef} style={containerStyle}>
             {hasSize ? (
                 <RechartsResponsiveContainer {...props} />
             ) : (

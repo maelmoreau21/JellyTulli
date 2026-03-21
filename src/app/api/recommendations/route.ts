@@ -41,6 +41,8 @@ export async function GET(request: Request) {
     return NextResponse.json(recs);
   } catch (error) {
     console.error("[Recommendations API] Failed to fetch recommendations:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    // Return an empty recommendations payload to keep the UI resilient when
+    // the DB or recommendation engine is temporarily unavailable (local dev).
+    return NextResponse.json({ recommendations: [] });
   }
 }

@@ -29,23 +29,37 @@ export function AIRecommendations() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetch("/api/recommendations")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch recs");
-        return res.json();
-      })
-      .then((data) => {
-        if (data && data.recommendations) {
-          setRecommendations(data.recommendations);
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/recommendations", {
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        });
+
+        if (!res.ok) {
+          // Read optional error body for debugging, but avoid noisy console.error
+          const body = await res.json().catch(() => null);
+          console.debug("AI Recs non-ok response:", res.status, body);
+          if (mounted) setError(true);
+          return;
         }
-      })
-      .catch((err) => {
-        console.error("AI Recs error:", err);
-        setError(true);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+
+        const data = await res.json();
+        if (data && data.recommendations && Array.isArray(data.recommendations)) {
+          if (mounted) setRecommendations(data.recommendations);
+        }
+      } catch (err) {
+        console.debug("AI Recs fetch failed:", err);
+        if (mounted) setError(true);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   if (loading) {
