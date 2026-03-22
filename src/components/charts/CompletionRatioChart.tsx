@@ -136,7 +136,7 @@ export function CompletionRatioChart({ data }: CompletionRatioChartProps) {
                         animationDuration={1000}
                         animationBegin={0}
                         animationEasing="ease-out"
-                        activeShape={renderActiveShape as any}
+                        activeShape={renderActiveShape as unknown as React.FC<ActiveShapeProps>}
                         onMouseEnter={(d: { value?: number; name?: string } | undefined, index: number) => setActiveIndex(index)}
                         onMouseLeave={() => setActiveIndex(-1)}
                     >
@@ -152,10 +152,11 @@ export function CompletionRatioChart({ data }: CompletionRatioChartProps) {
                         contentStyle={chartTooltipStyle}
                         labelStyle={chartLabelStyle}
                         itemStyle={chartItemStyle}
-                        formatter={(value: any, name?: any) => [
-                            `${value} sessions (${total > 0 ? ((Number(value) / total) * 100).toFixed(0) : 0}%)`,
-                            name ?? '',
-                        ] as [string, string]}
+                        formatter={(value: number | string | null | undefined, name?: string) => {
+                            const n = Number(value ?? 0);
+                            const pct = total > 0 ? ((n / total) * 100).toFixed(0) : '0';
+                            return [`${n} sessions (${pct}%)`, name ?? ''] as [string, string];
+                        }}
                         animationDuration={200}
                     />
                     <Legend

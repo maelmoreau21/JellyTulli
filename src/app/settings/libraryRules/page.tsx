@@ -20,6 +20,8 @@ const DEFAULT_RULE: LibraryRule = { completionEnabled: true, completedThreshold:
 
 export default function SettingsLibraryRulesPage() {
     const t = useTranslations("settings");
+    const tCommon = useTranslations("common");
+    const tMedia = useTranslations("media");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -54,7 +56,15 @@ export default function SettingsLibraryRulesPage() {
     }, [defaultKeys, rules]);
 
     const humanize = (k: string) => {
-        const map: Record<string, string> = { movies: t("movies") || "Movies", tvshows: "TV Shows", music: t("music") || "Music", books: t("books") || "Books", homevideos: "Home Videos", photos: "Photos", livetv: "Live TV" };
+        const map: Record<string, string> = {
+            movies: tCommon("movies") || "Movies",
+            tvshows: tCommon("tvshows") || tCommon("series") || "TV Shows",
+            music: tCommon("music") || "Music",
+            books: tCommon("books") || "Books",
+            homevideos: tCommon("homevideos") || "Home Videos",
+            photos: tCommon("photos") || "Photos",
+            livetv: tCommon("livetv") || "Live TV"
+        };
         return map[k] || k.replace(/([a-z])([A-Z])/g, "$1 $2");
     };
 
@@ -100,7 +110,7 @@ export default function SettingsLibraryRulesPage() {
                     {msg && <div className={`p-3 rounded text-sm ${msg.type === "success" ? "text-emerald-400 bg-emerald-500/5" : "text-red-400 bg-red-500/5"}`}>{msg.text}</div>}
 
                     <div className="flex justify-between items-center">
-                        <div className="text-sm text-muted-foreground">{availableLibraries.length ? `${availableLibraries.length} libraries` : null}</div>
+                        <div className="text-sm text-muted-foreground">{availableLibraries.length ? `${availableLibraries.length} ${tMedia('libraries') || 'libraries'}` : null}</div>
                         <div className="flex gap-2">
                             <Button variant="outline" size="sm" onClick={() => handleReset()}>{t("resetRule")}</Button>
                         </div>

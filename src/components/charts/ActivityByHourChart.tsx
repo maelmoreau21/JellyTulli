@@ -129,7 +129,7 @@ export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
                         labelStyle={chartLabelStyle}
                         itemStyle={chartItemStyle}
                         cursor={{ fill: 'rgba(56, 189, 248, 0.06)', radius: 4 }}
-                        formatter={(value: any) => [`${value} sessions`, "Activité"]} 
+                        formatter={(value: number | string | null | undefined) => [`${value ?? 0} sessions`, "Activité"]}
                         animationDuration={200}
                     />
                     {/* Average reference line (only when meaningful) */}

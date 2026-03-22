@@ -49,7 +49,7 @@ export function TranscodeHourlyChart({ data }: { data: HourlyMethodData[] }) {
                     contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px', color: '#f4f4f5' }}
                     labelStyle={{ color: '#a1a1aa' }}
                     itemStyle={{ color: '#e4e4e7' }}
-                    formatter={(value: any, name?: any) => [`${value} sessions`, name ?? ''] as [string, string]}
+                    formatter={(value: number | string | null | undefined, name?: string) => [`${value ?? 0} sessions`, name ?? ''] as [string, string]}
                 />
                 <Legend onClick={onLegendClick} wrapperStyle={{ fontSize: '12px', paddingTop: '10px', cursor: 'pointer' }} />
                 <Area

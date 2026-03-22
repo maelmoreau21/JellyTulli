@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from 'next-themes';
 import { useTranslations, useLocale } from 'next-intl';
 import { normalizeLibraryKey } from '@/lib/mediaPolicy';
@@ -48,7 +48,10 @@ export function YearlyHeatmap({ data, availableYears, dataByType, libraryTypes }
     const dateFnsLocale = locale === 'fr' ? fr : enUS;
     const { theme } = useTheme();
     const [mountedTheme, setMountedTheme] = useState(false);
-    useEffect(() => setMountedTheme(true), []);
+    useEffect(() => {
+        const id = window.setTimeout(() => setMountedTheme(true), 0);
+        return () => clearTimeout(id);
+    }, []);
     const currentYear = new Date().getFullYear();
     const [selectedYear, setSelectedYear] = useState(currentYear);
     const [selectedLibrary, setSelectedLibrary] = useState<string>('_total');

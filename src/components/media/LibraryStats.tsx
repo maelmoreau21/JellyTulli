@@ -48,7 +48,9 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
         if (normKey) {
             try { localized = tc(normKey); } catch { localized = null; }
         }
-        if (localized && localized !== normKey) return localized;
+        // next-intl may return a dotted lookup like "common.filmsuhd" when the key is missing
+        // treat those as missing and fall back to a humanized library name
+        if (localized && localized !== normKey && !localized.includes('.')) return localized;
         return humanizeLibraryName(lib.name || '');
     }, [tc]);
 
@@ -100,6 +102,15 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
         return "from-zinc-500/10 via-transparent to-transparent";
     };
 
+    const _contentItems = [
+        movieCount > 0 ? <span key="movies" className="text-blue-500">{movieCount} {tc('movies').toLowerCase()}</span> : null,
+        seriesCount > 0 ? <span key="series" className="text-emerald-500">{seriesCount} {tc('series').toLowerCase()}</span> : null,
+        albumCount > 0 ? <span key="music" className="text-yellow-500">{albumCount} {tc('music').toLowerCase()}</span> : null,
+        bookCount > 0 ? <span key="books" className="text-purple-500">{bookCount} {tc('books').toLowerCase()}</span> : null,
+    ].filter(Boolean) as JSX.Element[];
+
+    const contentWithSeparators = _contentItems.flatMap((item, i) => i === 0 ? [item] : [<span key={`sep-${i}`} className="text-zinc-400 font-normal">, </span>, item]);
+
     return (
         <div className="space-y-8 mb-10 mt-6">
             {/* KPI Banners */}
@@ -130,12 +141,7 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
                     </CardHeader>
                     <CardContent className="relative z-10">
                         <div className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 line-clamp-2 leading-snug h-10">
-                                            {[
-                                                movieCount > 0 && <span key="movies" className="text-blue-500">{movieCount} {tc('movies').toLowerCase()}</span>,
-                                                seriesCount > 0 && <span key="series" className="text-emerald-500">{seriesCount} {tc('series').toLowerCase()}</span>,
-                                                albumCount > 0 && <span key="music" className="text-yellow-500">{albumCount} {tc('music').toLowerCase()}</span>,
-                                                bookCount > 0 && <span key="books" className="text-purple-500">{bookCount} {tc('books').toLowerCase()}</span>
-                                            ].reduce((prev: any, curr: any, i: number) => prev === null ? [curr] : [...prev, <span key={`sep-${i}`} className="text-zinc-400 font-normal">, </span>, curr], null)}
+                            {contentWithSeparators}
                         </div>
                         <p className="text-xs text-zinc-500 mt-2 font-medium flex items-center gap-1.5 opacity-80">
                              <Info className="w-3.5 h-3.5" /> {t('statsContentDesc')}
@@ -184,7 +190,7 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
             </div>
 
             {/* Premium Grid Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredLibraries.length === 0 ? (
                     <div className="col-span-1 md:col-span-2 lg:col-span-3 py-16 text-center border border-dashed rounded-2xl border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/20">
                         <Database className="w-12 h-12 text-zinc-400 mx-auto mb-4 opacity-30" />
@@ -216,10 +222,10 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
                             <div className="flex items-start justify-between">
                                 <div className="space-y-1 w-full">
                                     <div className="flex items-center justify-between gap-2 w-full">
-                                        <div className="flex items-center gap-2 max-w-[70%]">
+                                        <div className="flex items-center gap-2">
                                             {getIconPrefix(lib.collectionType, lib.name)}
                                             <div className="flex items-center gap-2 min-w-0">
-                                                <CardTitle className="text-xl font-bold truncate pr-2 text-zinc-900 dark:text-zinc-100">{displayName}</CardTitle>
+                                                <CardTitle className="text-xl font-bold pr-2 text-zinc-900 dark:text-zinc-100 line-clamp-2 whitespace-normal break-words">{displayName}</CardTitle>
                                                 {lib.name && lib.name !== displayName ? (
                                                     <span className="text-xs text-zinc-500 ml-1 px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">{lib.name}</span>
                                                 ) : null}

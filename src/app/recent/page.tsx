@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 const ITEMS_PER_PAGE = 40;
 
-function getTypeBadge(type: string, tc: any) {
+function getTypeBadge(type: string, tc: (k: string) => string) {
   switch (type) {
     case "Movie": return { label: tc('movie'), color: "bg-blue-500/20 text-blue-400 border-blue-500/30", icon: Film };
     case "Series": return { label: tc('seriesSingular'), color: "bg-green-500/20 text-green-400 border-green-500/30", icon: Tv };
@@ -41,7 +41,7 @@ export default async function RecentPage({ searchParams }: { searchParams: Promi
   const locale = await getLocale();
   const session = await getServerSession(authOptions);
   if (!session?.user?.isAdmin) {
-    const uid = (session?.user as any)?.jellyfinUserId;
+    const uid = (session?.user as unknown as { jellyfinUserId?: string })?.jellyfinUserId;
     redirect(uid ? `/users/${uid}` : "/login");
   }
 
@@ -60,9 +60,9 @@ export default async function RecentPage({ searchParams }: { searchParams: Promi
     : ["Movie", "Series", "MusicAlbum"];
 
   const mediaWhere = (() => {
-    const clauses: any[] = [{ type: { in: displayTypes } }];
+    const clauses: Record<string, unknown>[] = [{ type: { in: displayTypes } } as Record<string, unknown>];
     const excluded = buildExcludedMediaClause(excludedLibraries);
-    if (excluded) clauses.push(excluded);
+    if (excluded) clauses.push(excluded as Record<string, unknown>);
     return { AND: clauses };
   })();
 

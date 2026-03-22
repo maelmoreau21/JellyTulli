@@ -16,7 +16,7 @@ export async function performAutoBackup(): Promise<string> {
         // Load fs/path dynamically via require-eval to avoid static bundler tracing
         function getFS() {
             try {
-                // eslint-disable-next-line no-eval
+                 
                 const req = eval('require');
                 return req('fs');
             } catch (e) {
@@ -25,7 +25,7 @@ export async function performAutoBackup(): Promise<string> {
         }
         function getPath() {
             try {
-                // eslint-disable-next-line no-eval
+                 
                 const req = eval('require');
                 return req('path');
             } catch (e) {
@@ -81,13 +81,14 @@ export async function performAutoBackup(): Promise<string> {
         console.log(`[Auto-Backup] Backup saved: ${fileName} (${fileSizeMb} Mo)`);
 
         // Rolling rotation: delete oldest files if we exceed MAX_BACKUPS
+        type BackupFile = { name: string; time: number };
         const backupFiles = fs.readdirSync(BACKUP_DIR)
             .filter((f: string) => f.endsWith(".json") && f.startsWith("JellyTrack-auto-"))
-            .map((f: string) => ({
+            .map((f: string): BackupFile => ({
                 name: f,
                 time: fs.statSync(`${BACKUP_DIR}/${f}`).mtime.getTime(),
             }))
-            .sort((a: any, b: any) => b.time - a.time); // Newest first
+            .sort((a: BackupFile, b: BackupFile) => b.time - a.time); // Newest first
 
         if (backupFiles.length > MAX_BACKUPS) {
             const toDelete = backupFiles.slice(MAX_BACKUPS);

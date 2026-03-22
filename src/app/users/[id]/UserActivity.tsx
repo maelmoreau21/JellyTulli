@@ -30,7 +30,8 @@ export default async function UserActivity({ userId }: { userId: string }) {
         activityMap.set(`${d.getDate()}/${d.getMonth() + 1}`, 0);
     }
 
-    user.playbackHistory.forEach((session: any) => {
+    type SimpleSession = { startedAt: string; durationWatched: number };
+    user.playbackHistory.forEach((session: SimpleSession) => {
         const d = new Date(session.startedAt);
         const key = `${d.getDate()}/${d.getMonth() + 1}`;
         if (activityMap.has(key)) {

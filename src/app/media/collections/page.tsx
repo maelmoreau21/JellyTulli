@@ -2,7 +2,7 @@ import prisma from "@/lib/prisma";
 import { getTranslations } from 'next-intl/server';
 import LibraryStats from '@/components/media/LibraryStats';
 import { formatSize } from '@/lib/size';
-import { buildExcludedMediaClause } from '@/lib/mediaPolicy';
+import { buildExcludedMediaClause, inferLibraryKey } from '@/lib/mediaPolicy';
 import { getSanitizedLibraryNames, GHOST_LIBRARY_NAMES } from "@/lib/libraryUtils";
 import { isZapped, ZAPPING_CONDITION } from '@/lib/statsUtils';
 
@@ -40,6 +40,9 @@ export default async function CollectionsPage() {
     let albumCount = 0;
     let bookCount = 0;
 
+    // Compute per-library stats from the fetched `allMedia` array. Using the client-side pass
+    // avoids mismatches related to DB groupBy filters and keeps logic consistent for different
+    // Jellyfin media `type` values (Track, MusicAlbum, Audio, Episode, etc.).
     allMedia.forEach(m => {
         if (!m.libraryName || ghostNames.has(m.libraryName) || m.collectionType === 'boxsets') return;
         const libName = m.libraryName;
@@ -49,42 +52,32 @@ export default async function CollectionsPage() {
         const lib = libraryStatsMap.get(libName)!;
         if (!lib.collectionType && m.collectionType) lib.collectionType = m.collectionType;
 
-        const isLeaf = ['Movie', 'Episode', 'Audio', 'Book'].includes(m.type);
-        if (m.durationMs != null && isLeaf) {
-            const durBig = typeof m.durationMs === 'bigint' ? m.durationMs : BigInt(Math.floor(Number(m.durationMs)));
-            totalDurationMs += durBig;
-            lib.duration = (lib.duration || BigInt(0)) + durBig;
+        // Aggregate size (if present)
+        if (m.size != null) {
+            const sizeBig = typeof m.size === 'bigint' ? m.size : BigInt(Math.floor(Number(m.size)));
+            lib.size = (lib.size || BigInt(0)) + sizeBig;
+            totalSizeBytes += sizeBig;
         }
 
-        if (m.type === 'Movie' || m.type === 'BoxSet') { movieCount++; lib.movies++; lib.items++; }
-        else if (m.type === 'Series' || m.type === 'Season') { seriesCount++; lib.series++; lib.items++; }
-        else if (m.type === 'MusicAlbum') { albumCount++; lib.music++; lib.items++; }
-        else if (m.type === 'Book') { bookCount++; lib.books++; lib.items++; }
+        // Aggregate duration (if present)
+        if (m.durationMs != null) {
+            const durBig = typeof m.durationMs === 'bigint' ? m.durationMs : BigInt(Math.floor(Number(m.durationMs)));
+            lib.duration = (lib.duration || BigInt(0)) + durBig;
+            totalDurationMs += durBig;
+        }
+
+        // Classify via inferLibraryKey to be resilient to Jellyfin type variants
+        const libKey = inferLibraryKey({ collectionType: m.collectionType, type: m.type, durationMs: m.durationMs });
+        lib.items = (lib.items || 0) + 1;
+        if (libKey === 'movies') { movieCount++; lib.movies++; }
+        else if (libKey === 'tvshows') { seriesCount++; lib.series++; }
+        else if (libKey === 'music') { albumCount++; lib.music++; }
+        else if (libKey === 'books') { bookCount++; lib.books++; }
     });
 
-    try {
-        const leafTypes = ['Movie', 'Episode', 'Audio', 'Book'];
-        const sizeWhere: Record<string, unknown> = { type: { in: leafTypes } };
-        const excludedForSize = buildExcludedMediaClause(excludedLibraries);
-        if (excludedForSize) sizeWhere.AND = [excludedForSize];
-
-        const sizeAgg = await prisma.media.aggregate({ where: sizeWhere, _sum: { size: true } });
-        const rawTotal = (sizeAgg._sum && (sizeAgg._sum as Record<string, unknown>).size) ?? 0;
-        totalSizeBytes = typeof rawTotal === 'bigint' ? rawTotal : BigInt(Math.floor(Number(rawTotal)));
-
-        const perLibSizes = await prisma.media.groupBy({ by: ['libraryName'], where: sizeWhere, _sum: { size: true } });
-        for (const p of perLibSizes) {
-            const name = p.libraryName || tc('other');
-            if (!libraryStatsMap.has(name)) {
-                libraryStatsMap.set(name, { size: BigInt(0), duration: BigInt(0), watchedSeconds: 0, items: 0, movies: 0, series: 0, music: 0, books: 0, collectionType: null });
-            }
-            const lib = libraryStatsMap.get(name)!;
-            const rawLibSize = (p._sum && (p._sum as Record<string, unknown>).size) ?? 0;
-            lib.size = typeof rawLibSize === 'bigint' ? rawLibSize : BigInt(Math.floor(Number(rawLibSize)));
-        }
-    } catch (e) {
-        console.warn('[CollectionsPage] Failed to aggregate sizes from DB:', e);
-    }
+    // Sizes were aggregated above from the `allMedia` set to avoid DB groupBy mismatches
+    // and to support the variety of Jellyfin `type` values. If needed, a DB-side groupBy
+    // could be reintroduced but must include all relevant types.
 
     try {
         const playbackAgg = await prisma.playbackHistory.groupBy({ by: ['mediaId'], _sum: { durationWatched: true }, where: ZAPPING_CONDITION });

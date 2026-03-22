@@ -42,10 +42,10 @@ export function LibraryDailyPlaysChart({ data }: { data: LibraryPlaysData[] }) {
     // Auto-hide libraries that have 0 plays across entire dataset
     const hasData = new Map<string, boolean>();
     for (const series of LIBRARY_SERIES_KEYS) {
-        hasData.set(series.key, data.some((d: LibraryPlaysData) => Number((d as any)[series.key] || 0) > 0));
+        hasData.set(series.key, data.some((d: LibraryPlaysData) => Number((d as Record<string, unknown>)[series.key] || 0) > 0));
     }
 
-    const toggleLegend = (e: any) => {
+    const toggleLegend = (e: { dataKey?: string } | undefined) => {
         const dataKey = e?.dataKey !== undefined ? String(e.dataKey) : undefined;
         if (!dataKey) return;
         setHidden(prev => {
@@ -81,10 +81,10 @@ export function LibraryDailyPlaysChart({ data }: { data: LibraryPlaysData[] }) {
                     contentStyle={chartTooltipStyle}
                     labelStyle={chartLabelStyle}
                     itemStyle={chartItemStyle}
-                    formatter={formatTooltipValue as any}
+                    formatter={formatTooltipValue}
                 />
                 <Legend
-                    onClick={toggleLegend as any}
+                    onClick={toggleLegend}
                     wrapperStyle={{ fontSize: '12px', paddingTop: '10px', cursor: 'pointer' }}
                 />
                 {LIBRARY_SERIES_KEYS.map((s) => (

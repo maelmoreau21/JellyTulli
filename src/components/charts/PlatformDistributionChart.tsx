@@ -122,7 +122,7 @@ export function PlatformDistributionChart({ data }: PlatformDistributionChartPro
                         animationDuration={1000}
                         animationBegin={0}
                         animationEasing="ease-out"
-                        activeShape={renderActiveShape as any}
+                        activeShape={renderActiveShape as unknown as React.FC<PlatformActiveShapeProps>}
                         onMouseEnter={(d: { value?: number; name?: string }, index: number) => setActiveIndex(index)}
                         onMouseLeave={() => setActiveIndex(-1)}
                     >
@@ -142,7 +142,11 @@ export function PlatformDistributionChart({ data }: PlatformDistributionChartPro
                         labelStyle={chartLabelStyle}
                         itemStyle={chartItemStyle}
                         animationDuration={200}
-                        formatter={(value: any, name?: any) => [`${value} (${total > 0 ? ((Number(value) / total) * 100).toFixed(0) : 0}%)`, name ?? ''] as [string, string]}
+                        formatter={(value: number | string | null | undefined, name?: string) => {
+                            const n = Number(value ?? 0);
+                            const pct = total > 0 ? ((n / total) * 100).toFixed(0) : '0';
+                            return [`${n} (${pct}%)`, name ?? ''] as [string, string];
+                        }}
                     />
                     <Legend
                         verticalAlign="bottom"

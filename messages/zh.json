@@ -151,7 +151,10 @@
     "homevideos": "家庭视频",
     "photos": "照片",
     "livetv": "直播电视",
-    "tvshows": "电视剧"
+    "tvshows": "电视剧",
+    "filmsuhd": "UHD 电影",
+    "musiques": "音乐",
+    "sériesuhd": "UHD 电视剧"
   },
   "dashboard": {
     "abandoned": "已放弃",
@@ -467,6 +470,7 @@
     "title": "集合",
     "videoQuality": "整体视频质量",
     "videoQualityDesc": "按认证分辨率分布。",
+    "4kLabel": "4K UHD",
     "searchLibrary": "搜索集合...",
     "topContent": "最受欢迎",
     "lastAdded": "最新添加"

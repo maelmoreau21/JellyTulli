@@ -14,10 +14,10 @@ declare global {
 
 function createPrismaStub() {
   // Return a Proxy that gracefully handles common Prisma model methods used in the app.
-  const modelHandler: ProxyHandler<any> = {
+  const modelHandler: ProxyHandler<Record<string, unknown>> = {
     get(_t, prop: string) {
       if (prop === '$connect' || prop === '$disconnect') return async () => {};
-      return async (..._args: any[]) => {
+      return async (..._args: unknown[]) => {
         if (prop === 'findMany') return [];
         if (prop === 'findUnique' || prop === 'findFirst' || prop === 'findUniqueOrThrow') return null;
         if (prop === 'count') return 0;

@@ -22,6 +22,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Ignore our local archive of candidate files
+    "archived/**",
   ]),
 ]);
 

@@ -6,8 +6,14 @@ import { useTranslations } from 'next-intl';
 import { Activity, AlertTriangle, CheckCircle2, Clock3, DatabaseBackup, HeartPulse, RefreshCw, ShieldAlert } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
+type SystemStatus = {
+    monitor: { status: string; lastPollAt?: string | null };
+    sync: { lastSuccessAt?: string | null };
+    backup: { lastSuccessAt?: string | null };
+};
+
 type Snapshot = {
-    status: any;
+    status: SystemStatus;
     excludedLibraries: string[];
     counts: {
         activeStreams: number;

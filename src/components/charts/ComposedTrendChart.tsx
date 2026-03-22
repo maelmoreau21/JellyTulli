@@ -55,7 +55,7 @@ export function ComposedTrendChart({ data, series }: { data: TrendData[], series
         return [`${Number(value).toFixed(1)}h`, name];
     };
 
-    const toggleLegend = (e: any) => {
+    const toggleLegend = (e: { dataKey?: string } | undefined) => {
         const dataKey = e?.dataKey !== undefined ? String(e.dataKey) : undefined;
         if (!dataKey) return;
         setHidden(prev => {
@@ -103,12 +103,12 @@ export function ComposedTrendChart({ data, series }: { data: TrendData[], series
                     contentStyle={chartTooltipStyle}
                     labelStyle={chartLabelStyle}
                     itemStyle={chartItemStyle}
-                    formatter={formatTooltipValue as any}
+                    formatter={formatTooltipValue}
                     cursor={{ stroke: 'rgba(56, 189, 248, 0.2)', strokeWidth: 1, strokeDasharray: '4 4' }}
                     animationDuration={200}
                 />
                 <Legend
-                    onClick={toggleLegend as any}
+                    onClick={toggleLegend}
                     wrapperStyle={{ fontSize: '12px', paddingTop: '10px', cursor: 'pointer' }}
                 />
 

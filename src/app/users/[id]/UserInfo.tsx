@@ -43,7 +43,15 @@ export default async function UserInfo({ userId }: { userId: string }) {
     let completionCount = 0;
     let firstWatched: Date | null = null;
 
-    user.playbackHistory.forEach((session: any) => {
+    type PlaybackSession = {
+        durationWatched: number;
+        clientName?: string | null;
+        deviceName?: string | null;
+        startedAt: string;
+        media?: { genres?: string[]; type?: string; durationMs?: number; title?: string; jellyfinMediaId?: string } | null;
+    };
+
+    user.playbackHistory.forEach((session: PlaybackSession) => {
         if (isZapped(session)) return;
         totalSeconds += session.durationWatched;
         if (session.clientName) clientCounts.set(session.clientName, (clientCounts.get(session.clientName) || 0) + 1);
@@ -73,7 +81,7 @@ export default async function UserInfo({ userId }: { userId: string }) {
         if (session.media?.jellyfinMediaId) {
             const mid = session.media.jellyfinMediaId;
             if (!mediaCounts.has(mid)) {
-                mediaCounts.set(mid, { title: session.media.title, id: mid, seconds: 0, count: 0 });
+                mediaCounts.set(mid, { title: session.media.title || '', id: mid, seconds: 0, count: 0 });
             }
             const m = mediaCounts.get(mid)!;
             m.seconds += session.durationWatched;
@@ -137,11 +145,11 @@ export default async function UserInfo({ userId }: { userId: string }) {
     const uniqueMovies = new Set<string>();
     const uniqueSeries = new Set<string>();
     const uniqueMusic = new Set<string>();
-    user.playbackHistory.forEach((session: any) => {
+    user.playbackHistory.forEach((session: PlaybackSession) => {
         if (isZapped(session)) return;
-        if (session.media?.type === 'Movie') uniqueMovies.add(session.media.jellyfinMediaId);
-        else if (session.media?.type === 'Episode') uniqueSeries.add(session.media.jellyfinMediaId);
-        else if (session.media?.type === 'Audio') uniqueMusic.add(session.media.jellyfinMediaId);
+        if (session.media?.type === 'Movie' && session.media.jellyfinMediaId) uniqueMovies.add(session.media.jellyfinMediaId);
+        else if (session.media?.type === 'Episode' && session.media.jellyfinMediaId) uniqueSeries.add(session.media.jellyfinMediaId);
+        else if (session.media?.type === 'Audio' && session.media.jellyfinMediaId) uniqueMusic.add(session.media.jellyfinMediaId);
     });
 
     // Calculate max streak (consecutive days)

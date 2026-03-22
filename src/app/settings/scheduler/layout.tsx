@@ -14,20 +14,22 @@ export default function SettingsSchedulerLayout({ children }: { children: React.
 
     return (
         <div className="p-4 max-w-[1300px] mx-auto w-full">
-            <nav className="flex gap-2 overflow-auto pb-4 border-b border-zinc-800/40 mb-6">
-                {tabs.map(tab => {
-                    const active = pathname?.startsWith(tab.href);
-                    return (
-                        <Link
-                            key={tab.href}
-                            href={tab.href}
-                            className={`px-3 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors border ${active ? 'bg-zinc-900 text-white shadow-sm border-zinc-800/60' : 'text-zinc-300 border-transparent hover:bg-zinc-900/40 hover:border-zinc-800/30'}`}
-                        >
-                            {tab.label}
-                        </Link>
-                    );
-                })}
-            </nav>
+            {tabs.length > 1 && (
+                <nav className="flex gap-2 overflow-auto pb-4 border-b border-zinc-800/40 mb-6">
+                    {tabs.map(tab => {
+                        const active = pathname?.startsWith(tab.href);
+                        return (
+                            <Link
+                                key={tab.href}
+                                href={tab.href}
+                                className={`px-3 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors border ${active ? 'bg-zinc-900 text-white shadow-sm border-zinc-800/60' : 'text-zinc-300 border-transparent hover:bg-zinc-900/40 hover:border-zinc-800/30'}`}
+                            >
+                                {tab.label}
+                            </Link>
+                        );
+                    })}
+                </nav>
+            )}
             <div>{children}</div>
         </div>
     );

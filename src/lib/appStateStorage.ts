@@ -2,7 +2,7 @@
 function getFS() {
     try {
         // Use eval('require') to avoid static analysis by the bundler
-        // eslint-disable-next-line no-eval
+         
         const req = eval('require');
         return req('fs');
     } catch (e) {
@@ -12,7 +12,7 @@ function getFS() {
 
 function getPath() {
     try {
-        // eslint-disable-next-line no-eval
+         
         const req = eval('require');
         return req('path');
     } catch (e) {

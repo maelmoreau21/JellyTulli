@@ -10,7 +10,7 @@ import { getTranslations } from 'next-intl/server';
 export default async function LogHealthPage() {
     const session = await getServerSession(authOptions);
     if (!session?.user?.isAdmin) {
-        const uid = (session?.user as any)?.jellyfinUserId;
+        const uid = (session?.user as unknown as { jellyfinUserId?: string })?.jellyfinUserId;
         redirect(uid ? `/users/${uid}` : '/login');
     }
     const t = await getTranslations('dashboard');
@@ -55,11 +55,11 @@ export default async function LogHealthPage() {
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {snapshot.orphanPlaybacks.length === 0 && <div className="text-sm text-zinc-500">{t('noOrphanPlaybacks')}</div>}
-                            {snapshot.orphanPlaybacks.map((entry: any) => (
+                            {snapshot.orphanPlaybacks.map((entry: { id: string; mediaTitle?: string; username?: string; library?: string; startedAt?: string | null; durationWatched?: number }) => (
                                 <div key={entry.id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-black/20 p-3">
                                     <div className="font-medium text-zinc-100">{entry.mediaTitle}</div>
                                     <div className="mt-1 text-xs text-zinc-400">{entry.username} · {entry.library}</div>
-                                    <div className="mt-2 text-xs text-zinc-500">{t('openedOn')} {formatDate(entry.startedAt)} · {Math.floor(entry.durationWatched / 60)} min</div>
+                                    <div className="mt-2 text-xs text-zinc-500">{t('openedOn')} {formatDate(entry.startedAt)} · {Math.floor((entry.durationWatched ?? 0) / 60)} min</div>
                                 </div>
                             ))}
                         </CardContent>
@@ -72,10 +72,10 @@ export default async function LogHealthPage() {
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {snapshot.recentEvents.length === 0 && <div className="text-sm text-zinc-500">{t('noRecentEvents')}</div>}
-                            {snapshot.recentEvents.map((event: any) => (
+                            {snapshot.recentEvents.map((event: { id: string; kind?: string; message?: string; createdAt?: string | null }) => (
                                 <div key={event.id} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-black/20 p-3">
                                     <div className="flex items-center gap-2 text-sm font-medium text-zinc-100">
-                                        {event.kind.includes('error') ? <AlertTriangle className="h-4 w-4 text-red-400" /> : <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
+                                        {String(event.kind || '').includes('error') ? <AlertTriangle className="h-4 w-4 text-red-400" /> : <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
                                         {event.message}
                                     </div>
                                     <div className="mt-2 text-xs text-zinc-500">{formatDate(event.createdAt)}</div>
@@ -105,7 +105,7 @@ export default async function LogHealthPage() {
                             <CardDescription>{t('rulesDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            {Object.entries(snapshot.libraryRules).map(([library, rule]: any) => (
+                            {Object.entries(snapshot.libraryRules).map(([library, rule]: [string, { completionEnabled?: boolean; abandonedThreshold?: number; partialThreshold?: number; completedThreshold?: number }]) => (
                                 <div key={library} className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/50 dark:bg-black/20 p-3">
                                     <div className="font-medium text-zinc-100">{library}</div>
                                     <div className="mt-1 text-xs text-zinc-400">

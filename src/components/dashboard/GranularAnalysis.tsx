@@ -29,7 +29,7 @@ const getGranularData = unstable_cache(
         else if (timeRange === "30d") currentStartDate.setDate(currentStartDate.getDate() - 30);
         else currentStartDate = new Date(0);
 
-        let mediaTypeFilter: any = {};
+        let mediaTypeFilter: Record<string, unknown> = {};
         if (type === 'movie') mediaTypeFilter = { type: 'Movie' };
         else if (type === 'series') mediaTypeFilter = { type: { in: ['Series', 'Episode'] } };
         else if (type === 'music') mediaTypeFilter = { type: { in: ['Audio', 'Track', 'MusicAlbum'] } };
@@ -50,8 +50,8 @@ const getGranularData = unstable_cache(
             orderBy: { startedAt: 'asc' }
         });
 
-        const dailyMap = new Map<string, any>();
-        const hourlyMap = new Map<string, any>();
+        const dailyMap = new Map<string, Record<string, number | string>>();
+        const hourlyMap = new Map<string, { time: string; plays: number; duration: number }>();
         const collections = new Set<string>();
         const completionMap = new Map<string, { totalCompletion: number, sessions: number }>();
         const mediaDropMap = new Map<string, { title: string, mediaId: string, completion: number, count: number }>();
@@ -64,7 +64,7 @@ const getGranularData = unstable_cache(
 
         // Heatmap Data (Day of Week vs Hour)
         // Array of 7 days, each having 24 hours
-        const heatmapData: any[] = [];
+        const heatmapData: { day: number; hour: number; value: number }[] = [];
         for (let d = 0; d < 7; d++) {
             for (let h = 0; h < 24; h++) {
                 heatmapData.push({ day: d, hour: h, value: 0 });
@@ -239,7 +239,7 @@ export async function GranularAnalysis({ type, timeRange, excludedLibraries }: {
         return out;
     });
 
-    const normalizedDropOffData = (data.dropOffData || []).map((d: any) => ({ time: rawToNorm.get(d.time) || d.time, completion: d.completion }));
+    const normalizedDropOffData = (data.dropOffData || []).map((d: { time: string; completion: number }) => ({ time: rawToNorm.get(d.time) || d.time, completion: d.completion }));
 
     const normalizedKeys = getAvailableLibraryKeys(Array.from(rawToNorm.values()));
     const labelMap: Record<string, string> = {};
@@ -289,14 +289,14 @@ export async function GranularAnalysis({ type, timeRange, excludedLibraries }: {
     const tDashboard = await getTranslations('dashboard');
 
     // Localize subtitle names (e.g. OFF -> Disabled) using the granular scope
-    const localizedSubtitleData = (data.subtitleData || []).map((d: any) => {
+    const localizedSubtitleData = (data.subtitleData || []).map((d: { name?: string; value?: number }) => {
         const name = String(d.name || '').toUpperCase();
         if (name === 'OFF' || name === 'NONE' || name === 'UNKNOWN') return { ...d, name: t('disabled') };
         return d;
     });
 
     // Localize drop segments (data.dropSegments contains bucket keys)
-    const localizedDropSegments = (data.dropSegments || []).map((s: any) => {
+    const localizedDropSegments = (data.dropSegments || []).map((s: { name?: string; value?: number; fill?: string }) => {
         const key = String(s.name || '').toLowerCase();
         switch (key) {
             case 'skipped': return { ...s, name: t('skipped') };
@@ -417,7 +417,7 @@ export async function GranularAnalysis({ type, timeRange, excludedLibraries }: {
                         <div className="space-y-4">
                             {data.topAbandoned.length === 0 ? (
                                 <p className="text-sm text-zinc-500 text-center py-6">—</p>
-                            ) : data.topAbandoned.map((m: any, i: number) => (
+                            ) : data.topAbandoned.map((m: { title: string; fullTitle: string; mediaId: string; completion: number; count: number }, i: number) => (
                                 <a
                                     key={i}
                                     href={`/media?q=${encodeURIComponent(m.fullTitle)}`}

@@ -150,7 +150,10 @@
     "homevideos": "Домашние видео",
     "photos": "Фотографии",
     "livetv": "Прямой эфир",
-    "tvshows": "Сериалы"
+    "tvshows": "Сериалы",
+    "filmsuhd": "Фильмы UHD",
+    "musiques": "Музыка",
+    "sériesuhd": "Сериалы UHD"
   },
   "dashboard": {
     "abandoned": "Брошено",
@@ -466,6 +469,7 @@
     "title": "Коллекция",
     "videoQuality": "Общее качество видео",
     "videoQualityDesc": "Распределение контента по качеству.",
+    "4kLabel": "4K UHD",
     "searchLibrary": "Искать коллекцию...",
     "topContent": "Лидер",
     "lastAdded": "Новинка"

@@ -34,7 +34,10 @@ export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: Timelin
         value: typeof b?.value === "number" && Number.isFinite(b.value) ? b.value : 0,
     }));
 
-    if (safeTimeline.length === 0 && safeBreakdown.length === 0) {
+    // If timeline exists but all values are zero, treat as no anomalies to avoid rendering an empty chart
+    const timelineHasValues = safeTimeline.some(pt => (pt.monitorErrors || pt.syncErrors || pt.backupErrors || pt.cleanupOps) > 0);
+    const breakdownHasValues = safeBreakdown.some(b => (b.value || 0) > 0);
+    if (!timelineHasValues && !breakdownHasValues) {
         return <div className="text-sm text-zinc-400">Aucune anomalie détectée</div>;
     }
 

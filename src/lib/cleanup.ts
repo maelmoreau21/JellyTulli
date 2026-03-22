@@ -93,7 +93,8 @@ export async function cleanupOrphanedSessions() {
             });
         }
 
-    } catch (err: any) {
-        console.error("[Cleanup] Error during orphaned session cleanup:", err);
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("[Cleanup] Error during orphaned session cleanup:", msg);
     }
 }

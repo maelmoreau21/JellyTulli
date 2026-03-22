@@ -11,6 +11,25 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const ITEMS_PER_PAGE = 50;
 
+type MediaCompact = {
+    jellyfinMediaId: string;
+    title?: string | null;
+    type?: string | null;
+    parentId?: string | null;
+    artist?: string | null;
+    durationMs?: number | null;
+};
+
+type RecentSession = {
+    id: string;
+    durationWatched: number;
+    startedAt: string;
+    playMethod?: string | null;
+    clientName?: string | null;
+    deviceName?: string | null;
+    media?: MediaCompact | null;
+};
+
 export default async function UserRecentMedia({ userId, page = 1 }: { userId: string; page?: number }) {
     const t = await getTranslations('userProfile');
     const locale = await getLocale();
@@ -67,7 +86,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
 
     // Build parent chain for enriched media titles (Episode â†’ Series — Season, Audio â†’ Artist — Album)
     const parentIds = new Set<string>();
-    sessions.forEach((s: any) => {
+    sessions.forEach((s: RecentSession) => {
         if (s.media?.parentId) parentIds.add(s.media.parentId);
     });
     const parentMedia = parentIds.size > 0
@@ -87,7 +106,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
     const parentMap = new Map(parentMedia.map(pm => [pm.jellyfinMediaId, pm]));
     const grandparentMap = new Map(grandparentMedia.map(gp => [gp.jellyfinMediaId, gp]));
 
-    function getMediaSubtitle(media: any): string | null {
+    function getMediaSubtitle(media?: MediaCompact | null): string | null {
         if (!media?.parentId) return null;
         const parent = parentMap.get(media.parentId);
         if (!parent) return null;
@@ -135,7 +154,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {sessions.map((session: any) => {
+                            {sessions.map((session: RecentSession) => {
                                 const minutes = Math.floor(session.durationWatched / 60);
                                 const dateFormat = new Intl.DateTimeFormat(locale, {
                                     dateStyle: "medium",

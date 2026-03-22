@@ -31,7 +31,8 @@ export default async function UserStatsCharts({ userId }: { userId: string }) {
     let partial = 0;
     let abandoned = 0;
 
-    user.playbackHistory.forEach((session: any) => {
+    type StatsSession = { startedAt: string; durationWatched: number; media?: { durationMs?: number } };
+    user.playbackHistory.forEach((session: StatsSession) => {
         const startedAt = new Date(session.startedAt);
         const day = startedAt.getDay();
         const hour = startedAt.getHours();

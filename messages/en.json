@@ -151,7 +151,10 @@
     "homevideos": "Home Videos",
     "photos": "Photos",
     "livetv": "Live TV",
-    "tvshows": "TV Shows"
+    "tvshows": "TV Shows",
+    "filmsuhd": "UHD Movies",
+    "musiques": "Music",
+    "sériesuhd": "UHD Series"
   },
   "dashboard": {
     "abandoned": "Abandoned",
@@ -467,6 +470,7 @@
     "title": "Collection",
     "videoQuality": "Overall Video Quality",
     "videoQualityDesc": "Distribution by certified resolution.",
+    "4kLabel": "4K UHD",
     "searchLibrary": "Search for a collection...",
     "topContent": "Leader",
     "lastAdded": "New Release"

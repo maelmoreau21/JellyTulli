@@ -9,6 +9,12 @@ interface UserVector {
   magnitude: number;
 }
 
+interface PlaybackAggregate {
+  userId?: string | null;
+  mediaId?: string | null;
+  _sum?: { durationWatched?: number | null };
+}
+
 /**
  * Calculate Cosine Similarity between two vectors
  */
@@ -28,13 +34,13 @@ function cosineSimilarity(vecA: UserVector, vecB: UserVector): number {
 /**
  * Builds a vector for a user from their aggregate history
  */
-function buildVector(userId: string, aggregates: any[]): UserVector {
+function buildVector(userId: string, aggregates: PlaybackAggregate[]): UserVector {
   const items = new Map<string, number>();
   let sumSquares = 0;
   
   for (const agg of aggregates) {
-    if (agg.mediaId && agg._sum.durationWatched) {
-      const minutes = agg._sum.durationWatched / 60;
+    if (agg.mediaId && agg._sum?.durationWatched) {
+      const minutes = (agg._sum.durationWatched as number) / 60;
       items.set(agg.mediaId, minutes);
       sumSquares += minutes * minutes;
     }
@@ -105,11 +111,11 @@ export async function getAIRecommendations(targetUserId: string, limit: number =
       _sum: { durationWatched: true }
     });
 
-    const userItemsMap = new Map<string, any[]>();
+    const userItemsMap = new Map<string, PlaybackAggregate[]>();
     for (const agg of candidatesAgg) {
       if (!agg.userId) continue;
       if (!userItemsMap.has(agg.userId)) userItemsMap.set(agg.userId, []);
-      userItemsMap.get(agg.userId)!.push(agg);
+      userItemsMap.get(agg.userId)!.push(agg as PlaybackAggregate);
     }
 
     // 4. Calculate similarities
@@ -167,6 +173,8 @@ export async function getAIRecommendations(targetUserId: string, limit: number =
 
     const mediaById = new Map(recommendedMediaInfo.map(m => [m.id, m]));
 
+    type RecommendationResult = { id: string; score: number; media: { jellyfinMediaId: string; title: string | null; type: string | null; libraryName: string | null } };
+
     const results = sortedItems.map(([internalId, score]) => {
       const media = mediaById.get(internalId);
       if (!media || !media.jellyfinMediaId) return null;
@@ -175,7 +183,7 @@ export async function getAIRecommendations(targetUserId: string, limit: number =
         score,
         media: { jellyfinMediaId: media.jellyfinMediaId, title: media.title, type: media.type, libraryName: media.libraryName }
       };
-    }).filter(Boolean) as any[];
+    }).filter(Boolean) as RecommendationResult[];
 
     const payload = {
       updatedAt: new Date().toISOString(),

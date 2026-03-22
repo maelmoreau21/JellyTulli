@@ -389,7 +389,7 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
     const tGranular = await getTranslations('granular');
 
     // Localize subtitle 'None' label to translation (was using literal 'None' in aggregation)
-    const localizedSubtitleChartData = (data.subtitleChartData || []).map((d: any) => {
+    const localizedSubtitleChartData = (data.subtitleChartData || []).map((d: { name?: string | null; value?: number }) => {
         const name = String(d.name || '');
         if (name.toUpperCase() === 'NONE' || name.toUpperCase() === 'OFF' || name.toUpperCase() === 'UNKNOWN') {
             return { ...d, name: tGranular('disabled') };
