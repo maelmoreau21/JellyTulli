@@ -140,6 +140,7 @@ Vous devez RELIRE `prisma/schema.prisma` avant toute proposition qui touche aux 
 3. Exécuter `npm run build` et corriger les erreurs TypeScript/Next.js.
 4. Si modifications Prisma : fournir migration planifiée + `npx prisma generate` et tests DB (ou instructions pour `npx prisma db push`).
 5. Vérifier l'UI via `npm run dev`, tester flux critiques (logs, exports, pages dashboard).
+6. Mitiger les warnings Turbopack/NFT : éviter les `import` top-level de `fs`/`path` dans le code serveur, préférer des imports dynamiques (`await import('fs')`) ou utiliser `/*turbopackIgnore: true*/` pour les imports dynamiques (p.ex. import(/*turbopackIgnore: true*/ `../../messages/${locale}.json`). Re-relancer `npm run build` et vérifier les warnings.
 
 ## 11. Règles pour éviter les « hallucinations »
 - Toujours vérifier :
@@ -371,4 +372,16 @@ Ces notes décrivent le flux serveur principal et les points à connaître pour 
 ---
 
 Si vous souhaitez que j'ajoute un diagramme ER Mermaid ou des scripts SQL de migration/archivage, dites-le et je l'ajoute dans ce fichier.
+
+## 16. Modifications récentes (notes opérationnelles)
+
+- Pages de paramètres : le fichier `src/app/settings/page.tsx` a été remplacé par une page d'aperçu qui renvoie vers des sous-pages dédiées : `Connexion Plugin` (`/settings/plugin`), `Planificateur de Tâches` (`/settings/scheduler`), `Notifications` (`/settings/notifications`), `Règles par bibliothèque` (`/settings/libraryRules`) et `Sauvegardes de Données` (`/settings/dataBackups`). Vérifier ces routes lors d'une QA visuelle.
+- Language switcher (login) : `src/app/login/LoginLanguageSwitcher.tsx` utilise désormais des images de drapeaux (FlagCDN, ex. `https://flagcdn.com/w40/{iso}.png`) au lieu d'emojis — conserver la source `AVAILABLE_LOCALES` dans `src/i18n/locales.ts` pour la cohérence.
+- Analyse média : `src/app/media/analysis/page.tsx` a été refactorée pour calculer des agrégats (total média, diversité de genres, durée moyenne, top directors, top libraries). Des clés i18n `media.*` ont été ajoutées — s'assurer qu'elles existent dans tous les fichiers `messages/*.json`.
+- UI mineures : `src/app/logs/LogRow.tsx` a été ajusté pour enlever la bordure verticale par ligne (séparation maintenue au niveau de l'entête).
+- Sauvegardes & bundler : pour réduire les warnings liés au traçage NFT de Turbopack, éviter les imports statiques top-level de `fs`/`path` dans le code serveur/route. Utiliser des imports dynamiques (`await import('fs')`) ou ajouter `/*turbopackIgnore: true*/` sur des imports dynamiques quand nécessaire. Fichiers notables modifiés : `src/lib/autoBackup.ts`, `src/app/api/backup/auto/*`, `src/lib/appStateStorage.ts`.
+- Avertissement restant : une alerte non-bloquante Turbopack peut encore référencer `next.config.ts -> src/app/api/backup/auto/restore/route.ts`. Ce warning n'empêche pas la compilation mais peut être investigué si l'objectif est zéro warnings.
+- i18n plugin : si des libellés liés au plugin changent, pensez aussi à mettre à jour `JellyTrack.Plugin/Localization/*.json` pour garder la cohérence entre l'application et le plugin.
+
+Après ces types de changements, toujours exécuter `npm run build` pour valider la compilation et corriger les erreurs/avertissements avant de merger.
 

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin, isAuthError } from "@/lib/auth";
-import { readFileSync, existsSync } from "fs";
-import path from "path";
 import { apiT } from "@/lib/i18n-api";
 import { saveLibraryRules } from "@/lib/libraryRules";
 import { replaceSystemHealthState } from "@/lib/systemHealth";
@@ -18,6 +16,10 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: await apiT('fileNameInvalid') }, { status: 400 });
         }
 
+        // Dynamic imports for fs/path to avoid Turbopack tracing
+        const fs = await import('fs');
+        const path = await import('path');
+
         // Security: prevent path traversal
         const sanitized = path.basename(fileName);
 
@@ -29,11 +31,11 @@ export async function POST(req: NextRequest) {
         const BACKUP_DIR = process.env.BACKUP_DIR || path.join(/*turbopackIgnore: true*/ process.cwd(), "backups");
         const filePath = path.join(BACKUP_DIR, sanitized);
 
-        if (!existsSync(filePath)) {
+        if (!fs.existsSync(filePath)) {
             return NextResponse.json({ error: await apiT('fileNotFound') }, { status: 404 });
         }
 
-        const raw = readFileSync(filePath, "utf-8");
+        const raw = fs.readFileSync(filePath, "utf-8");
         const backup = JSON.parse(raw);
 
         if (!backup.data) {

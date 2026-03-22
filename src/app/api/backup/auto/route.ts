@@ -1,18 +1,20 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, isAuthError } from "@/lib/auth";
-import { readdirSync, statSync } from "fs";
-import path from "path";
 
 export async function GET() {
     const auth = await requireAdmin();
     if (isAuthError(auth)) return auth;
 
     try {
+        // Dynamic imports to avoid Turbopack tracing filesystem at import time
+        const fs = await import('fs');
+        const path = await import('path');
+
         const BACKUP_DIR = process.env.BACKUP_DIR || path.join(/*turbopackIgnore: true*/ process.cwd(), "backups");
-        const files = readdirSync(BACKUP_DIR)
-            .filter(f => f.endsWith(".json") && f.startsWith("JellyTrack-auto-"))
-            .map(f => {
-                const stats = statSync(path.join(BACKUP_DIR, f));
+        const files = fs.readdirSync(BACKUP_DIR)
+            .filter((f: string) => f.endsWith(".json") && f.startsWith("JellyTrack-auto-"))
+            .map((f: string) => {
+                const stats = fs.statSync(path.join(BACKUP_DIR, f));
                 return {
                     name: f,
                     size: stats.size,
@@ -20,7 +22,7 @@ export async function GET() {
                     date: stats.mtime.toISOString(),
                 };
             })
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         return NextResponse.json({ backups: files });
 

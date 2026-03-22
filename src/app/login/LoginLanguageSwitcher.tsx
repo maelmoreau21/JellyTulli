@@ -46,7 +46,11 @@ export function LoginLanguageSwitcher() {
                         : "border-zinc-300 dark:border-zinc-700/50 bg-white/80 dark:bg-zinc-900/50 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-400 dark:hover:border-zinc-600"
                 } ${isPending ? "opacity-50 cursor-wait" : ""}`}
             >
-                <span className="emoji-flag text-base leading-none">{current.flag}</span>
+                <img
+                    src={`https://flagcdn.com/w40/${current.iso}.png`}
+                    alt={current.label}
+                    className="w-5 h-3.5 object-cover rounded-sm shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                />
                 <span className="font-medium text-zinc-800 dark:text-zinc-100">{current.label}</span>
                 <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
             </button>
@@ -64,7 +68,11 @@ export function LoginLanguageSwitcher() {
                                     : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
                             }`}
                         >
-                            <span className="emoji-flag text-base leading-none">{loc.flag}</span>
+                            <img
+                                src={`https://flagcdn.com/w40/${loc.iso}.png`}
+                                alt={loc.label}
+                                className="w-5 h-3.5 object-cover rounded-sm shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+                            />
                             <span className="flex-1 text-left">{loc.label}</span>
                             {loc.code === selectedLocale && (
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-300">✓</span>
