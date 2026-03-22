@@ -35,7 +35,7 @@ export default function SchedulerBackupsPage() {
         <div className="space-y-4">
             <Card className="app-surface">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Clock className="w-5 h-5" /> {t('backupManagement')}</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Clock className="w-5 h-5" /> {t('schedulerBackups') || t('backupManagement')}</CardTitle>
                     <CardDescription>{t('backupManagementDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">

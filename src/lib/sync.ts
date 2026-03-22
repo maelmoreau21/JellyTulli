@@ -132,19 +132,29 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
             minDateParam = `&MinDateCreated=${sevenDaysAgo.toISOString()}&SortBy=DateCreated&SortOrder=Descending`;
         }
 
-        const pageSize = 200;
+        // Pagination / resilience tweaks:
+        // - Use a reasonable default page size for normal pages
+        // - When StartIndex grows large, Jellyfin may become slower to serve results;
+        //   reduce page size and increase timeout/retries to avoid repeated 60s aborts.
+        const DEFAULT_PAGE_SIZE = 200;
+        const SLOW_PAGE_SIZE = 50;
+        const SLOW_START_THRESHOLD = 2000; // when to switch to slower-safe mode
         type JellyfinItem = Record<string, any>;
         const items: JellyfinItem[] = [];
         let startIndex = 0;
         while (true) {
-            const pageUrl = `${baseUrl}/Items?${baseItemsQuery}${minDateParam}&StartIndex=${startIndex}&Limit=${pageSize}`;
-            const pageRes = await fetchWithRetry(pageUrl, { headers: jellyfinHeaders }, 60000, 4);
+            const currentPageSize = startIndex >= SLOW_START_THRESHOLD ? SLOW_PAGE_SIZE : DEFAULT_PAGE_SIZE;
+            const pageUrl = `${baseUrl}/Items?${baseItemsQuery}${minDateParam}&StartIndex=${startIndex}&Limit=${currentPageSize}`;
+            const timeoutMs = startIndex >= SLOW_START_THRESHOLD ? 120000 : 60000;
+            const retries = startIndex >= SLOW_START_THRESHOLD ? 6 : 4;
+            console.log(`[Sync] Fetching Items StartIndex=${startIndex} Limit=${currentPageSize} timeout=${timeoutMs} retries=${retries}`);
+            const pageRes = await fetchWithRetry(pageUrl, { headers: jellyfinHeaders }, timeoutMs, retries);
             const pageData = await pageRes.json();
             const pageItems = pageData.Items || [];
             items.push(...pageItems);
-            if (pageItems.length < pageSize) break;
-            startIndex += pageSize;
-            if (startIndex >= 50000) break; // Safety
+            if (pageItems.length < currentPageSize) break;
+            startIndex += currentPageSize;
+            if (startIndex >= 50000) break; // Safety ceiling to avoid runaway loops
         }
 
         // Cache for faster lookup of parent library names

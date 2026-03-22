@@ -9,8 +9,7 @@ export default function SettingsSchedulerLayout({ children }: { children: React.
     const t = useTranslations('settings');
 
     const tabs = [
-        { href: '/settings/scheduler/tasks', label: t('schedulerTasks') },
-        { href: '/settings/scheduler/schedules', label: t('schedulerSchedules') },
+        { href: '/settings/scheduler', label: t('taskScheduler') },
         { href: '/settings/scheduler/backups', label: t('schedulerBackups') },
     ];
 

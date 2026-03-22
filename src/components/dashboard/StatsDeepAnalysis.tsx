@@ -10,12 +10,10 @@ import MediaSearchModal from '@/components/MediaSearchModal';
 type StatItem = { name: string; count: number };
 
 export default function StatsDeepAnalysis() {
-    const t = useTranslations('stats');
-    const [data, setData] = useState<{
-        topDirectors: StatItem[];
-        topActors: StatItem[];
-        topStudios: StatItem[];
-    } | null>(null);
+    const t = useTranslations('deepInsights');
+    const tc = useTranslations('common');
+
+    const [data, setData] = useState<{ topDirectors: StatItem[]; topActors: StatItem[]; topStudios: StatItem[] }>({ topDirectors: [], topActors: [], topStudios: [] });
     const [loading, setLoading] = useState(true);
 
     // Modal state must be declared unconditionally before any early returns
@@ -23,21 +21,32 @@ export default function StatsDeepAnalysis() {
     const [modalQuery, setModalQuery] = useState<string | null>(null);
 
     useEffect(() => {
+        let mounted = true;
         const fetchData = async () => {
             try {
                 const res = await fetch("/api/stats/deep");
                 if (res.ok) {
                     const json = await res.json();
-                    setData(json);
+                    if (mounted && json) {
+                        setData({
+                            topDirectors: Array.isArray(json.topDirectors) ? json.topDirectors : [],
+                            topActors: Array.isArray(json.topActors) ? json.topActors : [],
+                            topStudios: Array.isArray(json.topStudios) ? json.topStudios : [],
+                        });
+                    }
+                } else {
+                    console.warn('[StatsDeepAnalysis] /api/stats/deep returned', res.status);
                 }
             } catch (err) {
                 console.error("Failed to load deep stats", err);
             } finally {
-                setLoading(false);
+                if (mounted) setLoading(false);
             }
         };
         fetchData();
+        return () => { mounted = false; };
     }, []);
+
     if (loading) {
         return (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
@@ -47,24 +56,23 @@ export default function StatsDeepAnalysis() {
             </div>
         );
     }
+
     const openModal = (q: string) => {
         setModalQuery(q);
         setModalOpen(true);
     };
 
-    if (!data) return null;
-
     const sections = [
-        { title: "Top Directors", icon: Video, items: data.topDirectors, color: "text-sky-400", bg: "bg-sky-400/10", actionText: "films/séries réalisés" },
-        { title: "Top Actors", icon: User, items: data.topActors, color: "text-violet-400", bg: "bg-violet-400/10", actionText: "apparitions (films/séries)" },
-        { title: "Top Studios", icon: Building2, items: data.topStudios, color: "text-emerald-400", bg: "bg-emerald-400/10", actionText: "films/séries produits" },
+        { title: t('topDirectors') || 'Top Directors', icon: Video, items: data.topDirectors, color: "text-sky-400", bg: "bg-sky-400/10", actionText: t('topDirectors') || 'directed titles' },
+        { title: t('topActors') || 'Top Actors', icon: User, items: data.topActors, color: "text-violet-400", bg: "bg-violet-400/10", actionText: t('topActors') || 'appearances' },
+        { title: t('topStudios') || 'Top Studios', icon: Building2, items: data.topStudios, color: "text-emerald-400", bg: "bg-emerald-400/10", actionText: t('topStudios') || 'produced titles' },
     ];
 
     return (
         <>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {sections.map((section) => (
-                <Card key={section.title} className="app-surface overflow-hidden group">
+                <Card key={String(section.title)} className="app-surface overflow-hidden group">
                     <CardHeader className="pb-3 border-b border-white/[0.03]">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -78,7 +86,7 @@ export default function StatsDeepAnalysis() {
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="divide-y divide-white/[0.03]">
-                            {section.items.length > 0 ? (
+                            {section.items && section.items.length > 0 ? (
                                 section.items.map((item, idx) => (
                                     <button key={item.name} onClick={() => openModal(item.name)} className="w-full text-left flex items-center px-4 py-3 hover:bg-white/[0.04] transition-colors group/item block">
                                         <div className="flex items-center justify-center w-6 h-6 shrink-0 rounded-full bg-zinc-800/50 text-[10px] font-mono font-bold text-zinc-500 mr-3 group-hover/item:text-zinc-300 group-hover/item:bg-zinc-700/50 transition-colors">
@@ -95,7 +103,7 @@ export default function StatsDeepAnalysis() {
                                 ))
                             ) : (
                                 <div className="p-8 text-center text-sm text-zinc-500 italic">
-                                    No data available
+                                    {tc('noData') || 'No data available'}
                                 </div>
                             )}
                         </div>
