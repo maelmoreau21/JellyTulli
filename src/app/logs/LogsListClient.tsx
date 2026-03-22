@@ -5,7 +5,7 @@ import LogRow from './LogRow';
 import SessionModal from '@/components/SessionModal';
 import { useTranslations } from 'next-intl';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import type { SafeLog } from '@/types/logs';
 
 type ColState = { key: string; width: number };
@@ -78,6 +78,7 @@ export default function LogsListClient({ serverLogs, visibleColumns, initialColu
 
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   // Persist column settings when changed (localStorage + update query param `colsState`)
   useEffect(() => {
@@ -87,11 +88,11 @@ export default function LogsListClient({ serverLogs, visibleColumns, initialColu
       const colsState = columns.map(c => `${c.key}:${c.width}`).join(',');
       if (params.get('colsState') !== colsState) {
         params.set('colsState', colsState);
-        const base = `/logs${params.toString() ? `?${params.toString()}` : ''}`;
-        router.replace(base);
+        const base = `${pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+        router.replace(base, { scroll: false });
       }
     } catch {}
-  }, [columns, router, searchParams]);
+  }, [columns, router, searchParams, pathname]);
 
   // No client-side search here; server-side LogFilters drives the results.
   const filtered = useMemo(() => serverLogs || [], [serverLogs]);

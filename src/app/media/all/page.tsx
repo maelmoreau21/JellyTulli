@@ -14,7 +14,8 @@ export const dynamic = "force-dynamic";
 
 const ITEMS_PER_PAGE = 50;
 
-export default async function AllMediaPage({ searchParams }: { searchParams?: any }) {
+export default async function AllMediaPage({ searchParams: searchParamsPromise }: { searchParams?: Promise<any> }) {
+    const searchParams = await searchParamsPromise;
     const t = await getTranslations('media');
     const tc = await getTranslations('common');
     const excludedParam = searchParams?.excludeTypes;

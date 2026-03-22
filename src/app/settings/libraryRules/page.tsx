@@ -142,7 +142,7 @@ export default function SettingsLibraryRulesPage() {
                                                     {normalizeLibraryKey(key) || key}
                                                 </span>
                                             </div>
-                                            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1.5">{t("rulesDesc")}</p>
+                                            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1.5">{t("libraryRulesDesc")}</p>
                                         </div>
 
                                         <div className="flex items-center gap-3 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700/50">

@@ -17,7 +17,7 @@ export default async function LogHealthPage() {
 
     const snapshot = await getLogHealthSnapshot();
 
-    function formatDate(dateString: string | null) {
+    function formatDate(dateString: string | null | undefined) {
         if (!dateString) return t('never');
         return new Date(dateString).toLocaleString();
     }
@@ -102,7 +102,7 @@ export default async function LogHealthPage() {
                     <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50">
                         <CardHeader>
                             <CardTitle>{t('rulesTitle')}</CardTitle>
-                            <CardDescription>{t('rulesDesc')}</CardDescription>
+                            <CardDescription>{t('libraryRulesDesc')}</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {Object.entries(snapshot.libraryRules).map(([library, rule]: [string, { completionEnabled?: boolean; abandonedThreshold?: number; partialThreshold?: number; completedThreshold?: number }]) => (
