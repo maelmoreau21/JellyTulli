@@ -43,29 +43,10 @@ export default async function AnalysisPage() {
         }
     });
 
-    // Aggregate audio codecs from playback history to provide audio format breakdown (MP3 / FLAC / Other)
-    let mp3Count = 0;
-    let flacCount = 0;
-    let otherAudioCount = 0;
-    try {
-        const audioAgg = await prisma.playbackHistory.groupBy({ by: ['audioCodec'], _count: { id: true }, where: { audioCodec: { not: null } } });
-        const codecMap = new Map<string, number>();
-        for (const a of audioAgg) {
-            const key = (a.audioCodec || 'unknown').toString().toLowerCase();
-            codecMap.set(key, (codecMap.get(key) || 0) + (a._count?.id || 0));
-        }
-        for (const [k, v] of codecMap.entries()) {
-            if (k.includes('mp3')) mp3Count += v;
-            else if (k.includes('flac')) flacCount += v;
-            else otherAudioCount += v;
-        }
-    } catch (e) {
-        // non-fatal: if grouping fails, fall back to zeros
-        console.warn('[AnalysisPage] Failed to aggregate audio codecs:', e);
-    }
+
 
     const topGenres = Array.from(genreCounts.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 10);
-    const topDirectors = Array.from(directorCounts.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 10);
+
     const topLibraries = Array.from(libraryCounts.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 8);
 
     const res4K = resolutionCounts.get('4K') || 0;
@@ -95,26 +76,7 @@ export default async function AnalysisPage() {
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>{t('audioFormats') || 'Audio Formats'}</CardTitle>
-                            <CardDescription>{t('audioFormatsDesc') || 'Distribution by audio codec (based on playbacks).'}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex flex-col gap-3 mt-2">
-                            <div className="app-surface-soft flex justify-between items-center p-3 rounded-lg border">
-                                <span className="font-medium">{t('mp3Label') || 'MP3'}</span>
-                                <span className="text-lg font-bold">{mp3Count}</span>
-                            </div>
-                            <div className="app-surface-soft flex justify-between items-center p-3 rounded-lg border">
-                                <span className="font-medium">{t('flacLabel') || 'FLAC'}</span>
-                                <span className="text-lg font-bold">{flacCount}</span>
-                            </div>
-                            <div className="app-surface-soft flex justify-between items-center p-3 rounded-lg border">
-                                <span className="font-medium">{t('audioOtherLabel') || 'Other'}</span>
-                                <span className="text-lg font-bold">{otherAudioCount}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
+
 
                     <Card>
                         <CardHeader>
@@ -177,26 +139,7 @@ export default async function AnalysisPage() {
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>{t('topDirectors')}</CardTitle>
-                            <CardDescription>{t('topDirectors')}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
-                                {topDirectors.length === 0 ? (
-                                    <div className="text-sm text-muted-foreground">{t('noData') || 'No data'}</div>
-                                ) : (
-                                    topDirectors.slice(0, 8).map((d, i) => (
-                                        <div key={i} className="flex items-center justify-between">
-                                            <div className="text-sm">{d.name}</div>
-                                            <div className="text-sm font-semibold">{d.count}</div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
+
 
                     <Card>
                         <CardHeader>

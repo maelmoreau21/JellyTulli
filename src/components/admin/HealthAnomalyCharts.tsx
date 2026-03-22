@@ -2,6 +2,7 @@
 
 import React, { useId } from "react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from "recharts";
+import { useTranslations } from "next-intl";
 import ResponsiveContainer from "../charts/ResponsiveContainerGuard";
 import { chartAxisColor, chartGridColor, chartItemStyle, chartLabelStyle, chartPalette, chartTooltipStyle } from "@/lib/chartTheme";
 
@@ -20,6 +21,7 @@ type BreakdownPoint = {
 
 export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: TimelinePoint[]; breakdown: BreakdownPoint[] }) {
     const uid = useId();
+    const t = useTranslations('dashboard');
 
     const safeTimeline: TimelinePoint[] = (timeline || []).map((pt) => ({
         day: pt?.day ?? "",
@@ -47,7 +49,7 @@ export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: Timelin
 
     return (
         <>
-            {noValues && <div className="text-sm text-zinc-400 mb-2">Aucune anomalie détectée</div>}
+            {noValues && <div className="text-sm text-zinc-400 mb-2">{t('anomalyDetectedNone')}</div>}
             <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2 h-[320px] min-h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -75,10 +77,10 @@ export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: Timelin
                         <YAxis stroke={chartAxisColor} fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
                         <Tooltip contentStyle={chartTooltipStyle} labelStyle={chartLabelStyle} itemStyle={chartItemStyle} />
                         <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "10px" }} />
-                        <Area type="monotone" dataKey="cleanupOps" name="Nettoyages" stroke="#22c55e" fill={`url(#${cleanupId})`} strokeWidth={2.4} />
-                        <Area type="monotone" dataKey="monitorErrors" name="Erreurs monitor" stroke="#38bdf8" fill={`url(#${monitorId})`} strokeWidth={2.4} />
-                        <Area type="monotone" dataKey="syncErrors" name="Erreurs sync" stroke="#f59e0b" fill={`url(#${syncId})`} strokeWidth={2.4} />
-                        <Area type="monotone" dataKey="backupErrors" name="Erreurs backup" stroke="#f43f5e" fill={`url(#${backupId})`} strokeWidth={2.4} />
+                        <Area type="monotone" dataKey="cleanupOps" name={t('anomalyCleanupOps')} stroke="#22c55e" fill={`url(#${cleanupId})`} strokeWidth={2.4} />
+                        <Area type="monotone" dataKey="monitorErrors" name={t('anomalyMonitorErrors')} stroke="#38bdf8" fill={`url(#${monitorId})`} strokeWidth={2.4} />
+                        <Area type="monotone" dataKey="syncErrors" name={t('anomalySyncErrors')} stroke="#f59e0b" fill={`url(#${syncId})`} strokeWidth={2.4} />
+                        <Area type="monotone" dataKey="backupErrors" name={t('anomalyBackupErrors')} stroke="#f43f5e" fill={`url(#${backupId})`} strokeWidth={2.4} />
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
@@ -96,7 +98,7 @@ export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: Timelin
                         <XAxis dataKey="source" stroke={chartAxisColor} fontSize={12} tickLine={false} axisLine={false} />
                         <YAxis stroke={chartAxisColor} fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
                         <Tooltip contentStyle={chartTooltipStyle} labelStyle={chartLabelStyle} itemStyle={chartItemStyle} />
-                        <Bar dataKey="value" name="Impact cumulé" radius={[10, 10, 0, 0]} fill={`url(#${sourceGradientId})`}>
+                        <Bar dataKey="value" name={t('anomalyCumulativeImpact')} radius={[10, 10, 0, 0]} fill={`url(#${sourceGradientId})`}>
                             {safeBreakdown.map((entry, index) => (
                                 <Cell key={`${entry.source}-${index}`} fill={chartPalette[index % chartPalette.length]} fillOpacity={0.92} />
                             ))}

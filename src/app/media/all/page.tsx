@@ -17,7 +17,9 @@ const ITEMS_PER_PAGE = 50;
 export default async function AllMediaPage({ searchParams }: { searchParams?: any }) {
     const t = await getTranslations('media');
     const tc = await getTranslations('common');
-    const type = searchParams?.type;
+    const excludedParam = searchParams?.excludeTypes;
+    const excludedTypes = excludedParam && typeof excludedParam === 'string' ? excludedParam.split(',') : [];
+    
     const sortBy = searchParams?.sortBy || 'plays';
     const q = typeof searchParams?.q === 'string' ? (searchParams.q || '').trim() : undefined;
     const currentPage = Math.max(1, parseInt(searchParams?.page || '1', 10) || 1);
@@ -25,9 +27,10 @@ export default async function AllMediaPage({ searchParams }: { searchParams?: an
     const settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
     const excludedLibraries = settings?.excludedLibraries || [];
 
-    const displayTypes = type === 'movie' ? ['Movie'] : type === 'series' ? ['Series'] : type === 'music' ? ['MusicAlbum'] : ['Movie', 'Series', 'MusicAlbum'];
+    const baseTypes = ['Movie', 'Series', 'MusicAlbum'];
+    const displayTypes = baseTypes.filter(t => !excludedTypes.includes(t));
 
-    const mediaWhere: any = { type: { in: displayTypes } };
+    const mediaWhere: any = { type: { in: displayTypes.length > 0 ? displayTypes : baseTypes } };
     const excludedClause = buildExcludedMediaClause(excludedLibraries);
     if (excludedClause) mediaWhere.AND = [excludedClause];
 
@@ -151,7 +154,7 @@ export default async function AllMediaPage({ searchParams }: { searchParams?: an
 
     const buildPageUrl = (page: number) => {
         const params = new URLSearchParams();
-        if (type) params.set('type', type);
+        if (excludedParam && typeof excludedParam === 'string') params.set('excludeTypes', excludedParam);
         if (sortBy !== 'plays') params.set('sortBy', sortBy);
         if (q) params.set('q', q);
         if (page > 1) params.set('page', String(page));

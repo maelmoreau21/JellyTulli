@@ -147,8 +147,7 @@
     "unknownSeries": "Série inconnue",
     "view": "vue",
     "viewers": "spectateurs",
-    "views": "vues"
-    ,
+    "views": "vues",
     "homevideos": "Vidéos personnelles",
     "photos": "Photos",
     "livetv": "TV en direct",
@@ -165,6 +164,12 @@
     "aiRecommendations": "Recommandations IA",
     "anomalyChartsDesc": "Vue sur 14 jours des erreurs moniteur/synchro/backup et auto-cleanups détectés.",
     "anomalyChartsTitle": "Graphiques d'anomalies",
+    "anomalyDetectedNone": "Aucune anomalie détectée",
+    "anomalyCleanupOps": "Nettoyages",
+    "anomalyMonitorErrors": "Erreurs monitor",
+    "anomalySyncErrors": "Erreurs sync",
+    "anomalyBackupErrors": "Erreurs backup",
+    "anomalyCumulativeImpact": "Impact cumulé",
     "autoAvailability": "Activer la période de disponibilité automatique",
     "autoAvailabilityDesc": "Si activé, le Wrapped ne sera accessible qu'entre les dates définies ci-dessous.",
     "basedOnProfile": "Basé sur votre profil",
@@ -714,6 +719,9 @@
     "completedThreshold": "Seuil complété (%)",
     "partialThreshold": "Seuil partiel (%)",
     "abandonedThreshold": "Seuil abandonné (%)",
+    "abandoned": "Abandonné",
+    "partial": "Partiel",
+    "completed": "Terminé",
     "resetRule": "Réinitialiser",
     "preview": "Aperçu",
     "title": "Paramètres",
@@ -722,7 +730,9 @@
     "wrappedPeriodDesc": "Définit quand le Wrapped de l'année actuelle (2025+) devient accessible. Les années précédentes restent toujours consultables.",
     "wrappedStart": "Ouverture",
     "wrappedVisible": "Afficher le Wrapped",
-    "wrappedVisibleDesc": "Autoriser les utilisateurs à voir leur récapitulatif annuel."
+    "wrappedVisibleDesc": "Autoriser les utilisateurs à voir leur récapitulatif annuel.",
+    "overviewDesc": "Affichez et modifiez les paramètres globaux tels que la connexion du plugin, le planificateur et les sauvegardes.",
+    "manage": "Gérer"
   },
   "timeRange": {
     "allTime": "Tout temps",

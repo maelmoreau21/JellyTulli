@@ -1,5 +1,5 @@
 import prisma from "./prisma";
-import { markSyncFinished, markSyncStarted } from "@/lib/systemHealth";
+import { appendHealthEvent, markSyncFinished, markSyncStarted } from "@/lib/systemHealth";
 import { normalizeJellyfinId, compactJellyfinId } from "@/lib/jellyfinId";
 import { cleanupOrphanedSessions } from "@/lib/cleanup";
 import { GHOST_LIBRARY_NAMES } from "./libraryUtils";
@@ -338,6 +338,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
             if (typeof maybe.message === 'string') fullError = maybe.message;
         }
         console.error("[Sync Error]", fullError);
+        await appendHealthEvent({ source: 'sync', kind: 'sync_error', message: fullError, details: { count: 1 } });
         await markSyncFinished({ success: false, mode: options?.recentOnly ? 'recent' : 'full', error: fullError });
         return { success: false, error: fullError };
     }

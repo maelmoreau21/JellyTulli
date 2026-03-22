@@ -5,8 +5,8 @@ import { readSystemHealthState } from "@/lib/systemHealth";
 
 export async function getLogHealthSnapshot() {
     const anomalyWindowStart = new Date();
-    anomalyWindowStart.setDate(anomalyWindowStart.getDate() - 13);
-    anomalyWindowStart.setHours(0, 0, 0, 0);
+    anomalyWindowStart.setUTCHours(0, 0, 0, 0);
+    anomalyWindowStart.setUTCDate(anomalyWindowStart.getUTCDate() - 13);
 
     const [settings, activeStreams, openPlaybackHistory, healthState, libraryRules, anomalyEvents] = await Promise.all([
         prisma.globalSettings.findUnique({ where: { id: "global" } }),
@@ -70,7 +70,7 @@ export async function getLogHealthSnapshot() {
     const dailyMap = new Map<string, { day: string; monitorErrors: number; syncErrors: number; backupErrors: number; cleanupOps: number }>();
     for (let index = 0; index < 14; index++) {
         const current = new Date(anomalyWindowStart);
-        current.setDate(anomalyWindowStart.getDate() + index);
+        current.setUTCDate(anomalyWindowStart.getUTCDate() + index);
         const key = current.toISOString().slice(0, 10);
         dailyMap.set(key, {
             day: current.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
