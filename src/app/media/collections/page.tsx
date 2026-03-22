@@ -15,13 +15,14 @@ export default async function CollectionsPage() {
     const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
     const excludedLibraries = settings?.excludedLibraries || [];
 
-    // Fetch all leaf media items for library aggregation
+    // Fetch all leaf media items for library aggregation (include ids for deduplication)
     const allMedia = await prisma.media.findMany({
         where: buildExcludedMediaClause(excludedLibraries) || {},
-        select: { type: true, size: true, durationMs: true, libraryName: true, title: true, collectionType: true }
+        select: { id: true, jellyfinMediaId: true, parentId: true, type: true, size: true, durationMs: true, libraryName: true, title: true, collectionType: true }
     });
 
-    const libraryStatsMap = new Map<string, { size: bigint; duration: bigint; watchedSeconds?: number; items: number; movies: number; series: number; music: number; books: number, collectionType?: string | null }>();
+    // Use a loose any map so we can store intermediate Sets for deduplication/resolution
+    const libraryStatsMap = new Map<string, any>();
 
     const sanitizedLibraries = await getSanitizedLibraryNames();
     const ghostNames = new Set(GHOST_LIBRARY_NAMES);
@@ -29,51 +30,170 @@ export default async function CollectionsPage() {
     // Pre-populate sanitized libraries so empty ones show
     for (const name of sanitizedLibraries) {
         if (!libraryStatsMap.has(name)) {
-            libraryStatsMap.set(name, { size: BigInt(0), duration: BigInt(0), watchedSeconds: 0, items: 0, movies: 0, series: 0, music: 0, books: 0, collectionType: null });
+            libraryStatsMap.set(name, {
+                size: BigInt(0),
+                duration: BigInt(0),
+                watchedSeconds: 0,
+                items: 0,
+                movies: 0,
+                series: 0,
+                music: 0,
+                books: 0,
+                collectionType: null,
+                // Sets used to deduplicate by jellyfin ids / parents
+                uniqueMovies: new Set<string>(),
+                uniqueSeries: new Set<string>(),
+                uniqueMusicAlbums: new Set<string>(),
+                uniqueBooks: new Set<string>(),
+                // Pending parent ids to resolve (season -> series, track -> album)
+                pendingSeasonIds: new Set<string>(),
+                pendingAlbumIds: new Set<string>(),
+                // Counters for ignored (non top-level) items to surface in UI
+                ignoredTracks: 0,
+                ignoredEpisodes: 0
+            });
         }
     }
 
     let totalSizeBytes = BigInt(0);
     let totalDurationMs = BigInt(0);
+    let totalWatchedSeconds = 0; // aggregated from playback history
     let movieCount = 0;
     let seriesCount = 0;
     let albumCount = 0;
     let bookCount = 0;
 
-    // Compute per-library stats from the fetched `allMedia` array. Using the client-side pass
-    // avoids mismatches related to DB groupBy filters and keeps logic consistent for different
-    // Jellyfin media `type` values (Track, MusicAlbum, Audio, Episode, etc.).
-    allMedia.forEach(m => {
-        if (!m.libraryName || ghostNames.has(m.libraryName) || m.collectionType === 'boxsets') return;
+    // Compute per-library stats from the fetched `allMedia` array.
+    // Track deduplication sets for movies/series/albums/books and also
+    // collect pending parent ids for seasons/tracks which will be resolved
+    // in a second pass against the DB to map season -> series and track -> album.
+    const TOP_LEVEL_TYPES = new Set(['Movie', 'Series', 'MusicAlbum', 'Book', 'AudioBook']);
+    for (const m of allMedia) {
+        if (!m.libraryName || ghostNames.has(m.libraryName) || m.collectionType === 'boxsets') continue;
         const libName = m.libraryName;
         if (!libraryStatsMap.has(libName)) {
-            libraryStatsMap.set(libName, { size: BigInt(0), duration: BigInt(0), watchedSeconds: 0, items: 0, movies: 0, series: 0, music: 0, books: 0, collectionType: m.collectionType });
+            libraryStatsMap.set(libName, {
+                size: BigInt(0),
+                duration: BigInt(0),
+                watchedSeconds: 0,
+                items: 0,
+                movies: 0,
+                series: 0,
+                music: 0,
+                books: 0,
+                collectionType: m.collectionType,
+                uniqueMovies: new Set<string>(),
+                uniqueSeries: new Set<string>(),
+                uniqueMusicAlbums: new Set<string>(),
+                uniqueBooks: new Set<string>(),
+                pendingSeasonIds: new Set<string>(),
+                pendingAlbumIds: new Set<string>(),
+                ignoredTracks: 0,
+                ignoredEpisodes: 0
+            });
         }
         const lib = libraryStatsMap.get(libName)!;
         if (!lib.collectionType && m.collectionType) lib.collectionType = m.collectionType;
 
-        // Aggregate size (if present)
+        // Aggregate size (if present) from all media records (tracks, files, parents)
         if (m.size != null) {
             const sizeBig = typeof m.size === 'bigint' ? m.size : BigInt(Math.floor(Number(m.size)));
             lib.size = (lib.size || BigInt(0)) + sizeBig;
             totalSizeBytes += sizeBig;
         }
 
-        // Aggregate duration (if present)
+        // Aggregate media duration (if present) as a fallback when there is no playback history
         if (m.durationMs != null) {
             const durBig = typeof m.durationMs === 'bigint' ? m.durationMs : BigInt(Math.floor(Number(m.durationMs)));
             lib.duration = (lib.duration || BigInt(0)) + durBig;
             totalDurationMs += durBig;
         }
 
-        // Classify via inferLibraryKey to be resilient to Jellyfin type variants
-        const libKey = inferLibraryKey({ collectionType: m.collectionType, type: m.type, durationMs: m.durationMs });
-        lib.items = (lib.items || 0) + 1;
-        if (libKey === 'movies') { movieCount++; lib.movies++; }
-        else if (libKey === 'tvshows') { seriesCount++; lib.series++; }
-        else if (libKey === 'music') { albumCount++; lib.music++; }
-        else if (libKey === 'books') { bookCount++; lib.books++; }
-    });
+        const mediaKey = m.jellyfinMediaId ? String(m.jellyfinMediaId) : String(m.id || '');
+
+        // Top-level types - deduplicate by jellyfinMediaId
+        if (TOP_LEVEL_TYPES.has(m.type || '')) {
+            if (m.type === 'Movie') {
+                if (!lib.uniqueMovies.has(mediaKey)) {
+                    lib.uniqueMovies.add(mediaKey);
+                }
+            } else if (m.type === 'Series') {
+                if (!lib.uniqueSeries.has(mediaKey)) {
+                    lib.uniqueSeries.add(mediaKey);
+                }
+            } else if (m.type === 'MusicAlbum') {
+                if (!lib.uniqueMusicAlbums.has(mediaKey)) {
+                    lib.uniqueMusicAlbums.add(mediaKey);
+                }
+            } else if (m.type === 'Book' || m.type === 'AudioBook') {
+                if (!lib.uniqueBooks.has(mediaKey)) {
+                    lib.uniqueBooks.add(mediaKey);
+                }
+            }
+        } else {
+            // Non top-level: keep counters and remember parent ids to resolve later
+            if (m.type === 'Season') {
+                if (m.parentId) lib.uniqueSeries.add(String(m.parentId));
+                else if (m.jellyfinMediaId) lib.pendingSeasonIds.add(String(m.jellyfinMediaId));
+            }
+            if (m.type === 'Episode') {
+                lib.ignoredEpisodes = (lib.ignoredEpisodes || 0) + 1;
+                if (m.parentId) lib.pendingSeasonIds.add(String(m.parentId));
+            }
+            if (m.type === 'Track' || m.type === 'Audio') {
+                lib.ignoredTracks = (lib.ignoredTracks || 0) + 1;
+                if (m.parentId) lib.pendingAlbumIds.add(String(m.parentId));
+            }
+        }
+    }
+
+    // Resolve pending season/album parent ids to their parent series/album entries
+    try {
+        const allPendingSeasonIds = new Set<string>();
+        const allPendingAlbumIds = new Set<string>();
+        for (const [, s] of libraryStatsMap) {
+            for (const id of s.pendingSeasonIds || []) allPendingSeasonIds.add(id);
+            for (const id of s.pendingAlbumIds || []) allPendingAlbumIds.add(id);
+        }
+
+        if (allPendingSeasonIds.size > 0) {
+            const seasons = await prisma.media.findMany({ where: { jellyfinMediaId: { in: Array.from(allPendingSeasonIds) } }, select: { jellyfinMediaId: true, parentId: true, libraryName: true } });
+            for (const se of seasons) {
+                const seriesId = se.parentId || se.jellyfinMediaId;
+                const libName = se.libraryName || tc('other');
+                if (!libraryStatsMap.has(libName)) continue;
+                const lib = libraryStatsMap.get(libName)!;
+                if (seriesId && !lib.uniqueSeries.has(String(seriesId))) lib.uniqueSeries.add(String(seriesId));
+            }
+        }
+
+        if (allPendingAlbumIds.size > 0) {
+            const albums = await prisma.media.findMany({ where: { jellyfinMediaId: { in: Array.from(allPendingAlbumIds) } }, select: { jellyfinMediaId: true, libraryName: true } });
+            for (const al of albums) {
+                const albumId = al.jellyfinMediaId;
+                const libName = al.libraryName || tc('other');
+                if (!libraryStatsMap.has(libName)) continue;
+                const lib = libraryStatsMap.get(libName)!;
+                if (albumId && !lib.uniqueMusicAlbums.has(String(albumId))) lib.uniqueMusicAlbums.add(String(albumId));
+            }
+        }
+    } catch (e) {
+        console.warn('[CollectionsPage] Failed to resolve pending parent ids:', e);
+    }
+
+    // Convert deduplicated sets into numeric counts and aggregate totals
+    movieCount = 0; seriesCount = 0; albumCount = 0; bookCount = 0;
+    for (const [, s] of libraryStatsMap) {
+        s.movies = (s.uniqueMovies?.size) || 0;
+        s.series = (s.uniqueSeries?.size) || 0;
+        s.music = (s.uniqueMusicAlbums?.size) || 0;
+        s.books = (s.uniqueBooks?.size) || 0;
+        s.items = s.movies + s.series + s.music + s.books;
+        movieCount += s.movies;
+        seriesCount += s.series;
+        albumCount += s.music;
+        bookCount += s.books;
+    }
 
     // Sizes were aggregated above from the `allMedia` set to avoid DB groupBy mismatches
     // and to support the variety of Jellyfin `type` values. If needed, a DB-side groupBy
@@ -85,12 +205,14 @@ export default async function CollectionsPage() {
         const mediasForHistory = mediaIdsWithHistory.length > 0 ? await prisma.media.findMany({ where: { id: { in: mediaIdsWithHistory } }, select: { id: true, libraryName: true } }) : [];
         const mediaToLib = new Map(mediasForHistory.map(m => [m.id, m.libraryName || tc('other')]));
         for (const p of playbackAgg) {
+            const seconds = p._sum?.durationWatched ?? 0;
+            totalWatchedSeconds += seconds;
             const libName = mediaToLib.get(p.mediaId) || tc('other');
             if (!libraryStatsMap.has(libName)) {
                 libraryStatsMap.set(libName, { size: BigInt(0), duration: BigInt(0), watchedSeconds: 0, items: 0, movies: 0, series: 0, music: 0, books: 0, collectionType: null });
             }
             const lib = libraryStatsMap.get(libName)!;
-            lib.watchedSeconds = (lib.watchedSeconds ?? 0) + (p._sum?.durationWatched ?? 0);
+            lib.watchedSeconds = (lib.watchedSeconds ?? 0) + seconds;
         }
     } catch (e) {
         console.warn('[CollectionsPage] Failed to aggregate playback history by library:', e);
@@ -99,9 +221,17 @@ export default async function CollectionsPage() {
     const globalSize = formatSize(totalSizeBytes);
     const totalTB = `${globalSize.value} ${globalSize.unit}`;
 
-    const totalDays = Math.floor(Number(totalDurationMs) / (1000 * 60 * 60 * 24));
-    const totalHoursAfterDays = Math.floor((Number(totalDurationMs) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const timeLabel = t('timeDays', { days: totalDays, hours: totalHoursAfterDays });
+    // Prefer total watched time (aggregated from playback history). Fall back to sum of media durations.
+    let timeLabel = t('timeDays', { days: 0, hours: 0 });
+    if (totalWatchedSeconds > 0) {
+        const totalDays = Math.floor(totalWatchedSeconds / (60 * 60 * 24));
+        const totalHoursAfterDays = Math.floor((totalWatchedSeconds % (60 * 60 * 24)) / (60 * 60));
+        timeLabel = t('timeDays', { days: totalDays, hours: totalHoursAfterDays });
+    } else {
+        const totalDays = Math.floor(Number(totalDurationMs) / (1000 * 60 * 60 * 24));
+        const totalHoursAfterDays = Math.floor((Number(totalDurationMs) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        timeLabel = t('timeDays', { days: totalDays, hours: totalHoursAfterDays });
+    }
 
     const validLibraries = Array.from(libraryStatsMap.entries()).filter(([name, stats]) => {
         if (new Set(GHOST_LIBRARY_NAMES).has(name)) return false;
@@ -133,9 +263,12 @@ export default async function CollectionsPage() {
             collectionType: stats.collectionType,
             size: `${size.value} ${size.unit}`,
             duration: t('timeDays', { days: d, hours: h }),
-            counts: [ stats.movies > 0 && `${stats.movies} ${tc('movies').toLowerCase()}`, stats.series > 0 && `${stats.series} ${tc('series').toLowerCase()}`, stats.music > 0 && `${stats.music} albums`, stats.books > 0 && `${stats.books} ${tc('books').toLowerCase()}` ].filter(Boolean).join(', ') || tc('noData'),
+            counts: [ stats.movies > 0 && `${stats.movies} ${tc('movies').toLowerCase()}`, stats.series > 0 && `${stats.series} ${tc('series').toLowerCase()}`, stats.music > 0 && `${stats.music} ${tc('music').toLowerCase()}`, stats.books > 0 && `${stats.books} ${tc('books').toLowerCase()}` ].filter(Boolean).join(', ') || tc('noData'),
             topItem: (topItem && topContent[0]._count.mediaId) ? { title: topItem.title, plays: topContent[0]._count.mediaId, id: topItem.jellyfinMediaId } : null,
             lastAdded: lastAdded ? { title: lastAdded.title, date: lastAdded.dateAdded ? lastAdded.dateAdded.toISOString() : null, id: lastAdded.jellyfinMediaId } : null
+            ,
+            ignoredTracks: stats.ignoredTracks || 0,
+            ignoredEpisodes: stats.ignoredEpisodes || 0
         };
     }));
 

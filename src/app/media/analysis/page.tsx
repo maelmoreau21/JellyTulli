@@ -10,7 +10,8 @@ export default async function AnalysisPage() {
     const t = await getTranslations('media');
 
     // Fetch media fields useful for the analysis
-    const medias = await prisma.media.findMany({ select: { genres: true, resolution: true, durationMs: true, directors: true, libraryName: true }, where: {} });
+    // Include `type` and `collectionType` so we can filter video vs audio items
+    const medias = await prisma.media.findMany({ select: { genres: true, resolution: true, durationMs: true, directors: true, libraryName: true, type: true, collectionType: true }, where: {} });
 
     // Aggregate genres and resolutions
     const genreCounts = new Map<string, number>();
@@ -20,10 +21,18 @@ export default async function AnalysisPage() {
     let durationSum = 0;
     let durationCount = 0;
 
+    // Consider only video-like media for resolution counting to avoid audio/media polluting video stats
+    const VIDEO_COLLECTION_KEYS = new Set(['movies', 'tvshows', 'homevideos']);
+    const VIDEO_TYPES = new Set(['Movie', 'Episode', 'Series', 'BoxSet', 'Video']);
+
     medias.forEach(m => {
         if (m.genres) m.genres.forEach((g: string) => genreCounts.set(g, (genreCounts.get(g) || 0) + 1));
-        const nr = (m.resolution || 'SD');
-        resolutionCounts.set(nr, (resolutionCounts.get(nr) || 0) + 1);
+        const collectionKey = typeof m.collectionType === 'string' ? m.collectionType.toLowerCase() : '';
+        const isVideo = VIDEO_TYPES.has((m.type || '').toString()) || VIDEO_COLLECTION_KEYS.has(collectionKey);
+        if (isVideo) {
+            const nr = (m.resolution || 'SD');
+            resolutionCounts.set(nr, (resolutionCounts.get(nr) || 0) + 1);
+        }
         if (m.directors) m.directors.forEach((d: string) => { if (d) directorCounts.set(d, (directorCounts.get(d) || 0) + 1); });
         if (m.libraryName) libraryCounts.set(m.libraryName, (libraryCounts.get(m.libraryName) || 0) + 1);
         if (m.durationMs !== null && m.durationMs !== undefined) {
@@ -33,6 +42,27 @@ export default async function AnalysisPage() {
             } catch { /* ignore */ }
         }
     });
+
+    // Aggregate audio codecs from playback history to provide audio format breakdown (MP3 / FLAC / Other)
+    let mp3Count = 0;
+    let flacCount = 0;
+    let otherAudioCount = 0;
+    try {
+        const audioAgg = await prisma.playbackHistory.groupBy({ by: ['audioCodec'], _count: { id: true }, where: { audioCodec: { not: null } } });
+        const codecMap = new Map<string, number>();
+        for (const a of audioAgg) {
+            const key = (a.audioCodec || 'unknown').toString().toLowerCase();
+            codecMap.set(key, (codecMap.get(key) || 0) + (a._count?.id || 0));
+        }
+        for (const [k, v] of codecMap.entries()) {
+            if (k.includes('mp3')) mp3Count += v;
+            else if (k.includes('flac')) flacCount += v;
+            else otherAudioCount += v;
+        }
+    } catch (e) {
+        // non-fatal: if grouping fails, fall back to zeros
+        console.warn('[AnalysisPage] Failed to aggregate audio codecs:', e);
+    }
 
     const topGenres = Array.from(genreCounts.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 10);
     const topDirectors = Array.from(directorCounts.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 10);
@@ -62,6 +92,27 @@ export default async function AnalysisPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="h-[340px]"><GenreDistributionChart data={topGenres} /></div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{t('audioFormats') || 'Audio Formats'}</CardTitle>
+                            <CardDescription>{t('audioFormatsDesc') || 'Distribution by audio codec (based on playbacks).'}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-col gap-3 mt-2">
+                            <div className="app-surface-soft flex justify-between items-center p-3 rounded-lg border">
+                                <span className="font-medium">{t('mp3Label') || 'MP3'}</span>
+                                <span className="text-lg font-bold">{mp3Count}</span>
+                            </div>
+                            <div className="app-surface-soft flex justify-between items-center p-3 rounded-lg border">
+                                <span className="font-medium">{t('flacLabel') || 'FLAC'}</span>
+                                <span className="text-lg font-bold">{flacCount}</span>
+                            </div>
+                            <div className="app-surface-soft flex justify-between items-center p-3 rounded-lg border">
+                                <span className="font-medium">{t('audioOtherLabel') || 'Other'}</span>
+                                <span className="text-lg font-bold">{otherAudioCount}</span>
+                            </div>
                         </CardContent>
                     </Card>
 

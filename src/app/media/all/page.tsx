@@ -5,6 +5,7 @@ import { getJellyfinImageUrl } from '@/lib/jellyfin';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Film, ChevronLeft, ChevronRight } from 'lucide-react';
+import AllMediaControls from '@/components/media/AllMediaControls';
 import { normalizeResolution } from '@/lib/utils';
 import { isZapped, ZAPPING_CONDITION } from '@/lib/statsUtils';
 import { buildExcludedMediaClause } from '@/lib/mediaPolicy';
@@ -161,6 +162,7 @@ export default async function AllMediaPage({ searchParams }: { searchParams?: an
     return (
         <div className="p-6 max-w-[1400px] mx-auto">
             <h1 className="text-2xl font-bold mb-4">{t('allMedia') || 'Tous les médias'}</h1>
+            <AllMediaControls />
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
                 {displayMedia.map((media: any) => (
                     <Link href={`/media/${media.jellyfinMediaId}`} key={media.id} className="group flex flex-col space-y-2">

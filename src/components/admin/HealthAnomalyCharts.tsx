@@ -34,21 +34,21 @@ export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: Timelin
         value: typeof b?.value === "number" && Number.isFinite(b.value) ? b.value : 0,
     }));
 
-    // If timeline exists but all values are zero, treat as no anomalies to avoid rendering an empty chart
+    // Detect whether there are any non-zero anomaly values
     const timelineHasValues = safeTimeline.some(pt => (pt.monitorErrors || pt.syncErrors || pt.backupErrors || pt.cleanupOps) > 0);
     const breakdownHasValues = safeBreakdown.some(b => (b.value || 0) > 0);
-    if (!timelineHasValues && !breakdownHasValues) {
-        return <div className="text-sm text-zinc-400">Aucune anomalie détectée</div>;
-    }
 
     const monitorId = `monitorErrorsGradient-${uid}`;
     const syncId = `syncErrorsGradient-${uid}`;
     const backupId = `backupErrorsGradient-${uid}`;
     const cleanupId = `cleanupOpsGradient-${uid}`;
     const sourceGradientId = `sourceBreakdownGradient-${uid}`;
+    const noValues = !timelineHasValues && !breakdownHasValues;
 
     return (
-        <div className="grid gap-4 lg:grid-cols-3">
+        <>
+            {noValues && <div className="text-sm text-zinc-400 mb-2">Aucune anomalie détectée</div>}
+            <div className="grid gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2 h-[320px] min-h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={safeTimeline} margin={{ top: 18, right: 20, left: -10, bottom: 4 }}>
@@ -105,5 +105,6 @@ export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: Timelin
                 </ResponsiveContainer>
             </div>
         </div>
+        </>
     );
 }

@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "next-intl";
+import { normalizeLibraryKey } from "@/lib/mediaPolicy";
 
 type LibraryRule = {
     completionEnabled: boolean;
@@ -52,10 +53,15 @@ export default function SettingsLibraryRulesPage() {
     }, []);
 
     const keys = useMemo(() => {
-        return Array.from(new Set([...defaultKeys, ...Object.keys(rules)])).filter(Boolean);
-    }, [defaultKeys, rules]);
+        // Prefer the actual Jellyfin libraries when available; fall back to default keys
+        const base = availableLibraries && availableLibraries.length > 0 ? availableLibraries : defaultKeys;
+        return Array.from(new Set([...base, ...Object.keys(rules)])).filter(Boolean);
+    }, [availableLibraries, defaultKeys, rules]);
 
     const humanize = (k: string) => {
+        // If this is an actual Jellyfin library name, show it as-is
+        if (availableLibraries && availableLibraries.includes(k)) return k;
+
         const map: Record<string, string> = {
             movies: tCommon("movies") || "Movies",
             tvshows: tCommon("tvshows") || tCommon("series") || "TV Shows",
@@ -119,23 +125,15 @@ export default function SettingsLibraryRulesPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {keys.map((key) => {
                             const r = rules[key] || DEFAULT_RULE;
-                            const abandoned = Math.max(0, Math.min(100, Number(r.abandonedThreshold || 0)));
-                            const partial = Math.max(0, Math.min(100, Number(r.partialThreshold || 0)));
-                            const completed = Math.max(0, Math.min(100, Number(r.completedThreshold || 0)));
-
-                            const segAbandoned = Math.min(abandoned, partial, completed);
-                            const segPartial = Math.max(0, Math.min(partial - abandoned, completed - abandoned));
-                            const segCompleted = Math.max(0, completed - Math.max(partial, abandoned));
-
                             return (
-                                <div key={key} className="p-4 border rounded-lg app-surface-soft">
+                                <div key={key} className="p-4 rounded-lg app-surface-soft border">
                                     <div className="flex items-start justify-between mb-3 gap-3">
                                         <div>
-                                            <div className="flex items-center gap-3">
-                                                <div className="font-semibold">{humanize(key)}</div>
-                                                <Badge variant="outline" className="text-xs">{key}</Badge>
+                                            <div className="flex items-baseline gap-3">
+                                                <div className="text-lg font-semibold">{humanize(key)}</div>
+                                                <div className="text-xs text-muted-foreground">{normalizeLibraryKey(key) || key}</div>
                                             </div>
-                                            <div className="text-xs text-muted-foreground mt-1">{t("rulesDesc")}</div>
+                                            <div className="text-sm text-muted-foreground mt-1">{t("rulesDesc")}</div>
                                         </div>
 
                                         <div className="flex items-center gap-4">
@@ -146,39 +144,34 @@ export default function SettingsLibraryRulesPage() {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                        <div>
-                                            <Label>{t("completedThreshold")}</Label>
-                                            <div className="flex items-center gap-2">
-                                                <Input type="number" min={1} max={100} value={r.completedThreshold} onChange={(e) => setRule(key, { completedThreshold: Number(e.target.value || 0) })} />
-                                                <div className="text-sm text-muted-foreground">%</div>
+                                    <div className="grid grid-cols-3 gap-3 items-end">
+                                        <div className="text-center">
+                                            <Label className="block">{t("completedThreshold")}</Label>
+                                            <div className="flex items-baseline justify-center gap-2 mt-1">
+                                                <Input type="number" min={1} max={100} value={r.completedThreshold} onChange={(e) => setRule(key, { completedThreshold: Number(e.target.value || 0) })} className="w-20 text-center text-2xl font-semibold" />
+                                                <div className="text-lg">%</div>
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <Label>{t("partialThreshold")}</Label>
-                                            <div className="flex items-center gap-2">
-                                                <Input type="number" min={1} max={100} value={r.partialThreshold} onChange={(e) => setRule(key, { partialThreshold: Number(e.target.value || 0) })} />
-                                                <div className="text-sm text-muted-foreground">%</div>
+                                        <div className="text-center">
+                                            <Label className="block">{t("partialThreshold")}</Label>
+                                            <div className="flex items-baseline justify-center gap-2 mt-1">
+                                                <Input type="number" min={1} max={100} value={r.partialThreshold} onChange={(e) => setRule(key, { partialThreshold: Number(e.target.value || 0) })} className="w-20 text-center text-2xl font-semibold" />
+                                                <div className="text-lg">%</div>
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <Label>{t("abandonedThreshold")}</Label>
-                                            <div className="flex items-center gap-2">
-                                                <Input type="number" min={0} max={100} value={r.abandonedThreshold} onChange={(e) => setRule(key, { abandonedThreshold: Number(e.target.value || 0) })} />
-                                                <div className="text-sm text-muted-foreground">%</div>
+                                        <div className="text-center">
+                                            <Label className="block">{t("abandonedThreshold")}</Label>
+                                            <div className="flex items-baseline justify-center gap-2 mt-1">
+                                                <Input type="number" min={0} max={100} value={r.abandonedThreshold} onChange={(e) => setRule(key, { abandonedThreshold: Number(e.target.value || 0) })} className="w-20 text-center text-2xl font-semibold" />
+                                                <div className="text-lg">%</div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="mt-3">
-                                        <div className="w-full h-3 bg-border rounded overflow-hidden relative">
-                                            <div className="absolute left-0 top-0 h-full bg-red-500" style={{ width: `${abandoned}%` }} />
-                                            <div className="absolute top-0 h-full bg-yellow-400" style={{ left: `${abandoned}%`, width: `${Math.max(0, partial - abandoned)}%` }} />
-                                            <div className="absolute top-0 h-full bg-emerald-400" style={{ left: `${partial}%`, width: `${Math.max(0, completed - partial)}%` }} />
-                                        </div>
-                                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                                    <div className="mt-4">
+                                        <div className="flex justify-between text-xs text-muted-foreground">
                                             <div>{t("abandoned")}</div>
                                             <div>{t("partial")}</div>
                                             <div>{t("completed")}</div>

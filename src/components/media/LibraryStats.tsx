@@ -1,7 +1,7 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslations } from "next-intl";
-import { Database, Package, Clock, Library, HardDrive, FileVideo, Music, Info, TrendingUp, Sparkles, Calendar, Tv, Book, Search, ChevronDown, ChevronUp } from "lucide-react";
+import { Database, Package, Clock, Library, HardDrive, FileVideo, Music, Info, TrendingUp, Sparkles, Calendar, Tv, Book, Search, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
 import Link from "next/link";
@@ -17,6 +17,8 @@ interface LibraryDetail {
     counts: string;
     topItem?: { title: string; plays: number; id: string } | null;
     lastAdded?: { title: string; date: Date | string | null; id: string } | null;
+    ignoredTracks?: number;
+    ignoredEpisodes?: number;
 }
 
 interface LibraryStatsProps {
@@ -222,22 +224,21 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
                             <div className="flex items-start justify-between">
                                 <div className="space-y-1 w-full">
                                     <div className="flex items-center justify-between gap-2 w-full">
-                                        <div className="flex items-center gap-2">
-                                            {getIconPrefix(lib.collectionType, lib.name)}
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <CardTitle className="text-xl font-bold pr-2 text-zinc-900 dark:text-zinc-100 line-clamp-2 whitespace-normal break-words">{displayName}</CardTitle>
-                                                {lib.name && lib.name !== displayName ? (
-                                                    <span className="text-xs text-zinc-500 ml-1 px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">{lib.name}</span>
-                                                ) : null}
+                                        <div className="flex items-center gap-2 w-full">
+                                            <div onClick={() => toggleExpand(lib.name)} className="flex items-center gap-2 cursor-pointer min-w-0">
+                                                {getIconPrefix(lib.collectionType, lib.name)}
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <CardTitle className="text-xl font-bold pr-2 text-zinc-900 dark:text-zinc-100 line-clamp-2 whitespace-normal break-words">{displayName}</CardTitle>
+                                                    {lib.name && lib.name !== displayName ? (
+                                                        <span className="text-xs text-zinc-500 ml-1 px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">{lib.name}</span>
+                                                    ) : null}
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="shrink-0 text-[10px] font-mono font-medium tracking-tighter bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 px-2 py-0.5 rounded-full">
-                                                {lib.size}
-                                            </span>
-                                            <button aria-label={expandedMap[lib.name] ? 'Collapse' : 'Expand'} onClick={() => toggleExpand(lib.name)} className="p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                                                {expandedMap[lib.name] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                <span className="shrink-0 text-[10px] font-mono font-medium tracking-tighter bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 px-2 py-0.5 rounded-full">
+                                                    {lib.size}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -254,6 +255,17 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
                                     <span>{lib.duration}</span>
                                 </div>
                             </div>
+
+                            {(lib.ignoredEpisodes || lib.ignoredTracks) ? (
+                                <div className="flex items-center gap-4 text-xs text-zinc-400 mt-2">
+                                    {lib.ignoredEpisodes ? (
+                                        <div className="flex items-center gap-1"><FileVideo className="w-3 h-3 text-zinc-400" /> {lib.ignoredEpisodes} {tc('episodes').toLowerCase()}</div>
+                                    ) : null}
+                                    {lib.ignoredTracks ? (
+                                        <div className="flex items-center gap-1"><Music className="w-3 h-3 text-zinc-400" /> {lib.ignoredTracks} {tc('tracks').toLowerCase()}</div>
+                                    ) : null}
+                                </div>
+                            ) : null}
 
                             {expandedMap[lib.name] ? (
                                 <div className="space-y-3 flex-1 flex flex-col">
