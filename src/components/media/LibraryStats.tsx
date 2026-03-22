@@ -6,7 +6,7 @@ import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { normalizeLibraryKey } from '@/lib/mediaPolicy';
 
 interface LibraryDetail {
@@ -42,7 +42,7 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
         return withSpaces.replace(/\b\w/g, (c) => c.toUpperCase());
     };
 
-    const getDisplayName = (lib: LibraryDetail) => {
+    const getDisplayName = useCallback((lib: LibraryDetail) => {
         const normKey = normalizeLibraryKey(lib.collectionType || lib.name);
         let localized: string | null = null;
         if (normKey) {
@@ -50,7 +50,7 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
         }
         if (localized && localized !== normKey) return localized;
         return humanizeLibraryName(lib.name || '');
-    };
+    }, [tc]);
 
     const filteredLibraries = useMemo(() => {
         if (!searchQuery) return libraries;
@@ -59,7 +59,7 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
             lib.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             lib.counts.toLowerCase().includes(searchQuery.toLowerCase())
         );
-    }, [searchQuery, libraries]);
+    }, [searchQuery, libraries, getDisplayName]);
 
     // Initialize expanded/collapsed map based on library count.
     // Defer initialization to avoid synchronous setState inside an effect.
