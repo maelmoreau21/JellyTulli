@@ -55,9 +55,9 @@
 :root {
   --radius: 0.95rem;
   /* Soft Satin Theme: Redesigned for visual comfort with muted pastel tones */
-  --background: oklch(0.88 0.03 285); /* Soft Lavender Satin */
+  --background: oklch(0.85 0.035 285); /* Satin Lavender 2.0 - Darker & Softer */
   --foreground: oklch(0.20 0.05 285); /* Deep Graphite */
-  --card: oklch(0.92 0.02 285 / 85%); /* Opaque Creamy Lavender */
+  --card: oklch(0.89 0.025 285 / 80%); /* Muted Satin Card */
   --card-foreground: oklch(0.20 0.05 285);
   --popover: oklch(0.94 0.01 285);
   --popover-foreground: oklch(0.20 0.05 285);
@@ -70,7 +70,8 @@
   --accent: oklch(0.85 0.06 30); /* Soft Sand/Peach */
   --accent-foreground: oklch(0.25 0.06 340);
   --destructive: oklch(0.6 0.15 25);
-  --border: oklch(0.80 0.03 285); /* Visible pastel borders */
+  --border: oklch(0.76 0.03 285);
+ /* Visible pastel borders */
   --input: oklch(0.88 0.02 285);
   --ring: oklch(0.65 0.10 250);
   --chart-1: oklch(0.65 0.10 250);
@@ -151,7 +152,12 @@
   }
  
   .app-surface-soft {
-    @apply bg-card/60 dark:bg-zinc-900/40 backdrop-blur-sm border-border relative;
+    @apply bg-card/60 backdrop-blur-sm border-border relative;
+  }
+
+  .dark .app-surface-soft {
+    @apply bg-zinc-950/40 border-zinc-800/50;
+    backdrop-filter: blur(12px);
   }
 
   * {
@@ -164,20 +170,21 @@
     background-attachment: fixed;
   }
 
-  :root body {
+  body:not(.dark) {
     /* Dynamic pastel gradient for light mode */
     background: linear-gradient(145deg, oklch(0.94 0.04 285), oklch(0.92 0.04 200), oklch(0.94 0.04 330));
     background-attachment: fixed;
   }
 
   .dark body {
-    @apply bg-zinc-950 text-zinc-50;
+    background-color: oklch(0.12 0.02 260);
     background-image:
       radial-gradient(circle at top left, rgba(8, 145, 178, 0.12), transparent 28%),
       radial-gradient(circle at top right, rgba(245, 158, 11, 0.1), transparent 24%),
         radial-gradient(circle at bottom center, rgba(34, 197, 94, 0.06), transparent 32%),
         linear-gradient(180deg, rgba(9, 9, 11, 0.98), rgba(9, 11, 18, 1));
     background-attachment: fixed;
+    color: oklch(0.98 0.01 260);
   }
 
   .dark input,
@@ -245,9 +252,9 @@
     }
 
     .dark .app-surface-soft {
-      border-color: rgba(148, 163, 184, 0.2);
-      background: rgba(15, 23, 42, 0.56);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.06);
+      background: rgba(9, 9, 11, 0.65);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
     }
 
     .app-field {
@@ -434,12 +441,14 @@
  * This prevents stark white backgrounds in both light and dark modes 
  * for components that haven't been fully themed yet.
  */
-body:not(.dark) [class*="bg-white"]:not([class*="dark:bg-"]),
-body:not(.dark) [class*="bg-zinc-50"]:not([class*="dark:bg-"]),
-body:not(.dark) [class*="bg-zinc-100"]:not([class*="dark:bg-"]),
-body:not(.dark) [class*="bg-slate-50"]:not([class*="dark:bg-"]),
-body:not(.dark) [class*="bg-gray-50"]:not([class*="dark:bg-"]) {
-  background-color: oklch(0.97 0.005 260 / var(--tw-bg-opacity, 1)) !important;
+body:not(.dark) [class*="bg-white"],
+body:not(.dark) [class*="bg-zinc-50"],
+body:not(.dark) [class*="bg-zinc-100"],
+body:not(.dark) [class*="bg-zinc-200"],
+body:not(.dark) [class*="bg-slate-50"],
+body:not(.dark) [class*="bg-slate-100"],
+body:not(.dark) [class*="bg-gray-50"] {
+  background-color: oklch(0.89 0.02 285 / var(--tw-bg-opacity, 1)) !important;
 }
 
 .dark [class*="bg-white"]:not([class*="dark:bg-"]),
@@ -461,12 +470,23 @@ body:not(.dark) [class*="bg-gray-50"]:not([class*="dark:bg-"]) {
 .dark [class*="hover:bg-white"]:hover,
 .dark [class*="hover:bg-zinc-50"]:hover,
 .dark [class*="hover:bg-zinc-100"]:hover,
+.dark [class*="hover:bg-zinc-200"]:hover,
 .dark [class*="hover:bg-slate-50"]:hover,
 .dark [class*="hover:bg-slate-100"]:hover,
 .dark [class*="hover:bg-gray-50"]:hover,
 .dark [class*="hover:bg-gray-100"]:hover,
 .dark [class*="hover:bg-accent"]:hover {
-  background-color: oklch(0.25 0.04 260 / 0.15) !important;
+  background-color: oklch(0.25 0.04 260 / 0.25) !important;
+  color: oklch(0.98 0.01 260) !important;
+}
+
+/* Satin 2.0 Specific Overrides for common white backgrounds */
+body:not(.dark) .bg-sidebar {
+  background-color: oklch(0.86 0.03 285 / 0.95) !important;
+}
+
+body:not(.dark) .bg-card {
+  background-color: oklch(0.89 0.025 285 / 0.8) !important;
 }
 
 .dark ::selection {

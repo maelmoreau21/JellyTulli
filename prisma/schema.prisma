@@ -74,6 +74,7 @@ model PlaybackHistory {
   subtitleCodec    String?   // ex: "subrip", "ass"
   
   // Advanced Telemetry
+  bitrate          Int?      // Bitrate in kbps (persisted from ActiveStream)
   pauseCount       Int       @default(0) // Number of times playback was paused
   audioChanges     Int       @default(0) // Number of audio track switches
   subtitleChanges  Int       @default(0) // Number of subtitle track switches

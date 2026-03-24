@@ -12,7 +12,7 @@ export function resolutionFromDimensions(width?: number | null, height?: number 
   // Based on Tdarr / Common Media Server standards
   const thresholds = customThresholds || {
     "480p": { maxW: 792, maxH: 528 },
-    "720p": { maxW: 1408, maxH: 792 },
+    "720p": { maxW: 1440, maxH: 792 },
     "1080p": { maxW: 2112, maxH: 1188 },
     "4K": { maxW: 4224, maxH: 2376 }
   };

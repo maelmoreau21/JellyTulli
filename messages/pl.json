@@ -12,7 +12,8 @@
       "System zaawansowanych logów",
       "Kopie zapasowe jednym kliknięciem",
       "Wiele języków interfejsu",
-      "Pełna synchronizacja z metadanymi Jellyfin"
+      "Pełna synchronizacja z metadanymi Jellyfin",
+      "Programmable sync with Jellyfin"
     ],
     "githubSource": "Kod źródłowy",
     "jellyfinLink": "Oficjalna strona Jellyfin",
@@ -165,6 +166,7 @@
     "activeUsersTitle": "Aktywni użytkownicy",
     "aiRecommendations": "Rekomendacje AI",
     "anomalyBackupErrors": "Błędy kopii zapasowej",
+    "anomalyBreakdownTitle": "Breakdown by Source",
     "anomalyChartsDesc": "Widok błędów i czyszczenia systemu z ostatnich 14 dni.",
     "anomalyChartsTitle": "Analiza anomalii",
     "anomalyCleanupOps": "Oczyszczanie",
@@ -173,6 +175,7 @@
     "anomalyMonitorErrors": "Błędy monitora",
     "anomalySyncErrors": "Błędy synchronizacji",
     "anomalySyncSuccess": "Udane synchronizacje",
+    "anomalyTimelineTitle": "Timeline of Anomalies",
     "autoAvailability": "Włącz okres automatycznej dostępności",
     "autoAvailabilityDesc": "Jeśli ta opcja jest włączona, Wrapped będzie dostępny tylko między datami określonymi poniżej.",
     "backup": "Backup",

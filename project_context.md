@@ -417,19 +417,23 @@ Si vous souhaitez que j'ajoute un diagramme ER Mermaid ou des scripts SQL de mig
 
 ## 16. Modifications récentes (notes opérationnelles)
 
-- **Refonte UI & Thèmes (Mars 2026)** :
-    - **Mode Clair "Soft Satin"** : Refonte vers une esthétique de satin mat, utilisant des tons pastels plus sourds et une luminosité réduite (L=0.88 au lieu de 0.91) pour éliminer l'éblouissement et la fatigue visuelle. Utilisation équilibrée du Lavande, de la Sauge et du Sable.
-    - **Mode Sombre Raffiné** : Correction des bugs de contraste, notamment le fond des bulles d'information (tooltips) qui était blanc en mode sombre.
-    - **Standardisation Thématique** : Remplacement systématique des couleurs Tailwind codées en dur (ex: `bg-zinc-900`, `border-slate-200`) par des variables de thème dynamiques (`app-surface`, `app-surface-soft`, `bg-card`, `border-border`) sur tout le tableau de bord, les composants de santé et les sélecteurs.
-    - **Correction "Détails par Collection"** : Résolution du bogue où les bibliothèques Jellyfin apparaissaient vides ou étaient masquées.
-    - **Optimisation des Journaux (Logs) :**
-        - Nettoyage de la colonne Média : suppression de l'empilement des labels "Unknown" (Inconnu). Utilisation d'un libellé unique "Média inconnu" en cas d'absence totale de métadonnées.
-        - Sécurisation de la colonne Résolution : filtre désormais strictement les valeurs techniques (4K, 1080p, etc.). Les méthodes de lecture (DirectPlay) ou noms de clients ne peuvent plus "fuiter" dans cette colonne.
-        - Amélioration de `getMediaSubtitle` : gestion intelligente de la hiérarchie (Artiste - Album, Série - Saison) avec dédoublonnage par rapport au titre principal.
-        - Support complet du format "Titre / Artiste - Album" (ex: "Lion / PNL - Lion") tout en restant propre pour les fichiers sans tags.
-    - **Correction Analyse Bibliothèque :**
-        - **Qualité Vidéo & Séries :** Les statistiques de qualité vidéo (`AnalysisPage`) sont désormais alignées sur la liste des médias (`AllMediaPage`) en respectant les exclusions de bibliothèques et les types de base.
-        - **Propagation de la Résolution :** Lors de la synchronisation, la résolution maximale des épisodes est désormais propagée vers l'objet Série parent. Cela permet de filtrer et rechercher les séries par leur qualité réelle (ex: 4K) même si l'objet série de Jellyfin n'a pas de résolution définie.
+    - **Refonte UI & Thèmes (Mars 2026)** :
+        - **Mode Clair "Satin 2.0"** : Évolution vers une esthétique encore plus reposante. Luminosité abaissée (L=0.85), tons pastels plus sourds, et suppression totale des fonds blancs pur (#FFFFFF). Redéfinition du bouton de thème et des surfaces globales.
+        - **Prévention Automatisée des Fuites de Thème** : Mise en place d'un "catch-all" CSS global dans `globals.css` qui intercepte les classes Tailwind `bg-white`, `bg-zinc-50/100/200` et `bg-slate-x` pour les adoucir automatiquement en mode clair, garantissant une cohérence visuelle sans modifier chaque composant individuellement.
+        - **Mode Sombre Raffiné** : Correction des contrastes (tooltips sombres, hovers adaptés) et uniformisation des composants (Cleanup, Dashboard, Users).
+        - **Standardisation Thématique** : Remplacement systématique des classes Tailwind "dures" (`bg-white`, `bg-zinc-900`) par des variables sémantiques (`app-surface`, `bg-card`).
+        - **Correction "Détails par Collection"** : Résolution du bogue des bibliothèques vides via l'alignement sur `libraryName`.
+        - **Optimisation des Journaux (Logs) :**
+            - Nettoyage de la colonne Média : suppression des "Unknown" en cascade.
+            - **Persistence du Bitrate** : Ajout du champ `bitrate` dans `PlaybackHistory` et capture lors des événements du plugin pour un historique complet.
+            - **Synchronisation des Colonnes** : Correction du drag-and-drop des colonnes pour refléter l'ordre dans le corps du tableau.
+            - Sécurisation de la colonne Résolution.
+        - **Navigation & i18n** :
+            - Restauration de l'onglet "Media Settings" dans les paramètres.
+            - Correction des traductions françaises (remplacement des résidus d'allemand).
+        - **Analyse Bibliothèque :**
+            - Alignement des stats de qualité vidéo avec la liste des médias.
+            - Propagation de la résolution maximale des épisodes vers la série parente.
     - Suppression des doublons de titres/descriptions ("Aperçu des statistiques approfondies").
     - Correction de la matrice des résolutions : utilise désormais `normalizeResolution` et agrège par entité parente unique (Films/Séries) pour correspondre aux filtres de la page "Tous les Médias".
     - Amélioration de la cohérence entre les statistiques affichées et les résultats de filtrage.
@@ -437,11 +441,11 @@ Si vous souhaitez que j'ajoute un diagramme ER Mermaid ou des scripts SQL de mig
 ### Problèmes Courants & Solutions
 - **Interactivité du Dashboard** : Les graphiques sont désormais cliquables et redirigent vers les logs filtrés. Suppression du mode "collapsible" sur les cartes pour une visibilité immédiate.
     - **Nettoyage Code & Types** : Résolution de nombreuses erreurs de lint (TypeScript, CSS) et suppression de fichiers obsolètes ou inutilisés.
-- **Configurable Resolution Thresholds**: Video quality categorization (4K, 1080p, etc.) is now based on Tdarr-aligned thresholds, configurable by the user in Settings > Media. A full sync is required to apply changes to existing media.
-- **100% Translation Coverage**: All 10 supported languages (de, en, es, fr, it, nl, pl, pt-BR, ru, zh) have been updated with latest translation keys for settings (including `cancel` button) and analytics.
-- **Chart Internationalization**: All chart components (`PlatformDistributionChart`, `ActivityByHourChart`, `StreamProportionsChart`, `DeepInsights`, `HealthAnomalyCharts`) have been refactored to use `next-intl` translation keys instead of hardcoded strings. Resolution labels in analytics are dynamically localized based on the user's language.
-- **Improved Log Health Monitoring**: Anomaly charts now include successful synchronization events as a "Sync Success" series, ensuring visibility even when no errors occur. Container responsiveness has been improved with `min-w-0` to guarantee correct rendering on all screens.
-- **Unified Library Naming**: Fixed a duplication issue where accented library names (e.g., "SéRies") weren't correctly aliased. The `cleanKey` function now normalizes accents, and the French translation for `tvshows` has been updated to "Séries" to match user preference and unify correctly.
+- **Satin 2.0 Theme Refinement**: Transitioned to a matte, non-glaring light mode using HSL variables and a global "white-leakage" prevention rule in CSS.
+- **Translation Parity**: Synchronized 10 translation files (`messages/*.json`) to have identical keys, item counts, and line counts (915 lines each).
+- **Stability Audit**: Resolved regressions in core synchronization integration tests and resolution classification thresholds. Achieved 100% success rate on `npm run build` and `npm run test`.
+- **Media Analysis**: Fixed Video Quality statistics and ensured resolution propagation from episodes to series.
+- **Logs**: Fixed column synchronization and added bitrate persistence.
 - **Episode Poster Aspect Ratio**: Fixed the issue where episode posters (typically 16:9) were being forced into a vertical 2:3 ratio, causing them to be cut off. Standardized with `aspect-video` for episodes across the UI.
 - **Media Hierarchy & Breadcrumbs**: Improved navigation and visibility for episodes and tracks by displaying their ancestry (Series - Season, Artist - Album) prominently in the profile header and logs.
   - Standardized the separator as ` - ` throughout the UI.

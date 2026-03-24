@@ -176,7 +176,7 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
                 {displayMedia.map((media: any) => (
                     <Link href={`/media/${media.jellyfinMediaId}`} key={media.id} className="group flex flex-col space-y-2">
-                        <div className={`app-surface-soft relative ${media.type === 'MusicAlbum' ? 'aspect-square' : 'aspect-[2/3]'} rounded-md overflow-hidden ring-1 ring-white/10 shadow-lg`}>
+                        <div className={`app-surface-soft relative ${media.type === 'MusicAlbum' ? 'aspect-square' : 'aspect-[2/3]'} rounded-md overflow-hidden ring-1 ring-zinc-200/50 dark:ring-white/10 shadow-lg`}>
                             <FallbackImage src={getJellyfinImageUrl(media.jellyfinMediaId, 'Primary', media.parentId || undefined)} alt={media.title} fill className="object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50" />
                             {(media.normalizedResolution && !['MusicAlbum', 'Season', 'Series'].includes(media.type)) && (
                                 <div className="absolute top-2 right-2 z-10">
@@ -192,7 +192,7 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
                             )}
                         </div>
                         <div className="px-1">
-                            <h4 className="font-semibold text-sm truncate text-zinc-100">{media.title}</h4>
+                            <h4 className="font-semibold text-sm truncate text-zinc-900 dark:text-zinc-100">{media.title}</h4>
                             <div className="flex items-center justify-between text-xs text-zinc-500 mt-1">
                                 <span>{media.plays} {tc('views')}</span>
                                 {media.durationHours > 0 && <span>{media.durationHours}h</span>}

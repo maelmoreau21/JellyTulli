@@ -191,7 +191,7 @@ export default function LogRow({ log, visibleColumns, onOpenDetails }: { log: Sa
               return (
                 <TableCell key="media" className={cn("overflow-hidden border-r border-zinc-200/50 dark:border-zinc-800/50")}>
                   <div className="flex items-center gap-2 md:gap-3 w-full overflow-hidden" title={log.media?.title || 'Unknown'}>
-                    <div className={`relative ${log.media?.type === 'Episode' ? 'aspect-video w-20' : isAudioMedia ? 'aspect-square w-12 md:w-14' : 'aspect-[2/3] w-12 md:w-14'} bg-muted rounded-md shrink-0 overflow-hidden ring-1 ring-white/10`}>
+                    <div className={`relative ${log.media?.type === 'Episode' ? 'aspect-video w-20' : isAudioMedia ? 'aspect-square w-12 md:w-14' : 'aspect-[2/3] w-12 md:w-14'} bg-muted rounded-md shrink-0 overflow-hidden ring-1 ring-zinc-200/50 dark:ring-white/10`}>
                       {log.media?.jellyfinMediaId ? (
                         <FallbackImage
                           src={`/api/jellyfin/image?itemId=${log.media.jellyfinMediaId}&type=Primary${log.fallbackImageParentId ? `&fallbackId=${log.fallbackImageParentId}` : ''}`}

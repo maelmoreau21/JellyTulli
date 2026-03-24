@@ -12,7 +12,8 @@
       "Система детальных журналов",
       "Бэкапы в один клик",
       "Многоязычный интерфейс",
-      "Полная синхронизация с метаданными Jellyfin"
+      "Полная синхронизация с метаданными Jellyfin",
+      "Programmable sync with Jellyfin"
     ],
     "githubSource": "Исходный код",
     "jellyfinLink": "Официальный сайт Jellyfin",
@@ -165,6 +166,7 @@
     "activeUsersTitle": "Активные пользователи",
     "aiRecommendations": "Рекомендации ИИ",
     "anomalyBackupErrors": "Ошибки резервного копирования",
+    "anomalyBreakdownTitle": "Breakdown by Source",
     "anomalyChartsDesc": "Ошибки мониторинга и автоматические очистки за последние 14 дней.",
     "anomalyChartsTitle": "Анализ аномалий",
     "anomalyCleanupOps": "Очистка",
@@ -173,6 +175,7 @@
     "anomalyMonitorErrors": "Ошибки монитора",
     "anomalySyncErrors": "Ошибки синхронизации",
     "anomalySyncSuccess": "Успешные синхронизации",
+    "anomalyTimelineTitle": "Timeline of Anomalies",
     "autoAvailability": "Включить период автоматической доступности",
     "autoAvailabilityDesc": "Если включено, Wrapped будет доступен только в даты, указанные ниже.",
     "backup": "Backup",

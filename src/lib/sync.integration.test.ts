@@ -20,10 +20,11 @@ vi.mock('./prisma', () => {
 
   return {
     default: {
-      media: { updateMany: mediaUpdateMany, upsert: mediaUpsert },
+      media: { updateMany: mediaUpdateMany, upsert: mediaUpsert, create: mediaUpsert, update: mediaUpsert },
       user: { upsert: userUpsert },
       systemHealthEvent: { create: vi.fn() },
       systemHealthState: { upsert: vi.fn() },
+      globalSettings: { findUnique: vi.fn(async () => ({ resolutionThresholds: null })) },
       $transaction: vi.fn(async (fn: any) => typeof fn === 'function' ? await fn(tx) : undefined),
     },
   };
@@ -90,6 +91,7 @@ describe('syncJellyfinLibrary (integration smoke test)', () => {
     expect(result.success).toBe(true);
     // Ensure prisma upserts were invoked for user and media
     expect(prisma.default.user.upsert).toHaveBeenCalled();
-    expect(prisma.default.media.upsert).toHaveBeenCalled();
+    // In our manual sync, it's either create or update on the mock
+    expect(prisma.default.media.create).toHaveBeenCalled();
   });
 });

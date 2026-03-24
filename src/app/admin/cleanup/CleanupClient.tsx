@@ -128,7 +128,7 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                                 { key: "MusicAlbum", label: `${t('albumsFilter')} (${ghostTypeCounts.MusicAlbum})` },
                             ].map(f => (
                                 <button key={f.key} onClick={() => setGhostFilter(f.key)}
-                                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${ghostFilter === f.key ? 'bg-red-500/20 border-red-500/40 text-red-300' : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
+                                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${ghostFilter === f.key ? 'bg-red-500/20 border-red-500/40 text-red-300 shadow-sm shadow-red-500/10' : 'border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900/50'}`}>
                                     {f.label}
                                 </button>
                             ))}
@@ -138,7 +138,7 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                         <div className="rounded-md border border-zinc-200 dark:border-zinc-800">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800/50">
+                                    <TableRow className="border-zinc-200 dark:border-zinc-800 hover:bg-transparent">
                                         <TableHead>{t('colTitle')}</TableHead>
                                         <TableHead className="w-[100px]">{t('colType')}</TableHead>
                                         <TableHead className="w-[150px]">{t('colAdded')}</TableHead>
@@ -153,7 +153,7 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                                         </TableRow>
                                     )}
                                     {filteredGhosts.map((media) => (
-                                        <TableRow key={media.id} className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800/20">
+                                        <TableRow key={media.id} className="border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100/50 dark:hover:bg-zinc-900/30 transition-colors">
                                             <TableCell className="font-medium text-foreground">{media.title}</TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className="border-zinc-200 dark:border-zinc-700 flex items-center gap-1.5 w-fit">
@@ -191,7 +191,7 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                                 { key: "Audio", label: `${t('musicFilter')} (${abandonTypeCounts.Audio})` },
                             ].map(f => (
                                 <button key={f.key} onClick={() => setAbandonFilter(f.key)}
-                                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${abandonFilter === f.key ? 'bg-orange-500/20 border-orange-500/40 text-orange-300' : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}>
+                                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${abandonFilter === f.key ? 'bg-orange-500/20 border-orange-500/40 text-orange-300 shadow-sm shadow-orange-500/10' : 'border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900/50'}`}>
                                     {f.label}
                                 </button>
                             ))}
@@ -227,7 +227,7 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-24 h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                                    <div className="w-24 h-2 bg-zinc-200 dark:bg-zinc-900 rounded-full overflow-hidden">
                                                         <div
                                                             className="h-full bg-orange-500 rounded-full"
                                                             style={{ width: `${Math.min(media.maxCompletion, 100)}%` }}

@@ -114,7 +114,7 @@ export default async function UsersPage() {
                                                 "text-muted-foreground";
 
                                             return (
-                                                <TableRow key={stat.id} className="border-zinc-200/50 dark:border-zinc-700/50 hover:bg-zinc-100/50 dark:hover:bg-slate-800/50 transition-colors">
+                                                <TableRow key={stat.id} className="border-zinc-200/50 dark:border-zinc-800/40 hover:bg-zinc-100/50 dark:hover:bg-zinc-900/40 transition-colors">
                                                     <TableCell className={rankColor}>#{index + 1}</TableCell>
                                                     <TableCell className="font-medium">
                                                         <Link 

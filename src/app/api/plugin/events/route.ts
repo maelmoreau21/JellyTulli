@@ -551,6 +551,7 @@ export async function POST(req: Request) {
                                             ipAddress,
                                             country: geoData.country,
                                             city: geoData.city,
+                                            bitrate: session.bitrate ?? session.Bitrate ?? null,
                                             audioLanguage: session.audioLanguage || session.AudioLanguage || null,
                                             audioCodec: session.audioCodec || session.AudioCodec || null,
                                             subtitleLanguage: session.subtitleLanguage || session.SubtitleLanguage || null,
@@ -606,6 +607,7 @@ export async function POST(req: Request) {
                                             ipAddress,
                                             country: geoData.country,
                                             city: geoData.city,
+                                            bitrate: session.bitrate ?? session.Bitrate ?? null,
                                             audioLanguage: (session.audioLanguage || session.AudioLanguage || "").split(' ')[0] || null,
                                             audioCodec: session.audioCodec || session.AudioCodec || null,
                                             subtitleLanguage: (session.subtitleLanguage || session.SubtitleLanguage || "").split(' ')[0] || null,
@@ -1170,6 +1172,7 @@ export async function POST(req: Request) {
                                         ipAddress: resolvedIpAddress,
                                         country: geoData.country,
                                         city: geoData.city,
+                                        bitrate: resolvedBitrate,
                                         audioLanguage: resolvedAudioLanguage,
                                         audioCodec: resolvedAudioCodec,
                                         subtitleLanguage: resolvedSubtitleLanguage,
@@ -1255,7 +1258,8 @@ export async function POST(req: Request) {
 
             const durationWatched = clampDuration(Math.round(curDur), media.durationMs);
             const updates: Record<string, unknown> = {
-                durationWatched
+                durationWatched,
+                bitrate: resolvedBitrate
             };
             const telemetryEvents: { eventType: string; positionMs: bigint; metadata?: string }[] = [];
 
