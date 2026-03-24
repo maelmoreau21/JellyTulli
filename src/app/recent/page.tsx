@@ -67,8 +67,6 @@ export default async function RecentPage({ searchParams }: { searchParams: Promi
   })();
 
   const totalCount = await prisma.media.count({ where: mediaWhere });
-  console.log(`[RecentPage] Filters:`, JSON.stringify(mediaWhere, null, 2));
-  console.log(`[RecentPage] Total count for filters: ${totalCount}`);
   const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
   const page = Math.min(currentPage, totalPages);
 

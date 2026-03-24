@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
     Tooltip,
@@ -8,7 +8,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useRouter } from "next/navigation";
+import { HeatmapDrillDown } from './HeatmapDrillDown';
 
 interface HeatmapCell {
     day: number;
@@ -22,8 +22,9 @@ interface AttendanceHeatmapProps {
 
 export function AttendanceHeatmap({ data }: AttendanceHeatmapProps) {
     const t = useTranslations('charts');
-    const router = useRouter();
     const dayNames = t('dayNamesShort').split(',');
+
+    const [drillDown, setDrillDown] = useState<{ day: number; hour: number; label: string } | null>(null);
 
     const maxVal = useMemo(() => Math.max(...data.map(d => d.value), 1), [data]);
 
@@ -31,7 +32,6 @@ export function AttendanceHeatmap({ data }: AttendanceHeatmapProps) {
         if (value === 0) return 'bg-zinc-100 dark:bg-zinc-900/40';
         const opacity = Math.max(0.2, value / maxVal);
         
-        // Use indigo shades or similar
         if (opacity <= 0.25) return 'bg-indigo-500/20';
         if (opacity <= 0.5) return 'bg-indigo-500/40';
         if (opacity <= 0.75) return 'bg-indigo-500/70';
@@ -40,9 +40,7 @@ export function AttendanceHeatmap({ data }: AttendanceHeatmapProps) {
 
     const handleCellClick = (dayIdx: number, hourIdx: number, val: number) => {
         if (val === 0) return;
-        // Redirect to logs filtered by day and hour
-        // Day is 0-6 (Sun-Sat or Mon-Sun depending on locale, but typically 0 is Sunday in JS)
-        router.push(`/logs?day=${dayIdx}&hour=${hourIdx}`);
+        setDrillDown({ day: dayIdx, hour: hourIdx, label: dayNames[dayIdx] || `Day ${dayIdx}` });
     };
 
     // Organize data into 7x24 grid
@@ -61,21 +59,23 @@ export function AttendanceHeatmap({ data }: AttendanceHeatmapProps) {
     return (
         <TooltipProvider>
             <div className="w-full space-y-2 mt-4 select-none">
-                <div className="flex text-[10px] text-zinc-500 ml-10 mb-2">
+                {/* Hour labels — show every 4th on desktop, every 6th on mobile */}
+                <div className="flex text-[8px] md:text-[10px] text-zinc-500 ml-6 md:ml-10 mb-2">
                     {hours.map(h => (
                         <div key={h} className="flex-1 text-center font-medium">
-                            {h % 4 === 0 ? `${h}h` : ''}
+                            <span className="hidden md:inline">{h % 4 === 0 ? `${h}h` : ''}</span>
+                            <span className="md:hidden">{h % 6 === 0 ? `${h}` : ''}</span>
                         </div>
                     ))}
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-0.5 md:space-y-1">
                     {grid.map((dayRow, dayIdx) => (
-                        <div key={dayIdx} className="flex items-center gap-2">
-                            <div className="w-8 text-[10px] font-medium text-zinc-500 text-right uppercase tracking-wider">
+                        <div key={dayIdx} className="flex items-center gap-1 md:gap-2">
+                            <div className="w-5 md:w-8 text-[8px] md:text-[10px] font-medium text-zinc-500 text-right uppercase tracking-wider">
                                 {dayNames[dayIdx]}
                             </div>
-                            <div className="flex-1 flex gap-1 h-6 md:h-8">
+                            <div className="flex-1 flex gap-0.5 md:gap-1 h-4 md:h-8">
                                 {dayRow.map((val, hourIdx) => (
                                     <Tooltip key={hourIdx}>
                                         <TooltipTrigger asChild>
@@ -88,7 +88,7 @@ export function AttendanceHeatmap({ data }: AttendanceHeatmapProps) {
                                         <TooltipContent side="top" className="text-[10px] py-1 px-2">
                                             <div className="font-bold">{dayNames[dayIdx]} — {hourIdx}h</div>
                                             <div className="text-zinc-400">{val} {t('sessions')}</div>
-                                            {val > 0 && <div className="text-[9px] text-indigo-400 mt-1 font-medium italic">Click to view logs</div>}
+                                            {val > 0 && <div className="text-[9px] text-indigo-400 mt-1 font-medium italic">{t('clickToViewDetail')}</div>}
                                         </TooltipContent>
                                     </Tooltip>
                                 ))}
@@ -97,18 +97,30 @@ export function AttendanceHeatmap({ data }: AttendanceHeatmapProps) {
                     ))}
                 </div>
                 
-                <div className="flex justify-end items-center gap-2 pt-4 text-[10px] text-zinc-500">
-                    <span>Moins</span>
-                    <div className="flex gap-1">
-                        <div className="w-3 h-3 rounded-sm bg-zinc-100 dark:bg-zinc-900/40" />
-                        <div className="w-3 h-3 rounded-sm bg-indigo-500/20" />
-                        <div className="w-3 h-3 rounded-sm bg-indigo-500/40" />
-                        <div className="w-3 h-3 rounded-sm bg-indigo-500/70" />
-                        <div className="w-3 h-3 rounded-sm bg-indigo-500" />
+                {/* Legend — compact on mobile */}
+                <div className="flex justify-end items-center gap-1.5 md:gap-2 pt-3 md:pt-4 text-[8px] md:text-[10px] text-zinc-500">
+                    <span>{t('less')}</span>
+                    <div className="flex gap-0.5 md:gap-1">
+                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-zinc-100 dark:bg-zinc-900/40" />
+                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-500/20" />
+                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-500/40" />
+                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-500/70" />
+                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-500" />
                     </div>
-                    <span>Plus</span>
+                    <span>{t('more')}</span>
                 </div>
             </div>
+
+            {/* Drill-down modal */}
+            {drillDown && (
+                <HeatmapDrillDown
+                    open={!!drillDown}
+                    onOpenChange={(open) => !open && setDrillDown(null)}
+                    day={drillDown.day}
+                    hour={drillDown.hour}
+                    dayLabel={drillDown.label}
+                />
+            )}
         </TooltipProvider>
     );
 }

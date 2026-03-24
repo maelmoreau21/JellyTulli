@@ -195,3 +195,21 @@ model SystemHealthEvent {
   @@index([kind, createdAt])
 }
 
+model DailyStats {
+  id            String   @id @default(uuid())
+  date          DateTime @db.Date
+  userId        String?
+  libraryName   String?
+  mediaType     String?       // "Movie", "Episode", "Audio", etc.
+  totalPlays    Int      @default(0)
+  totalDuration Int      @default(0)  // seconds
+  directPlays   Int      @default(0)
+  transcodes    Int      @default(0)
+  uniqueMedia   Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([date, userId, libraryName, mediaType])
+  @@index([date])
+  @@index([userId])
+}
+

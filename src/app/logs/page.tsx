@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { LogFilters } from "./LogFilters";
 import { ColumnToggle } from "./ColumnToggle";
+import { SavedFilters } from "@/components/SavedFilters";
 import { FallbackImage } from "@/components/FallbackImage";
 import LogRow from "./LogRow";
 import LogsListClient from "./LogsListClient";
@@ -437,7 +438,10 @@ export default async function LogsPage({
                                         initialDateTo={dateToParam}
                                     />
                                 </div>
-                                <ColumnToggle visibleColumns={visibleColumns} />
+                                <div className="flex items-center gap-2">
+                                    <SavedFilters />
+                                    <ColumnToggle visibleColumns={visibleColumns} />
+                                </div>
                             </div>
                         </CardContent>
                     </Card>

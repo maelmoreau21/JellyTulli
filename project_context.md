@@ -23,8 +23,8 @@ IMPORTANT (pour agents IA) — lire entièrement ce document avant de proposer d
 - `src/app/*` : routes, layouts et pages (server components par défaut). Utilisez `use client` au début d'un fichier pour les composants client.
 - `src/app/api/*` : endpoints API côté serveur (webhooks, exports, actions admin).
 - `src/components/ui/*` : composants UI réutilisables (boutons, input, card) — éviter de dupliquer le style.
-- `src/components/dashboard/*` : composants complexes, server-fetched.
-- `src/components/charts/*` : wrappers pour `recharts` (toujours protéger par condition si données nulles).
+- `src/components/dashboard/*` : composants complexes, server-fetched (`AIRecommendations`, `MetadataAudit`, `WorldMap`, `PredictionsPanel`, `HardwareMonitor`, etc.).
+- `src/components/charts/*` : wrappers pour `recharts` (toujours protéger par condition si données nulles). Inclut `HeatmapDrillDown` (modal drill-down), `AttendanceHeatmap` (mobile-responsive).
 - `src/lib/*` : utilitaires et wrappers (ex. `prisma.ts`, `jellyfin.ts`, `auth.ts`, `utils.ts`).
 - `prisma/` : `schema.prisma` + migrations historiées.
 - `messages/` : traductions JSON par locale (ex. `en.json`, `fr.json`).
@@ -93,6 +93,14 @@ Vous devez RELIRE `prisma/schema.prisma` avant toute proposition qui touche aux 
 	- champs pour webhooks, discord, quotas, `excludedLibraries String[]`, `defaultLocale`, `timeFormat`, `pluginApiKey`, `pluginLastSeen`, etc.
 
 - `model SystemHealthState` et `SystemHealthEvent` : stockent l'état du moniteur/sync/backup et les événements associés.
+
+- `model DailyStats` : (pré-agrégation pour performances dashboard)
+	- `id String @id @default(uuid())`
+	- `date DateTime` (date du jour agrégé)
+	- `userId String?`, `libraryName String?`, `mediaType String?`
+	- `totalPlays Int @default(0)`, `totalDuration Int @default(0)`, `uniqueUsers Int @default(0)`
+	- `@@unique([date, userId, libraryName, mediaType])`
+	- Usage : alimenté par `src/lib/dailyStatsAggregator.ts`, requêtable pour accélérer les vues dashboard sur de longues périodes.
 
 > Règles strictes :
 - Ne PAS inventer de champs/relations non présents dans `schema.prisma`.
@@ -322,6 +330,10 @@ Ces notes décrivent le flux serveur principal et les points à connaître pour 
 	- `GET /api/streams/telemetry?mediaId=...` — exports de télémétrie par média (admin). Voir `src/app/api/streams/telemetry/route.ts`.
 	- `GET /api/logs/export` — export CSV des logs (filtrage côté serveur).
 	- `GET /api/jellyfin/image` — proxy d'images Jellyfin pour affichage.
+	- `GET /api/geo-stats` — agrégation géolocalisation des sessions (admin).
+	- `GET /api/heatmap-detail?day=&hour=` — détails sessions par créneau jour/heure (admin).
+	- `GET /api/metadata-audit` — audit des métadonnées manquantes (admin).
+	- `GET /api/predictions` — tendances IA et prédiction de charge (admin, cache Redis 1h).
 
 - Ingestion / logique principale (`/api/plugin/events`):
 	1. Vérification API key (`pluginApiKey` dans `global_settings`).
@@ -527,8 +539,16 @@ Points d'attention et debugging :
 - Pour diagnostiquer, activez `DEBUG_COLLECTIONS=1` ou visitez `/media/collections?debugCollections=1` pour voir les `rawNames` et mappings.
 - Les résolutions utilisent `jellyfinMediaId` comme clé ; si vous avez plusieurs entrées pour le même Jellyfin ID, corriger les doublons en base.
 
-Si vous voulez que je :
-- affiche également un bouton "Remonter toute la hiérarchie" (qui ouvre une vue détaillée),
-- ou fournisse un endpoint API pour récupérer la chaîne d'ancêtres (utile pour clients externes),
-dites‑le et je l'implémente.
+## 19. Checklist sécurité API
+- **Toutes** les routes sous `src/app/api/` (sauf `plugin/events` qui valide via `pluginApiKey` et `auth/[...nextauth]`) **doivent** inclure `requireAdmin()` ou `getServerSession()` en tout premier appel.
+- Pattern standard :
+	```ts
+	import { requireAdmin, isAuthError } from "@/lib/auth";
+	export async function GET() {
+		const auth = await requireAdmin();
+		if (isAuthError(auth)) return auth;
+		// ...
+	}
+	```
+- Ne jamais ajouter de route API sans garde d'authentification.
 

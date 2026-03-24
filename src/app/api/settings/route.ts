@@ -83,12 +83,10 @@ export async function GET() {
             fetchJellyfinLibraryNames(),
         ]);
 
-        // const libraryRules = await loadLibraryRules(availableLibraries);
 
         return NextResponse.json({
             ...settings,
             availableLibraries,
-            // libraryRules,
             libraryScanSource: jellyfinScanNames.source,
             libraryScanError: jellyfinScanNames.error || undefined,
         }, { status: 200 });
@@ -213,10 +211,6 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        /* if (libraryRules !== undefined) {
-            const availableLibraries = await getSanitizedLibraryNames();
-            await saveLibraryRules(libraryRules, availableLibraries);
-        } */
 
         revalidatePath('/');
         revalidatePath('/settings');
