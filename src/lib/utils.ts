@@ -57,3 +57,20 @@ export function normalizeResolution(raw?: string | null): string {
     if (/(480p|480|\bsd\b)/i.test(lower)) return 'SD';
     return s;
 }
+/**
+ * Clamp a playback duration (in seconds) by the total media duration.
+ * This prevents sessions from reporting impossible watch times due to
+ * loops, missed stop events, or clock drifts.
+ *
+ * @param durationSeconds The accumulated or reported watch time in seconds.
+ * @param mediaDurationMs The total length of the media in milliseconds.
+ * @returns The clamped duration in seconds.
+ */
+export function clampDuration(durationSeconds: number, mediaDurationMs: bigint | number | null): number {
+    if (durationSeconds <= 0) return 0;
+    if (mediaDurationMs === null || mediaDurationMs === undefined) return Math.min(durationSeconds, 86400); // 24h cap if unknown
+
+    const mediaDurationS = Math.ceil(Number(mediaDurationMs) / 1000);
+    // Allow a small 10s buffer for rounding/overhangs
+    return Math.min(durationSeconds, mediaDurationS + 10);
+}

@@ -5,7 +5,7 @@ import { getGeoLocation } from "@/lib/geoip";
 import { inferLibraryKey, isLibraryExcluded } from "@/lib/mediaPolicy";
 import { compactJellyfinId, normalizeJellyfinId } from "@/lib/jellyfinId";
 import { cleanupOrphanedSessions } from "@/lib/cleanup";
-import { normalizeResolution } from '@/lib/utils';
+import { normalizeResolution, clampDuration } from '@/lib/utils';
 import { markMonitorPoll, appendHealthEvent } from "@/lib/systemHealth";
 // Lightweight local types for incoming Jellyfin payloads
 type JellyfinPerson = { type?: string; Type?: string; name?: string; Name?: string };
@@ -308,7 +308,7 @@ async function mergeOpenPlaybacks(userId: string, mediaId: string) {
             const dupDur = await redis.get(`dur:${dupId}`);
             if (dupDur) {
                 const primDur = await redis.get(`dur:${primaryId}`) || "0";
-                const newDur = (parseFloat(primDur || "0") + parseFloat(dupDur || "0")).toString();
+                const newDur = Math.max(parseFloat(primDur), parseFloat(dupDur)).toString();
                 await redis.setex(`dur:${primaryId}`, 86400, newDur);
             }
 
@@ -897,16 +897,8 @@ export async function POST(req: Request) {
                         }
                     }
 
-                    // CAP duration by media length (plus small buffer) to prevent "zombie" durations
-                    if (media.durationMs) {
-                        const mediaDurationS = Math.ceil(Number(media.durationMs) / 1000);
-                        if (durationS > mediaDurationS + 10) {
-                            console.warn(`[Plugin] PlaybackStop: Capping duration from ${durationS}s to ${mediaDurationS}s for "${media.title}"`);
-                            durationS = mediaDurationS;
-                        }
-                    }
+                    durationS = clampDuration(durationS, media.durationMs);
 
-                    durationS = Math.max(0, Math.min(durationS, 86400));
                     await prisma.playbackHistory.update({
                         where: { id: lastPlayback.id },
                         data: { endedAt, durationWatched: durationS },
@@ -1261,8 +1253,9 @@ export async function POST(req: Request) {
                 redis.setex(lastTickKey, 86400, positionTicks.toString())
             ]);
 
+            const durationWatched = clampDuration(Math.round(curDur), media.durationMs);
             const updates: Record<string, unknown> = {
-                durationWatched: Math.round(curDur)
+                durationWatched
             };
             const telemetryEvents: { eventType: string; positionMs: bigint; metadata?: string }[] = [];
 

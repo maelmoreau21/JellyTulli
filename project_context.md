@@ -356,8 +356,12 @@ Ces notes décrivent le flux serveur principal et les points à connaître pour 
 
 	Notes opérationnelles (Logs / `playback_history` / affichage UI) :
 
-	- Colonne `media` : afficher uniquement le titre canonique du média (`media.title`) — ne concaténez pas le nom de l'application/client au titre. L'application/client doit figurer dans une colonne dédiée (`clientName` / `deviceName` / `application`). Cela évite les libellés du type "PNL - Dans la légende".
-	- Colonne `status` : séparer le statut de lecture (`playMethod`, `status`) dans sa propre colonne. Ne pas réutiliser la colonne `application` pour indiquer l'état.
+	- Colonne `media` : afficher uniquement le titre canonique du média (`media.title`) et sa hiérarchie (Série - Saison). Ne plus inclure de métadonnées redondantes comme la résolution ou le mode de lecture, qui disposent de leurs propres colonnes.
+	- Colonne `date` : affiche désormais la date condensée et l'heure sur deux lignes pour une meilleure lisibilité.
+	- **Délimitation et Redimensionnement** :
+		- Chaque colonne du tableau doit avoir une bordure verticale discrète (`border-r`) dans l'en-tête et le corps pour une lecture claire.
+		- L'en-tête doit comporter un "resizer handle" visible (ligne verticale bleue lors du drag) permettant d'ajuster la largeur des colonnes.
+		- La largeur des colonnes est persistée localement et via l'URL (`colsState`).
 	- Colonne `resolution` : ajouter une colonne `resolution` aux exports et aux vues logs. Remonter la valeur depuis :
 		- `media.resolution` (champ synchronisé lors du `sync`), ou
 		- `active_stream` / snapshot live (si présent) pour refléter la résolution courante d'un flux actif.
@@ -414,7 +418,7 @@ Si vous souhaitez que j'ajoute un diagramme ER Mermaid ou des scripts SQL de mig
 ## 16. Modifications récentes (notes opérationnelles)
 
 - **Refonte UI & Thèmes (Mars 2026)** :
-    - **Mode Claire "Pastel Marshmallow"** : Refonte complète vers une esthétique douce et colorée. Utilisation de dégradés pastels (`linear-gradient`), de neutres teintés et d'effets de glassmorphism raffinés pour réduire la fatigue visuelle sans sacrifier le dynamisme.
+    - **Mode Clair "Soft Satin"** : Refonte vers une esthétique de satin mat, utilisant des tons pastels plus sourds et une luminosité réduite (L=0.88 au lieu de 0.91) pour éliminer l'éblouissement et la fatigue visuelle. Utilisation équilibrée du Lavande, de la Sauge et du Sable.
     - **Mode Sombre Raffiné** : Correction des bugs de contraste, notamment le fond des bulles d'information (tooltips) qui était blanc en mode sombre.
     - **Standardisation Thématique** : Remplacement systématique des couleurs Tailwind codées en dur (ex: `bg-zinc-900`, `border-slate-200`) par des variables de thème dynamiques (`app-surface`, `app-surface-soft`, `bg-card`, `border-border`) sur tout le tableau de bord, les composants de santé et les sélecteurs.
     - **Correction "Détails par Collection"** : Résolution du bogue où les bibliothèques Jellyfin apparaissaient vides ou étaient masquées.

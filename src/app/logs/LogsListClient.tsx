@@ -6,11 +6,25 @@ import SessionModal from '@/components/SessionModal';
 import { useTranslations } from 'next-intl';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
 import type { SafeLog } from '@/types/logs';
 
 type ColState = { key: string; width: number };
 
 type FlattenedItem = { type: 'party'; mediaTitle: string; members: string[] } | { type: 'log'; log: SafeLog };
+
+const computeDefaultWidths = (keys: string[]) => {
+  const base: Record<string, number> = {
+    date: 180, startedAt: 140, endedAt: 140, user: 140, media: 480,
+    client: 160, resolution: 80, audioBitrate: 90, ip: 140, country: 120, status: 110, codecs: 120,
+    duration: 90, pauseCount: 70, audioChanges: 70, subtitleChanges: 70,
+  };
+  const arr = keys.map(k => base[k] ?? 100);
+  const total = arr.reduce((s, v) => s + v, 0);
+  if (total <= 1920) return arr.map(v => Math.max(40, v));
+  const scale = 1920 / total;
+  return arr.map(v => Math.max(40, Math.floor(v * scale)));
+};
 
 export default function LogsListClient({ serverLogs, visibleColumns, initialColumns }: { serverLogs: SafeLog[]; visibleColumns: string[]; initialColumns?: ColState[] }) {
   const t = useTranslations('logs');
@@ -19,19 +33,6 @@ export default function LogsListClient({ serverLogs, visibleColumns, initialColu
 
   // Column state: order + widths (persisted to localStorage)
   const STORAGE_KEY = 'jellytrack.logs.columns.v1';
-
-  const computeDefaultWidths = (keys: string[]) => {
-    const base: Record<string, number> = {
-      date: 220, startedAt: 160, endedAt: 160, user: 140, media: 420,
-      client: 140, resolution: 100, audioBitrate: 100, ip: 140, country: 120, status: 120, codecs: 120,
-      duration: 100, pauseCount: 80, audioChanges: 80, subtitleChanges: 80,
-    };
-    const arr = keys.map(k => base[k] ?? 100);
-    const total = arr.reduce((s, v) => s + v, 0);
-    if (total <= 1920) return arr.map(v => Math.max(40, v));
-    const scale = 1920 / total;
-    return arr.map(v => Math.max(40, Math.floor(v * scale)));
-  };
 
   const [columns, setColumns] = useState<ColState[]>(() => {
     // Prefer initialColumns prop (from server / query param) when provided
@@ -60,21 +61,22 @@ export default function LogsListClient({ serverLogs, visibleColumns, initialColu
     return visibleColumns.map((k, i) => ({ key: k, width: defaults[i] || 100 }));
   });
 
-  // Keep columns in sync when server-side visibleColumns change (e.g., toggles)
+  const visibleColsKey = visibleColumns.join(',');
   useEffect(() => {
     setColumns(prev => {
+      const currentVisible = visibleColsKey.split(',').filter(Boolean);
       const prevKeys = prev.map(p => p.key);
       // If lists are identical, do nothing
-      if (prevKeys.length === visibleColumns.length && prevKeys.every((k, i) => k === visibleColumns[i])) return prev;
+      if (prevKeys.length === currentVisible.length && prevKeys.every((k, i) => k === currentVisible[i])) return prev;
       // Merge saved order with new visibleColumns
-      const filtered = prev.filter(p => visibleColumns.includes(p.key));
-      const missing = visibleColumns.filter(k => !filtered.some(f => f.key === k));
+      const filtered = prev.filter(p => currentVisible.includes(p.key));
+      const missing = currentVisible.filter(k => !filtered.some(f => f.key === k));
       if (missing.length === 0) return filtered;
       const missingWidths = computeDefaultWidths(missing);
       const missingCols = missing.map((k, i) => ({ key: k, width: missingWidths[i] }));
       return [...filtered, ...missingCols];
     });
-  }, [visibleColumns.join(',')]);
+  }, [visibleColsKey]);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -195,50 +197,83 @@ export default function LogsListClient({ serverLogs, visibleColumns, initialColu
     dragIndexRef.current = null;
   };
 
+  const [resizingIdx, setResizingIdx] = useState<number | null>(null);
+
   const startResize = (e: React.MouseEvent, idx: number) => {
     e.preventDefault();
+    e.stopPropagation();
+    setResizingIdx(idx);
     const startX = e.clientX;
     const startWidth = columns[idx].width;
+    
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
     const onMove = (ev: MouseEvent) => {
       const delta = ev.clientX - startX;
-      const newW = Math.max(40, Math.round(startWidth + delta));
+      const newW = Math.max(60, Math.round(startWidth + delta));
       setColumns(prev => {
         const next = [...prev];
+        if (next[idx].width === newW) return prev;
         next[idx] = { ...next[idx], width: newW };
         return next;
       });
     };
-    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+
+    const onUp = () => {
+      setResizingIdx(null);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   };
 
   return (
     <div ref={containerRef} className="w-full">
-      <Table className="table-fixed">
-        <TableHeader>
-          <TableRow>
+      <Table className="table-fixed border-separate border-spacing-0">
+        <TableHeader className="sticky top-0 z-30 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md">
+          <TableRow className="hover:bg-transparent border-b border-zinc-200 dark:border-zinc-800">
             {columns.map((col, idx) => {
-              const isDate = col.key === 'date';
+              const isResizing = resizingIdx === idx;
               return (
                 <TableHead
                   key={col.key}
-                  draggable
+                  draggable={resizingIdx === null}
                   onDragStart={(e) => onDragStart(e, idx)}
                   onDragOver={onDragOver}
                   onDrop={(e) => onDrop(e, idx)}
-                  style={{ width: `${col.width}px` }}
-                  className={`relative ${isDate ? 'border-r border-zinc-200/30 dark:border-zinc-700/30 pr-2' : ''}`}
+                  style={{ width: `${col.width}px`, minWidth: `${col.width}px` }}
+                  className={cn(
+                    "relative h-12 px-4 text-left align-middle font-medium text-zinc-500 dark:text-zinc-400 transition-colors",
+                    "border-r border-zinc-200/50 dark:border-zinc-800/50 last:border-r-0",
+                    isResizing && "bg-zinc-100/50 dark:bg-zinc-800/50"
+                  )}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="cursor-move opacity-70">≡</span>
-                    <span className="truncate">{headingForKey(col.key)}</span>
+                  <div className="flex items-center gap-2 min-w-0 h-full group">
+                    <span className="cursor-move opacity-0 group-hover:opacity-100 transition-opacity text-zinc-300 dark:text-zinc-600">≡</span>
+                    <span className="truncate select-none">{headingForKey(col.key)}</span>
                   </div>
+                  
+                  {/* Visual Resizer Handle */}
                   <div
                     onMouseDown={(e) => startResize(e, idx)}
-                    className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-20"
+                    className={cn(
+                      "absolute right-[-4px] top-0 bottom-0 w-[8px] cursor-col-resize z-40 transition-colors",
+                      "hover:bg-primary/30 group-hover:bg-zinc-300/30 dark:group-hover:bg-zinc-700/30",
+                      isResizing && "bg-primary/50 shadow-[0_0_8px_rgba(var(--primary),0.4)]"
+                    )}
                     aria-hidden
-                  />
+                  >
+                    <div className={cn(
+                      "absolute right-[3.5px] top-1/4 bottom-1/4 w-[1px] transition-colors",
+                      "bg-zinc-200 dark:bg-zinc-800",
+                      isResizing && "bg-primary w-[2px]"
+                    )} />
+                  </div>
                 </TableHead>
               );
             })}
@@ -251,8 +286,10 @@ export default function LogsListClient({ serverLogs, visibleColumns, initialColu
             </TableRow>
           ) : (
             flattened.map((item, idx) => item.type === 'party' ? (
-              <TableRow key={`party-${idx}`} className="bg-gradient-to-r from-violet-50 to-fuchsia-50">
-                <TableCell colSpan={columns.length} className="p-2 font-medium">Watch Party — {item.mediaTitle}</TableCell>
+              <TableRow key={`party-${idx}`} className="bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 border-l-4 border-l-violet-500 shadow-sm">
+                <TableCell colSpan={columns.length} className="p-3 font-semibold text-violet-700 dark:text-violet-300 flex items-center gap-2">
+                  <span className="text-lg">✨</span> Watch Party — {item.mediaTitle}
+                </TableCell>
               </TableRow>
               ) : (
               <LogRow key={item.log.id} log={item.log} visibleColumns={columns.map(c => c.key)} onOpenDetails={(l: SafeLog) => setSelectedLog(l)} />

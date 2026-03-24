@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { appendHealthEvent } from "@/lib/systemHealth";
+import { clampDuration } from "@/lib/utils";
 
 /**
  * Robust utility to close orphaned playback sessions.
@@ -46,7 +47,8 @@ export async function cleanupOrphanedSessions() {
                 startedAt: true,
                 userId: true,
                 mediaId: true,
-                media: { select: { title: true } }
+                durationWatched: true,
+                media: { select: { title: true, durationMs: true } }
             }
         });
 
@@ -72,15 +74,18 @@ export async function cleanupOrphanedSessions() {
                     endedAt = now;
                 }
                 
+                const cappedDuration = clampDuration(playback.durationWatched, playback.media?.durationMs);
+
                 await prisma.playbackHistory.update({
                     where: { id: playback.id },
                     data: {
-                        endedAt
+                        endedAt,
+                        durationWatched: cappedDuration
                     }
                 });
 
                 closedCount++;
-                console.log(`[Cleanup] Closed orphaned history ${playback.id} for "${playback.media?.title || 'Unknown'}"`);
+                console.log(`[Cleanup] Closed orphaned history ${playback.id} for "${playback.media?.title || 'Unknown'}" (duration capped to ${cappedDuration}s)`);
             }
         }
 

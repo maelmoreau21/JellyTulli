@@ -54,48 +54,48 @@
 
 :root {
   --radius: 0.95rem;
-  /* Pastel Marshmallow Theme: Optimized for soft, non-shredding pastel experience */
-  --background: oklch(0.91 0.04 285); /* Marshmallow Lavender */
-  --foreground: oklch(0.20 0.05 285); /* Deep readable ink */
-  --card: oklch(0.96 0.02 285 / 75%); /* Glassy pastel cards */
+  /* Soft Satin Theme: Redesigned for visual comfort with muted pastel tones */
+  --background: oklch(0.88 0.03 285); /* Soft Lavender Satin */
+  --foreground: oklch(0.20 0.05 285); /* Deep Graphite */
+  --card: oklch(0.92 0.02 285 / 85%); /* Opaque Creamy Lavender */
   --card-foreground: oklch(0.20 0.05 285);
-  --popover: oklch(0.98 0.01 285);
+  --popover: oklch(0.94 0.01 285);
   --popover-foreground: oklch(0.20 0.05 285);
-  --primary: oklch(0.68 0.12 250); /* Marshmallow Blue */
+  --primary: oklch(0.65 0.10 250); /* Muted Marshmallow Blue */
   --primary-foreground: oklch(0.99 0.005 260);
-  --secondary: oklch(0.88 0.05 165); /* Soft Mint */
+  --secondary: oklch(0.85 0.04 165); /* Soft Sage Satin */
   --secondary-foreground: oklch(0.2 0.05 165);
-  --muted: oklch(0.94 0.02 285 / 60%);
+  --muted: oklch(0.90 0.02 285 / 60%);
   --muted-foreground: oklch(0.40 0.05 285);
-  --accent: oklch(0.92 0.08 340); /* Rose Pastel */
+  --accent: oklch(0.85 0.06 30); /* Soft Sand/Peach */
   --accent-foreground: oklch(0.25 0.06 340);
   --destructive: oklch(0.6 0.15 25);
-  --border: oklch(0.85 0.05 285); /* Subdued pastel borders */
-  --input: oklch(0.92 0.02 285);
-  --ring: oklch(0.68 0.12 250);
-  --chart-1: oklch(0.68 0.12 250);
-  --chart-2: oklch(0.82 0.08 165);
-  --chart-3: oklch(0.85 0.10 340);
-  --chart-4: oklch(0.88 0.08 85);
-  --chart-5: oklch(0.85 0.06 210);
-  /* Chart UI variables (Pastel mode) */
+  --border: oklch(0.80 0.03 285); /* Visible pastel borders */
+  --input: oklch(0.88 0.02 285);
+  --ring: oklch(0.65 0.10 250);
+  --chart-1: oklch(0.65 0.10 250);
+  --chart-2: oklch(0.80 0.08 165);
+  --chart-3: oklch(0.82 0.10 340);
+  --chart-4: oklch(0.85 0.08 85);
+  --chart-5: oklch(0.82 0.06 210);
+  /* Chart UI variables (Soft Satin mode) */
   --chart-axis-color: oklch(0.40 0.05 285);
   --chart-grid-color: oklch(0.2 0.05 285 / 8%);
-  --chart-tooltip-bg: oklch(0.98 0.02 285 / 95%);
-  --chart-tooltip-border: 1px solid oklch(0.68 0.12 250 / 30%);
+  --chart-tooltip-bg: oklch(0.94 0.02 285 / 95%);
+  --chart-tooltip-border: 1px solid oklch(0.65 0.10 250 / 30%);
   --chart-tooltip-radius: 18px;
   --chart-tooltip-box-shadow: 0 15px 40px oklch(0.2 0.05 285 / 8%);
   --chart-tooltip-backdrop: blur(12px);
   --chart-label-color: oklch(0.3 0.05 285);
   --chart-item-color: oklch(0.2 0.05 285);
-  --sidebar: oklch(0.94 0.03 285);
+  --sidebar: oklch(0.90 0.03 285);
   --sidebar-foreground: oklch(0.20 0.05 285);
-  --sidebar-primary: oklch(0.68 0.12 250);
+  --sidebar-primary: oklch(0.65 0.10 250);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.91 0.04 285);
+  --sidebar-accent: oklch(0.88 0.04 285);
   --sidebar-accent-foreground: oklch(0.2 0.05 285);
-  --sidebar-border: oklch(0.85 0.04 285);
-  --sidebar-ring: oklch(0.68 0.12 250);
+  --sidebar-border: oklch(0.80 0.04 285);
+  --sidebar-ring: oklch(0.65 0.10 250);
 }
 
 .dark {
@@ -379,17 +379,15 @@
     }
 
     .dashboard-page .dashboard-banner {
-      border: 1px solid rgba(212, 212, 216, 0.6);
-      background:
-        linear-gradient(135deg, rgba(8, 145, 178, 0.10), rgba(249, 115, 22, 0.06), rgba(250, 250, 252, 0.94));
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      border: 1px solid oklch(0.2 0.05 285 / 15%);
+      background: linear-gradient(135deg, oklch(0.45 0.16 230 / 10%), oklch(0.58 0.14 85 / 6%), oklch(0.98 0.02 285 / 94%));
+      box-shadow: 0 8px 16px oklch(0.2 0.05 285 / 8%);
       backdrop-filter: blur(18px);
     }
 
     .dark .dashboard-page .dashboard-banner {
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background:
-        linear-gradient(135deg, rgba(8, 145, 178, 0.16), rgba(249, 115, 22, 0.09), rgba(10, 10, 15, 0.88));
+      border: 1px solid oklch(0.98 0.01 260 / 12%);
+      background: linear-gradient(135deg, oklch(0.76 0.14 205 / 16%), oklch(0.78 0.17 75 / 9%), oklch(0.12 0.03 260 / 88%));
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
     }
 
@@ -425,8 +423,32 @@
 }
 
 /* Soften Tailwind `bg-white*` utilities in light mode: map them to a softer slate. */
-body:not(.dark) [class*="bg-white"] {
+/* 
+ * Soften Tailwind bg-white* utilities globally when used without a dark: variant.
+ * This prevents stark white backgrounds in both light and dark modes 
+ * for components that haven't been fully themed yet.
+ */
+body:not(.dark) [class*="bg-white"]:not([class*="dark:bg-"]),
+body:not(.dark) [class*="bg-zinc-50"]:not([class*="dark:bg-"]),
+body:not(.dark) [class*="bg-zinc-100"]:not([class*="dark:bg-"]),
+body:not(.dark) [class*="bg-slate-50"]:not([class*="dark:bg-"]),
+body:not(.dark) [class*="bg-gray-50"]:not([class*="dark:bg-"]) {
   background-color: oklch(0.97 0.005 260 / var(--tw-bg-opacity, 1)) !important;
+}
+
+.dark [class*="bg-white"]:not([class*="dark:bg-"]),
+.dark [class*="bg-zinc-50"]:not([class*="dark:bg-"]),
+.dark [class*="bg-zinc-100"]:not([class*="dark:bg-"]),
+.dark [class*="bg-slate-50"]:not([class*="dark:bg-"]),
+.dark [class*="bg-slate-100"]:not([class*="dark:bg-"]),
+.dark [class*="bg-gray-50"]:not([class*="dark:bg-"]),
+.dark [class*="bg-gray-100"]:not([class*="dark:bg-"]),
+.dark [class*="bg-indigo-50"]:not([class*="dark:bg-"]),
+.dark [class*="bg-violet-50"]:not([class*="dark:bg-"]),
+.dark [class*="bg-emerald-50"]:not([class*="dark:bg-"]),
+.dark [class*="bg-amber-50"]:not([class*="dark:bg-"]),
+.dark [class*="bg-red-50"]:not([class*="dark:bg-"]) {
+  background-color: oklch(0.16 0.03 260 / var(--tw-bg-opacity, 1)) !important;
 }
 
 .dark ::selection {
