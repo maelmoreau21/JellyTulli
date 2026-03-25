@@ -5,6 +5,7 @@ import UserInfo from "./UserInfo";
 import UserActivity from "./UserActivity";
 import UserRecentMedia from "./UserRecentMedia";
 import UserStatsCharts from "./UserStatsCharts";
+import { AIRecommendations } from "@/components/dashboard/AIRecommendations";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -106,6 +107,8 @@ export default async function UserDetailPage({ params, searchParams }: UserPageP
                 <Suspense fallback={<Skeleton className="w-full h-[320px] rounded-xl bg-zinc-900/50 mt-6" />}>
                     <UserStatsCharts userId={jellyfinUserId} />
                 </Suspense>
+
+                <AIRecommendations userId={jellyfinUserId} />
 
                 <Suspense fallback={<Skeleton className="w-full h-[500px] rounded-xl bg-zinc-900/50 mt-6" />}>
                     <UserRecentMedia userId={jellyfinUserId} page={currentHistoryPage} />

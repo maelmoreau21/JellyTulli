@@ -552,3 +552,18 @@ Points d'attention et debugging :
 	```
 - Ne jamais ajouter de route API sans garde d'authentification.
 
+## 20. Corrections UI (Round 2 — 2026-03-25)
+
+### WorldMap
+`src/components/dashboard/WorldMap.tsx` — anciennement des ellipses SVG pour les continents, remplacé par de vrais tracés `<path>` pour un rendu plus réaliste. Fond dégradé, grille lat/long en pointillés, équateur visible, compteurs de sessions dans les gros dots.
+
+### AIRecommendations
+- Composant `src/components/dashboard/AIRecommendations.tsx` accepte désormais un prop optionnel `userId`.
+- Intégré dans la page profil utilisateur (`src/app/users/[id]/page.tsx`) pour permettre aux non-admins de voir les recommandations.
+- API `src/app/api/recommendations/route.ts` accepte `?userId=` — admin peut voir tout, non-admin uniquement ses propres recs.
+
+### Paramètres Média — Bibliothèques exclues
+`src/app/settings/media/page.tsx` — toggle visuel pour exclure des bibliothèques des statistiques. Utilise `data.availableLibraries` de l'API `/api/settings`. Les bibliothèques exclues sont envoyées via `excludedLibraries` dans le POST.
+
+### Scheduler boutons
+`src/app/settings/scheduler/tasks/page.tsx` — les 3 boutons de tâche (Synchro Récente, Synchro Totale, Sauvegarde) ont `border border-{color}-400/50` pour un contour visible avec remplissage.

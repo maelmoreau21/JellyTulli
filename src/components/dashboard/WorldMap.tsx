@@ -32,7 +32,6 @@ interface GeoData {
 }
 
 // ISO country name → approximate position on a 1000x500 Mercator-ish grid
-// Only the most common countries — unknown ones get listed in the table
 const COUNTRY_POSITIONS: Record<string, [number, number]> = {
   "France": [490, 170], "United States": [220, 180], "Germany": [510, 160],
   "United Kingdom": [470, 145], "Canada": [230, 130], "Spain": [470, 195],
@@ -51,6 +50,22 @@ const COUNTRY_POSITIONS: Record<string, [number, number]> = {
   "Malaysia": [775, 285], "Singapore": [775, 295], "Vietnam": [780, 250],
   "Taiwan": [815, 225], "Hong Kong": [800, 230],
 };
+
+// Simplified but recognizable continent outlines as SVG paths (1000x500 viewBox)
+const CONTINENT_PATHS = [
+  // North America
+  "M130,70 L170,55 L200,50 L240,55 L270,60 L300,75 L320,90 L330,110 L325,130 L310,150 L295,160 L280,170 L265,180 L250,190 L240,200 L230,210 L220,215 L205,220 L195,225 L185,228 L175,232 L165,230 L155,225 L148,218 L145,210 L150,200 L155,190 L160,180 L150,170 L140,160 L135,150 L130,140 L125,130 L120,120 L115,110 L112,100 L115,90 L120,80 Z",
+  // South America
+  "M290,245 L300,240 L310,243 L320,250 L330,260 L340,275 L345,290 L345,310 L340,330 L335,345 L332,355 L330,365 L325,380 L318,395 L310,405 L305,415 L298,420 L290,418 L285,410 L280,395 L278,380 L280,365 L282,350 L280,335 L275,320 L272,305 L275,290 L278,275 L282,260 Z",
+  // Europe
+  "M450,100 L460,95 L475,92 L490,90 L510,92 L530,95 L545,100 L555,108 L560,118 L565,130 L568,140 L565,150 L560,158 L555,165 L550,172 L540,178 L530,182 L520,185 L510,188 L500,192 L490,195 L480,197 L470,195 L462,190 L458,182 L455,172 L450,160 L447,148 L445,136 L444,124 L445,112 Z",
+  // Africa
+  "M470,210 L485,205 L500,205 L518,208 L535,215 L548,225 L558,238 L565,252 L570,268 L572,285 L570,305 L565,322 L558,340 L550,355 L542,368 L535,378 L528,385 L520,388 L510,390 L500,388 L492,382 L485,372 L480,360 L478,345 L480,328 L482,310 L480,292 L475,275 L472,258 L470,240 L468,225 Z",
+  // Asia
+  "M570,60 L595,55 L620,50 L650,48 L680,50 L710,55 L740,62 L770,70 L795,80 L815,92 L830,108 L840,125 L845,140 L848,158 L845,175 L840,190 L832,205 L820,218 L805,228 L788,235 L770,240 L752,244 L735,246 L718,245 L700,242 L682,238 L665,232 L650,224 L638,215 L628,205 L620,195 L612,185 L605,175 L598,165 L592,155 L585,145 L578,135 L572,122 L568,108 L566,95 L567,78 Z",
+  // Australia
+  "M798,345 L815,340 L832,342 L848,348 L860,358 L868,370 L872,382 L870,395 L865,405 L855,412 L842,416 L828,418 L815,415 L805,408 L798,398 L794,385 L792,372 L794,358 Z",
+];
 
 export function WorldMap() {
   const t = useTranslations("dashboard");
@@ -112,39 +127,35 @@ export function WorldMap() {
       <CardContent>
         <TooltipProvider>
           {/* SVG World Map */}
-          <div className="relative w-full overflow-hidden rounded-xl bg-zinc-100/50 dark:bg-zinc-900/30 border border-border/50">
-            <svg viewBox="0 0 1000 500" className="w-full h-auto" style={{ minHeight: 200, maxHeight: 350 }}>
-              {/* Simple world outline — rough continents */}
+          <div className="relative w-full overflow-hidden rounded-xl bg-gradient-to-b from-slate-50 to-zinc-100 dark:from-zinc-900/60 dark:to-zinc-950/40 border border-border/50">
+            <svg viewBox="0 0 1000 500" className="w-full h-auto" style={{ minHeight: 220, maxHeight: 380 }}>
               <defs>
                 <radialGradient id="dotGlow" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="rgb(99, 102, 241)" stopOpacity="0.6" />
+                  <stop offset="0%" stopColor="rgb(99, 102, 241)" stopOpacity="0.5" />
                   <stop offset="100%" stopColor="rgb(99, 102, 241)" stopOpacity="0" />
+                </radialGradient>
+                <radialGradient id="liveGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="rgb(16, 185, 129)" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="rgb(16, 185, 129)" stopOpacity="0" />
                 </radialGradient>
               </defs>
               
-              {/* Continents as simplified paths */}
-              <g opacity="0.15" fill="currentColor" className="text-zinc-500 dark:text-zinc-400">
-                {/* North America */}
-                <ellipse cx="220" cy="170" rx="120" ry="80" />
-                {/* South America */}
-                <ellipse cx="310" cy="350" rx="60" ry="100" />
-                {/* Europe */}
-                <ellipse cx="510" cy="155" rx="60" ry="50" />
-                {/* Africa */}
-                <ellipse cx="530" cy="300" rx="70" ry="100" />
-                {/* Asia */}
-                <ellipse cx="720" cy="180" rx="120" ry="80" />
-                {/* Australia */}
-                <ellipse cx="840" cy="380" rx="50" ry="35" />
+              {/* Latitude/longitude grid lines */}
+              <g stroke="currentColor" className="text-zinc-200 dark:text-zinc-800" strokeWidth="0.5" opacity="0.4">
+                {[83, 167, 250, 333, 417].map((y) => (
+                  <line key={`h-${y}`} x1="0" y1={y} x2="1000" y2={y} strokeDasharray="4 8" />
+                ))}
+                {[167, 333, 500, 667, 833].map((x) => (
+                  <line key={`v-${x}`} x1={x} y1="0" x2={x} y2="500" strokeDasharray="4 8" />
+                ))}
+                {/* Equator */}
+                <line x1="0" y1="250" x2="1000" y2="250" strokeWidth="0.8" strokeDasharray="6 4" opacity="0.5" />
               </g>
 
-              {/* Grid lines */}
-              <g stroke="currentColor" className="text-zinc-300 dark:text-zinc-700" strokeWidth="0.5" opacity="0.3">
-                {[100, 200, 300, 400].map((y) => (
-                  <line key={`h-${y}`} x1="0" y1={y} x2="1000" y2={y} />
-                ))}
-                {[200, 400, 600, 800].map((x) => (
-                  <line key={`v-${x}`} x1={x} y1="0" x2={x} y2="500" />
+              {/* Continent outlines — real shapes */}
+              <g className="text-zinc-300 dark:text-zinc-700" fill="currentColor" fillOpacity="0.3" stroke="currentColor" strokeWidth="1" strokeOpacity="0.15">
+                {CONTINENT_PATHS.map((d, i) => (
+                  <path key={i} d={d} />
                 ))}
               </g>
 
@@ -153,31 +164,47 @@ export function WorldMap() {
                 const pos = COUNTRY_POSITIONS[country.name];
                 if (!pos) return null;
                 const [cx, cy] = pos;
-                const radius = Math.max(4, Math.min(20, (country.sessions / maxSessions) * 20));
+                const normalizedSize = country.sessions / maxSessions;
+                const radius = Math.max(4, Math.min(18, normalizedSize * 18));
 
                 return (
                   <Tooltip key={country.name}>
                     <TooltipTrigger asChild>
                       <g className="cursor-pointer">
-                        {/* Glow */}
+                        {/* Outer glow */}
                         <circle cx={cx} cy={cy} r={radius * 2.5} fill="url(#dotGlow)" />
                         {/* Dot */}
                         <circle
                           cx={cx}
                           cy={cy}
                           r={radius}
-                          className="fill-indigo-500 dark:fill-indigo-400 stroke-white dark:stroke-zinc-900"
+                          className="fill-indigo-500 dark:fill-indigo-400"
+                          stroke="white"
                           strokeWidth="1.5"
                           opacity="0.85"
+                          style={{ filter: "drop-shadow(0 1px 3px rgba(99, 102, 241, 0.4))" }}
                         />
-                        {/* Label for large dots */}
+                        {/* Session count inside large dots */}
+                        {radius > 10 && (
+                          <text
+                            x={cx}
+                            y={cy + 3.5}
+                            textAnchor="middle"
+                            fill="white"
+                            fontSize="9"
+                            fontWeight="700"
+                          >
+                            {country.sessions}
+                          </text>
+                        )}
+                        {/* Country label for large dots */}
                         {radius > 8 && (
                           <text
                             x={cx}
-                            y={cy - radius - 4}
+                            y={cy - radius - 5}
                             textAnchor="middle"
                             className="fill-zinc-600 dark:fill-zinc-400"
-                            fontSize="10"
+                            fontSize="9"
                             fontWeight="600"
                           >
                             {country.name}
@@ -185,12 +212,12 @@ export function WorldMap() {
                         )}
                       </g>
                     </TooltipTrigger>
-                    <TooltipContent className="text-xs">
+                    <TooltipContent className="text-xs max-w-[200px]">
                       <div className="font-bold">{country.name}</div>
                       <div className="text-muted-foreground">{country.sessions} sessions</div>
                       {country.cities.length > 0 && (
                         <div className="text-[10px] mt-1 text-muted-foreground">
-                          {country.cities.join(", ")}
+                          {country.cities.slice(0, 5).join(", ")}{country.cities.length > 5 ? ` +${country.cities.length - 5}` : ""}
                         </div>
                       )}
                     </TooltipContent>
@@ -198,24 +225,28 @@ export function WorldMap() {
                 );
               })}
 
-              {/* Live indicators */}
+              {/* Live stream indicators */}
               {data.liveLocations.map((live, i) => {
                 const pos = COUNTRY_POSITIONS[live.country];
                 if (!pos) return null;
                 const [cx, cy] = pos;
-                // Offset slightly to avoid overlapping with main dot
-                const offsetX = cx + 15 + (i % 3) * 8;
-                const offsetY = cy - 10 + Math.floor(i / 3) * 8;
+                const offsetX = cx + 18 + (i % 3) * 10;
+                const offsetY = cy - 12 + Math.floor(i / 3) * 10;
 
                 return (
                   <Tooltip key={`live-${i}`}>
                     <TooltipTrigger asChild>
-                      <circle
-                        cx={offsetX}
-                        cy={offsetY}
-                        r="3"
-                        className="fill-emerald-500 animate-pulse"
-                      />
+                      <g className="cursor-pointer">
+                        <circle cx={offsetX} cy={offsetY} r="8" fill="url(#liveGlow)" />
+                        <circle
+                          cx={offsetX}
+                          cy={offsetY}
+                          r="3.5"
+                          className="fill-emerald-500 animate-pulse"
+                          stroke="white"
+                          strokeWidth="1"
+                        />
+                      </g>
                     </TooltipTrigger>
                     <TooltipContent className="text-xs">
                       <div className="font-bold flex items-center gap-1">
@@ -231,16 +262,18 @@ export function WorldMap() {
             </svg>
           </div>
 
-          {/* Country list — compact */}
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
-            {data.countries.slice(0, 8).map((c) => (
-              <div key={c.name} className="flex items-center gap-2 text-xs">
-                <MapPin className="w-3 h-3 text-indigo-500 shrink-0" />
-                <span className="truncate font-medium">{c.name}</span>
-                <span className="text-muted-foreground ml-auto shrink-0">{c.sessions}</span>
-              </div>
-            ))}
-          </div>
+          {/* Country list — compact grid */}
+          {data.countries.length > 0 && (
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+              {data.countries.slice(0, 8).map((c) => (
+                <div key={c.name} className="flex items-center gap-2 text-xs px-2 py-1.5 rounded-md bg-zinc-50 dark:bg-zinc-900/30 border border-border/50">
+                  <MapPin className="w-3 h-3 text-indigo-500 shrink-0" />
+                  <span className="truncate font-medium">{c.name}</span>
+                  <span className="text-muted-foreground ml-auto shrink-0 font-semibold">{c.sessions}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </TooltipProvider>
       </CardContent>
     </Card>

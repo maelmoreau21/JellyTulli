@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles, Play, ChevronRight } from "lucide-react";
+import { Sparkles, Play } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useTranslations } from "next-intl";
@@ -21,7 +20,11 @@ interface Recommendation {
   };
 }
 
-export function AIRecommendations() {
+interface AIRecommendationsProps {
+  userId?: string; // Optional: fetch for a specific user (profile page)
+}
+
+export function AIRecommendations({ userId }: AIRecommendationsProps) {
   const t = useTranslations('dashboard');
   const tc = useTranslations('common');
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
@@ -32,13 +35,15 @@ export function AIRecommendations() {
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch("/api/recommendations", {
+        const url = userId
+          ? `/api/recommendations?userId=${encodeURIComponent(userId)}`
+          : "/api/recommendations";
+        const res = await fetch(url, {
           credentials: "same-origin",
           headers: { Accept: "application/json" },
         });
 
         if (!res.ok) {
-          // Read optional error body for debugging, but avoid noisy console.error
           const body = await res.json().catch(() => null);
           console.debug("AI Recs non-ok response:", res.status, body);
           if (mounted) setError(true);
@@ -60,11 +65,11 @@ export function AIRecommendations() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [userId]);
 
   if (loading) {
     return (
-      <div className="mt-8">
+      <div className="mt-6">
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="w-5 h-5 text-indigo-500 animate-pulse" />
           <h3 className="text-xl font-bold tracking-tight">{t('aiRecommendations')}</h3>
@@ -79,11 +84,11 @@ export function AIRecommendations() {
   }
 
   if (error || recommendations.length === 0) {
-    return null; // Hide if no recommendations to avoid clutter
+    return null;
   }
 
   return (
-    <div className="mt-8 mb-6">
+    <div className="mt-6 mb-4">
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="w-5 h-5 text-indigo-500" />
         <h3 className="text-xl font-bold tracking-tight">{t('aiRecommendations')}</h3>
@@ -93,7 +98,7 @@ export function AIRecommendations() {
       </div>
 
       <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700">
-        {recommendations.map((rec, index) => (
+        {recommendations.map((rec) => (
           <Link 
             key={rec.id} 
             href={`/media/${rec.id}`}

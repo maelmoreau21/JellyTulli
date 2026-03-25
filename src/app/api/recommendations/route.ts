@@ -14,35 +14,70 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limitParam = searchParams.get("limit");
     const limit = limitParam ? parseInt(limitParam, 10) : 10;
+    const userIdParam = searchParams.get("userId");
 
-    // session.user typically contains id (jellyfinUserId) and some other fields
-    // Let's resolve the DB User ID from the session 
-    // Auth logic in standard setup: session.user.id is the Jellyfin ID.
-    // We need the internal DB User ID.
+    const isAdmin = (session.user as any)?.isAdmin === true;
+    const sessionUserId = (session.user as any).id;
+
+    // Determine which user to fetch recommendations for
+    let targetUserId: string;
     
-    // In JellyTrack auth, the user ID in session is usually the internal ID or Jellyfin ID.
-    // Let's look up to be safe:
-    const dbUserId = (session.user as any).id;
-    const dbUser = await prisma.user.findFirst({
+    if (userIdParam) {
+      // If a userId is specified, check authorization
+      // Admins can view any user; non-admins can only view their own
+      const targetUser = await prisma.user.findFirst({
         where: {
-            OR: [
-                { id: dbUserId },
-                { jellyfinUserId: dbUserId }
-            ]
+          OR: [
+            { id: userIdParam },
+            { jellyfinUserId: userIdParam }
+          ]
         }
-    });
+      });
 
-    if (!dbUser) {
+      if (!targetUser) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+
+      // Non-admin can only see recommendations for themselves
+      if (!isAdmin) {
+        const sessionUser = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { id: sessionUserId },
+              { jellyfinUserId: sessionUserId }
+            ]
+          }
+        });
+        if (!sessionUser || sessionUser.id !== targetUser.id) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+      }
+
+      targetUserId = targetUser.id;
+    } else {
+      // Default: current session user
+      const dbUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { id: sessionUserId },
+            { jellyfinUserId: sessionUserId }
+          ]
+        }
+      });
+
+      if (!dbUser) {
         return NextResponse.json({ error: "User not found in DB" }, { status: 404 });
+      }
+
+      targetUserId = dbUser.id;
     }
 
-    const recs = await getAIRecommendations(dbUser.id, limit);
+    const recs = await getAIRecommendations(targetUserId, limit);
 
     return NextResponse.json(recs);
   } catch (error) {
     console.error("[Recommendations API] Failed to fetch recommendations:", error);
-    // Return an empty recommendations payload to keep the UI resilient when
-    // the DB or recommendation engine is temporarily unavailable (local dev).
+    // Return an empty recommendations payload to keep the UI resilient
     return NextResponse.json({ recommendations: [] });
   }
 }

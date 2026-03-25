@@ -27,10 +27,10 @@ export default function SettingsMediaPage() {
                 setResolutionThresholds(data.resolutionThresholds || null);
                 setExcludedLibraries(data.excludedLibraries || []);
 
-                // Build list of available libraries from scan or existing excluded list
+                // Build list of available libraries from API
                 const libs: string[] = [];
-                if (data.libraryScanSource && Array.isArray(data.libraryScanSource)) {
-                    libs.push(...data.libraryScanSource);
+                if (data.availableLibraries && Array.isArray(data.availableLibraries)) {
+                    libs.push(...data.availableLibraries);
                 }
                 // Merge any currently excluded that might not be in scan
                 for (const ex of (data.excludedLibraries || [])) {
