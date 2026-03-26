@@ -1,27 +1,25 @@
 node_modules
 .next
+out
+build
 .git
-.github
-.vscode
-.env*
-
-# Documentation (not needed in Docker image)
 *.md
-!README.md
-
-# IDE/editor files
-.idea
-*.swp
-*.swo
-*~
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Test and dev files
-*.test.*
-*.spec.*
-__tests__
-coverage
-.eslintcache
+.dockerignore
+Dockerfile
+.env*
+!.env.example
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.vercel
+.turbo
+dist
+scripts
+docker-publish.yml
+ci.yml
+docs
+tests
+screenshots
+temp
+tmp

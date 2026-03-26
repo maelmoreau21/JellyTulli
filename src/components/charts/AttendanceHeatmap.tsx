@@ -101,15 +101,15 @@ export function AttendanceHeatmap({ data }: AttendanceHeatmapProps) {
                 
                 {/* Legend — compact on mobile */}
                 <div className="flex justify-end items-center gap-1.5 md:gap-2 pt-3 md:pt-4 text-[8px] md:text-[10px] text-zinc-500 pr-2">
-                    <span>{t('less')}</span>
+                    <span className="hidden xs:inline">{t('less')}</span>
                     <div className="flex gap-0.5 md:gap-1">
-                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-zinc-200/30 dark:bg-zinc-800/40" />
-                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-300 dark:bg-indigo-500/40" />
-                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-400 dark:bg-indigo-400/60" />
-                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-500 dark:bg-indigo-400/80" />
-                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-600 dark:bg-indigo-500" />
+                        <div className="w-2 h-2 md:w-3 md:h-3 rounded-sm bg-zinc-200/30 dark:bg-zinc-800/40" />
+                        <div className="w-2 h-2 md:w-3 md:h-3 rounded-sm bg-indigo-300 dark:bg-indigo-500/40" />
+                        <div className="w-2 h-2 md:w-3 md:h-3 rounded-sm bg-indigo-400 dark:bg-indigo-400/60" />
+                        <div className="w-2 h-2 md:w-3 md:h-3 rounded-sm bg-indigo-500 dark:bg-indigo-400/80" />
+                        <div className="w-2 h-2 md:w-3 md:h-3 rounded-sm bg-indigo-600 dark:bg-indigo-500" />
                     </div>
-                    <span>{t('more')}</span>
+                    <span className="hidden xs:inline">{t('more')}</span>
                 </div>
             </div>
 

@@ -86,18 +86,20 @@ export function StandardPieChart({ data, nameKey, dataKey, onClick }: { data: Re
                     data={filteredData}
                     cx="50%"
                     cy="45%"
-                    innerRadius={50}
-                    outerRadius={80}
+                    innerRadius={60}
+                    outerRadius={85}
                     fill="#8884d8"
                     paddingAngle={2}
                     dataKey={dataKey}
                     nameKey={nameKey}
                     stroke="none"
                     label={({ name, percent }) => {
-                        // On very small screens, labels often overlap. 
-                        // We use a more aggressive truncation and smaller font.
-                        const truncated = name && name.length > 8 ? name.substring(0, 8) + '…' : name;
-                        return `${truncated} ${((percent || 0) * 100).toFixed(0)}%`;
+                        // More aggressive truncation for mobile
+                        const isSmall = typeof window !== 'undefined' && window.innerWidth < 768;
+                        const limit = isSmall ? 6 : 12;
+                        const truncated = name && name.length > limit ? name.substring(0, limit) + '…' : name;
+                        const p = percent || 0; // Fix: Ensure percent is always a number
+                        return p > 0.05 ? `${truncated} ${(p * 100).toFixed(0)}%` : '';
                     }}
                     labelLine={true}
                     fontSize={10}
