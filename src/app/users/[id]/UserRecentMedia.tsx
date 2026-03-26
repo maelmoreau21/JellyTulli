@@ -68,7 +68,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
         include: {
             user: { select: { id: true, username: true, jellyfinUserId: true } },
             media: { select: { id: true, jellyfinMediaId: true, title: true, type: true, parentId: true, artist: true, resolution: true } },
-            telemetryEvents: { select: { eventType: true, positionMs: true, createdAt: true } },
+            telemetryEvents: { select: { eventType: true, positionMs: true, createdAt: true, metadata: true } },
         },
         orderBy: { startedAt: "desc" },
         skip: (safePage - 1) * ITEMS_PER_PAGE,
@@ -83,7 +83,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
 
     // Build parent chain for enriched media titles
     const parentIds = new Set<string>();
-    sessions.forEach((s: any) => {
+    sessions.forEach((s) => {
         if (s.media?.parentId) parentIds.add(s.media.parentId);
     });
     const parentMedia = parentIds.size > 0
@@ -122,7 +122,7 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
     }
 
     const safeLogs: SafeLog[] = sessions.map((log) => {
-        const subtitle = getMediaSubtitle(log.media as any);
+        const subtitle = getMediaSubtitle(log.media);
 
         return {
             ...log,
@@ -132,15 +132,14 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
             media: log.media ? { ...log.media } : null,
             user: log.user ? { ...log.user } : null,
             telemetryEvents: Array.isArray(log.telemetryEvents) ? log.telemetryEvents.map((e) => {
-                const rec = e as Record<string, unknown>;
-                const createdAt = rec.createdAt instanceof Date ? (rec.createdAt as Date).toISOString() : String(rec.createdAt ?? '');
-                const posVal = rec.positionMs;
+                const createdAt = e.createdAt instanceof Date ? (e.createdAt as Date).toISOString() : String(e.createdAt ?? '');
+                const posVal = e.positionMs;
                 const positionMs = typeof posVal === 'bigint' || typeof posVal === 'number' ? String(posVal) : (typeof posVal === 'string' ? posVal : null);
                 return {
-                    eventType: typeof rec.eventType === 'string' ? rec.eventType : undefined,
-                    positionMs: positionMs as string | null,
+                    eventType: e.eventType,
+                    positionMs,
                     createdAt,
-                    metadata: (rec as Record<string, unknown>).metadata ?? undefined,
+                    metadata: e.metadata ?? undefined,
                 } as SafeTelemetryEvent;
             }) : [],
             isActuallyActive: !log.endedAt && activePairSet.has(`${log.userId}:${log.mediaId}`),

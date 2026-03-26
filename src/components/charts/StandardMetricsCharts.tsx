@@ -77,11 +77,13 @@ export function StandardAreaChart({ data, dataKey, stroke, name, onClick }: { da
 }
 
 export function StandardPieChart({ data, nameKey, dataKey, onClick }: { data: Record<string, number | string | undefined>[], nameKey: string, dataKey: string, onClick?: (data: any) => void }) {
+    const filteredData = data.filter(item => (Number(item[dataKey]) || 0) > 0);
+    
     return (
         <ResponsiveContainer width="100%" height={300} minHeight={300}>
             <PieChart>
                 <Pie
-                    data={data}
+                    data={filteredData}
                     cx="50%"
                     cy="45%"
                     innerRadius={50}
@@ -100,7 +102,7 @@ export function StandardPieChart({ data, nameKey, dataKey, onClick }: { data: Re
                     onClick={onClick}
                     style={onClick ? { cursor: 'pointer' } : undefined}
                 >
-                    {data.map((entry, index) => (
+                    {filteredData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                 </Pie>

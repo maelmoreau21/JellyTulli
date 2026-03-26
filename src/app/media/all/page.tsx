@@ -14,8 +14,22 @@ export const dynamic = "force-dynamic";
 
 const ITEMS_PER_PAGE = 50;
 
-export default async function AllMediaPage({ searchParams: searchParamsPromise }: { searchParams?: Promise<any> }) {
-    const searchParams = await searchParamsPromise;
+import { requireAdmin, isAuthError } from "@/lib/auth";
+
+type AllMediaSearchParams = {
+    excludeTypes?: string;
+    sortBy?: string;
+    q?: string;
+    genre?: string;
+    page?: string;
+    resolution?: string;
+};
+
+export default async function AllMediaPage({ searchParams: searchParamsPromise }: { searchParams?: Promise<AllMediaSearchParams> }) {
+    const auth = await requireAdmin();
+    if (isAuthError(auth)) return auth;
+
+    const searchParams = (await searchParamsPromise) || {};
     const t = await getTranslations('media');
     const tc = await getTranslations('common');
     const excludedParam = searchParams?.excludeTypes;
@@ -32,7 +46,12 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
     const baseTypes = ['Movie', 'Series', 'MusicAlbum'];
     const displayTypes = baseTypes.filter(t => !excludedTypes.includes(t));
 
-    const mediaWhere: any = { type: { in: displayTypes.length > 0 ? displayTypes : baseTypes } };
+    interface MediaWhere {
+        type: { in: string[] };
+        AND?: any[]; // Prisma's AND is tricky to type perfectly without importing generated types, leaving as is for now or using unknown[]
+    }
+
+    const mediaWhere: MediaWhere = { type: { in: displayTypes.length > 0 ? displayTypes : baseTypes } };
     const excludedClause = buildExcludedMediaClause(excludedLibraries);
     if (excludedClause) mediaWhere.AND = [excludedClause];
 
@@ -65,10 +84,10 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
     // Optional: filter by normalized resolution (client links from analysis page use `resolution`)
     const resolutionFilter = typeof searchParams?.resolution === 'string' && searchParams.resolution ? String(searchParams.resolution) : null;
     if (resolutionFilter) {
-        parentItems = parentItems.filter((m: any) => normalizeResolution(m.resolution) === resolutionFilter);
+        parentItems = parentItems.filter((m) => normalizeResolution(m.resolution) === resolutionFilter);
     }
 
-    const seriesIdList = parentItems.filter((m: any) => m.type === 'Series').map((m: any) => String(m.jellyfinMediaId));
+    const seriesIdList = parentItems.filter((m) => m.type === 'Series').map((m) => String(m.jellyfinMediaId));
     const seriesChildStats = new Map<string, { plays: number; dur: number; dp: number; childCount: number }>();
     if (seriesIdList.length > 0) {
         const seasons = await prisma.media.findMany({ where: { type: 'Season', parentId: { in: seriesIdList } }, select: { jellyfinMediaId: true, parentId: true } });
@@ -76,10 +95,10 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
         const seasonIdList = seasons.map((s) => s.jellyfinMediaId);
         if (seasonIdList.length > 0) {
             const episodes = await prisma.media.findMany({ where: { type: 'Episode', parentId: { in: seasonIdList } }, include: { playbackHistory: { select: { durationWatched: true, playMethod: true } } } });
-            for (const ep of episodes as any) {
+            for (const ep of episodes) {
                 const sid = seasonToSeries.get(ep.parentId!);
                 if (!sid) continue;
-                const filteredHistory = (ep.playbackHistory || []).filter((h: any) => !isZapped({ ...h, media: { type: 'Episode' } }));
+                const filteredHistory = (ep.playbackHistory || []).filter((h) => !isZapped({ ...h, media: { type: 'Episode' } }));
                 if (filteredHistory.length === 0) continue;
                 const s = seriesChildStats.get(sid) || { plays: 0, dur: 0, dp: 0, childCount: 0 };
                 s.childCount++;
@@ -91,7 +110,7 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
         }
     }
 
-    const albumIdList = parentItems.filter((m: any) => m.type === 'MusicAlbum').map((m: any) => String(m.jellyfinMediaId));
+    const albumIdList = parentItems.filter((m) => m.type === 'MusicAlbum').map((m) => String(m.jellyfinMediaId));
     const albumChildStats = new Map<string, { plays: number; dur: number; dp: number; childCount: number; sizeBytes: bigint; totalTrackDurationMs: bigint }>();
     if (albumIdList.length > 0) {
         const tracks = await prisma.media.findMany({ where: { type: 'Audio', parentId: { in: albumIdList } }, select: { parentId: true, size: true, durationMs: true, playbackHistory: { select: { durationWatched: true, playMethod: true } } } });
@@ -115,13 +134,13 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
         }
     }
 
-    const processedMedia = parentItems.map((media: any) => {
+    const processedMedia = parentItems.map((media) => {
         let plays = 0, durationSeconds = 0, dpCount = 0, childCount = 0;
         if (media.type === 'Movie') {
-            const filteredHistory = (media.playbackHistory || []).filter((h: any) => !isZapped({ ...h, media: { type: 'Movie' } }));
+            const filteredHistory = (media.playbackHistory || []).filter((h) => !isZapped({ ...h, media: { type: 'Movie' } }));
             plays = filteredHistory.length;
-            durationSeconds = filteredHistory.reduce((a: number, h: any) => a + (h.durationWatched || 0), 0);
-            dpCount = filteredHistory.filter((h: any) => h.playMethod === 'DirectPlay').length;
+            durationSeconds = filteredHistory.reduce((a, h) => a + (h.durationWatched || 0), 0);
+            dpCount = filteredHistory.filter((h) => h.playMethod === 'DirectPlay').length;
         } else if (media.type === 'Series') {
             const stats = seriesChildStats.get(media.jellyfinMediaId);
             if (stats) { plays = stats.plays; durationSeconds = stats.dur; dpCount = stats.dp; childCount = stats.childCount; }
@@ -145,8 +164,8 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
             id: String(media.id),
             jellyfinMediaId: String(media.jellyfinMediaId),
             title: media.title || '',
-            productionYear: media.productionYear || null,
-            type: media.type || null,
+            type: media.type || 'Movie',
+            parentId: media.parentId || null,
             plays,
             durationHours,
             qualityPercent,
@@ -156,9 +175,9 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
         };
     });
 
-    if (sortBy === 'duration') processedMedia.sort((a: any, b: any) => b.durationHours - a.durationHours);
-    else if (sortBy === 'quality') processedMedia.sort((a: any, b: any) => b.qualityPercent - a.qualityPercent);
-    else processedMedia.sort((a: any, b: any) => b.plays - a.plays);
+    if (sortBy === 'duration') processedMedia.sort((a, b) => b.durationHours - a.durationHours);
+    else if (sortBy === 'quality') processedMedia.sort((a, b) => b.qualityPercent - a.qualityPercent);
+    else processedMedia.sort((a, b) => b.plays - a.plays);
 
     const totalItems = processedMedia.length;
     const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
@@ -182,7 +201,7 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
             <h1 className="text-2xl font-bold mb-4">{t('allMedia') || 'Tous les médias'}</h1>
             <AllMediaControls />
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                {displayMedia.map((media: any) => (
+                {displayMedia.map((media) => (
                     <Link href={`/media/${media.jellyfinMediaId}`} key={media.id} className="group flex flex-col space-y-2">
                         <div className={`app-surface-soft relative ${media.type === 'MusicAlbum' ? 'aspect-square' : 'aspect-[2/3]'} rounded-md overflow-hidden ring-1 ring-zinc-200/50 dark:ring-white/10 shadow-lg`}>
                             <FallbackImage src={getJellyfinImageUrl(media.jellyfinMediaId, 'Primary', media.parentId || undefined)} alt={media.title} fill className="object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50" />

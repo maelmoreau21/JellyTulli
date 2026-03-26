@@ -67,12 +67,13 @@ export const authOptions: NextAuthOptions = {
                         isAdmin,
                         jellyfinUserId: data.User.Id,
                     };
-                } catch (error: any) {
+                } catch (error: unknown) {
+                    const e = error as Error;
                     // Record as failed attempt if it's not already a rate limit error
-                    if (!error.message?.includes("Too many") && !error.message?.includes("Trop de tentatives")) {
+                    if (!e.message?.includes("Too many") && !e.message?.includes("Trop de tentatives")) {
                         await recordFailedLogin(clientIp);
                     }
-                    throw new Error(error.message || apiTSync(locale, 'connectionError'));
+                    throw new Error(e.message || apiTSync(locale, 'connectionError'));
                 }
             }
         })
@@ -81,16 +82,16 @@ export const authOptions: NextAuthOptions = {
         async jwt({ token, user }) {
             // On first sign-in, `user` is defined — persist custom fields into the JWT
             if (user) {
-                token.isAdmin = (user as any).isAdmin ?? false;
-                token.jellyfinUserId = (user as any).jellyfinUserId ?? user.id;
+                token.isAdmin = user.isAdmin ?? false;
+                token.jellyfinUserId = user.jellyfinUserId ?? user.id;
             }
             return token;
         },
         async session({ session, token }) {
             // Expose custom fields on session.user for client-side access
             if (session.user) {
-                (session.user as any).isAdmin = token.isAdmin ?? false;
-                (session.user as any).jellyfinUserId = token.jellyfinUserId ?? "";
+                session.user.isAdmin = token.isAdmin ?? false;
+                session.user.jellyfinUserId = token.jellyfinUserId ?? "";
             }
             return session;
         },

@@ -29,12 +29,12 @@ export function AttendanceHeatmap({ data }: AttendanceHeatmapProps) {
     const maxVal = useMemo(() => Math.max(...data.map(d => d.value), 1), [data]);
 
     const getColor = (value: number) => {
-        if (value === 0) return 'bg-zinc-200/60 dark:bg-zinc-800/60';
+        if (value === 0) return 'bg-zinc-200/30 dark:bg-zinc-800/40';
         const opacity = Math.max(0.2, value / maxVal);
         
-        if (opacity <= 0.25) return 'bg-indigo-400/30 dark:bg-indigo-500/30';
-        if (opacity <= 0.5) return 'bg-indigo-500/50 dark:bg-indigo-400/50';
-        if (opacity <= 0.75) return 'bg-indigo-500/75 dark:bg-indigo-400/75';
+        if (opacity <= 0.25) return 'bg-indigo-300 dark:bg-indigo-500/40';
+        if (opacity <= 0.5) return 'bg-indigo-400 dark:bg-indigo-400/60';
+        if (opacity <= 0.75) return 'bg-indigo-500 dark:bg-indigo-400/80';
         return 'bg-indigo-600 dark:bg-indigo-500';
     };
 
@@ -101,10 +101,10 @@ export function AttendanceHeatmap({ data }: AttendanceHeatmapProps) {
                 <div className="flex justify-end items-center gap-1.5 md:gap-2 pt-3 md:pt-4 text-[8px] md:text-[10px] text-zinc-500">
                     <span>{t('less')}</span>
                     <div className="flex gap-0.5 md:gap-1">
-                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-zinc-200/60 dark:bg-zinc-800/60" />
-                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-400/30 dark:bg-indigo-500/30" />
-                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-500/50 dark:bg-indigo-400/50" />
-                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-500/75 dark:bg-indigo-400/75" />
+                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-zinc-200/30 dark:bg-zinc-800/40" />
+                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-300 dark:bg-indigo-500/40" />
+                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-400 dark:bg-indigo-400/60" />
+                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-500 dark:bg-indigo-400/80" />
                         <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-indigo-600 dark:bg-indigo-500" />
                     </div>
                     <span>{t('more')}</span>

@@ -398,7 +398,11 @@
   "liveStreams": {
     "description": "Il y a actuellement {count} flux actif(s).",
     "noStreams": "Aucun flux en cours de lecture.",
-    "title": "En direct"
+    "title": "Lectures en direct",
+    "timelineView": "Vue Timeline",
+    "cardsView": "Vue Cartes",
+    "transcodeAbbr": "TC",
+    "directPlayAbbr": "DP"
   },
   "login": {
     "loadingForm": "Chargement du formulaire...",

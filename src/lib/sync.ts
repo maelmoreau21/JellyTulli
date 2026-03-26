@@ -25,8 +25,8 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
     const jellyfinHeaders = { "X-Emby-Token": apiKey };
     
     // Fetch global settings to get custom resolution thresholds if any
-    const settings = await (prisma.globalSettings as any).findUnique({ where: { id: "global" } });
-    const resolutionThresholds = (settings?.resolutionThresholds as any) || null;
+    const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
+    const resolutionThresholds = (settings?.resolutionThresholds as Record<string, unknown>) || null;
 
     const fetchWithRetry = async (url: string, options: RequestInit = {}, timeout = 30000, maxRetries = 3) => {
         for (let i = 0; i < maxRetries; i++) {

@@ -11,6 +11,29 @@ import { normalizeLanguageTag } from '@/lib/language';
 
 type CategorizedItem = { title?: string; name?: string; type?: string; plays?: number; duration?: number };
 
+type TopClient = {
+    clientName: string | null;
+    _count: { id: number };
+};
+
+type DeepInsightsData = {
+    categorized: {
+        movie: CategorizedItem[];
+        series: CategorizedItem[];
+        album: CategorizedItem[];
+        book: CategorizedItem[];
+    };
+    topClients: TopClient[];
+    streamMethodsChartData: { name: string; value: number }[];
+    resolutionChartData: { name: string; value: number }[];
+    deviceChartData: { name: string; value: number }[];
+    topGenres: { name: string; plays: number; duration: number }[];
+    topDirectors: { name: string; plays: number; duration: number }[];
+    topActors: { name: string; plays: number; duration: number }[];
+    audioChartData: { name: string; value: number }[];
+    subtitleChartData: { name: string; value: number }[];
+};
+
 function buildDateFilter(timeRange: string): Record<string, unknown> | undefined {
     const now = new Date();
     if (timeRange === "24h") {
@@ -302,12 +325,6 @@ const getDeepInsights = unstable_cache(
             select: { audioLanguage: true, audioCodec: true },
         });
         const audioMap = new Map<string, number>();
-        const isValidLang = (lang: string | null | undefined) => {
-            if (!lang) return false;
-            const l = lang.toLowerCase().trim();
-            if (l === 'und' || l === 'undefined' || l === 'null' || l === 'none' || l === '' || l === 'unknown') return false;
-            return l.length >= 2 && l.length <= 20;
-        };
 
         audioRows.forEach(a => {
             if (a.audioLanguage) {
@@ -372,7 +389,7 @@ const getDeepInsights = unstable_cache(
             .sort((a, b) => b.value - a.value)
             .slice(0, 8);
 
-        return { categorized, topClients, streamMethodsChartData, resolutionChartData, deviceChartData, topGenres, topDirectors, topActors, audioChartData, subtitleChartData };
+        return { categorized, topClients, streamMethodsChartData, resolutionChartData, deviceChartData, topGenres, topDirectors, topActors, audioChartData, subtitleChartData } as DeepInsightsData;
     },
     // Dynamic cache key — varies with params so different filters get different cached results
     ['JellyTrack-deep-insights-v4'],
@@ -391,15 +408,6 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
 
     const data = await getDeepInsights(type, timeRange, excludedLibraries);
 
-    const chartTooltipStyle = { 
-        backgroundColor: 'var(--chart-tooltip-bg)', 
-        borderColor: 'var(--chart-tooltip-border)', 
-        borderRadius: 'var(--chart-tooltip-radius)', 
-        color: 'var(--chart-item-color)',
-        backdropFilter: 'var(--chart-tooltip-backdrop)'
-    };
-    const chartLabelStyle = { color: 'var(--chart-label-color)' };
-    const chartItemStyle = { color: 'var(--chart-item-color)' };
 
     const localizedResolutionChartData = (data.resolutionChartData || []).map((d: { name: string; value: number }) => {
         const rawName = String(d.name || '');
@@ -495,7 +503,7 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
                                 return (
                                     <Link 
                                         key={g.name} 
-                                        href={`/media?q=${encodeURIComponent(g.name)}`}
+                                        href={`/media/all?genre=${encodeURIComponent(g.name)}`}
                                         className="flex items-center gap-3 text-sm group cursor-pointer"
                                     >
                                         <span className="text-muted-foreground w-5 text-right shrink-0">{i + 1}.</span>
@@ -528,7 +536,7 @@ export async function DeepInsights({ type, timeRange, excludedLibraries }: { typ
                             {data.topClients.map((c, i) => (
                                 <Link 
                                     key={i} 
-                                    href={`/logs?query=${encodeURIComponent(c.clientName || '')}`}
+                                    href={`/logs?client=${encodeURIComponent(c.clientName || '')}`}
                                     className="flex justify-between items-center text-sm group cursor-pointer"
                                 >
                                     <div className="truncate pr-2 group-hover:text-primary transition-colors font-medium">{c.clientName || '?'}</div>

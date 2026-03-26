@@ -16,18 +16,35 @@ export async function GET() {
             }
         });
 
-        let liveStreams: any[] = [];
+        interface RedisStreamPayload {
+            isTranscoding?: boolean;
+            IsTranscoding?: boolean;
+            mediaSubtitle?: string;
+            progressPercent?: number;
+            isPaused?: boolean;
+            IsPaused?: boolean;
+            audioLanguage?: string;
+            audioCodec?: string;
+            subtitleLanguage?: string;
+            subtitleCodec?: string;
+            audioStreamIndex?: number;
+            AudioStreamIndex?: number;
+            subtitleStreamIndex?: number;
+            SubtitleStreamIndex?: number;
+        }
+
+        let liveStreams: any[] = []; // Final return array can stay any[] or be refined
         let totalBandwidthMbps = 0;
 
         if (activeStreamEntries.length > 0) {
             const redisKeys = activeStreamEntries.map(s => `stream:${s.sessionId}`);
             const redisPayloads = await Promise.all(redisKeys.map(k => redis.get(k)));
-            const redisMap = new Map<string, any>();
+            const redisMap = new Map<string, RedisStreamPayload>();
             
             redisPayloads.forEach((p, idx) => {
                 if (p) {
                     try {
-                        const parsed = JSON.parse(p);
+                        const parsed = JSON.parse(p) as RedisStreamPayload;
                         redisMap.set(activeStreamEntries[idx].sessionId, parsed);
                     } catch {}
                 }
@@ -46,7 +63,7 @@ export async function GET() {
               : [];
             const mediaHierarchyMap = new Map(relatedMedia.map((m) => [m.jellyfinMediaId, m]));
 
-            liveStreams = activeStreamEntries.map((dbStream: any) => {
+            liveStreams = activeStreamEntries.map((dbStream) => {
                 const payload = redisMap.get(dbStream.sessionId) || {};
                 
                 const isTranscoding = dbStream.playMethod === "Transcode" 

@@ -15,31 +15,42 @@ const DEFAULT_COLOR = "#71717a"; // Zinc 500
 
 export function StreamProportionsChart({ data }: { data: { name: string, value: number }[] }) {
     const t = useTranslations('charts');
+    const tc = useTranslations('common');
     const router = useRouter();
 
-    const handleSliceClick = (data: any) => {
-        if (data && data.name) {
-            router.push(`/logs?playMethod=${encodeURIComponent(data.name)}`);
+    const handleSliceClick = (entry: any) => {
+        if (entry && entry.name) {
+            router.push(`/logs?playMethod=${encodeURIComponent(entry.name)}`);
         }
     };
+
+    const localizedData = data.map(d => {
+        const key = d.name.toLowerCase();
+        let translated = d.name;
+        if (key.includes('directplay')) translated = tc('directPlay');
+        else if (key.includes('transcode')) translated = tc('transcode');
+        else if (key.includes('directstream')) translated = tc('directStream');
+        return { ...d, displayName: translated };
+    });
 
     return (
         <ResponsiveContainer width="100%" height={250} minHeight={250}>
             <PieChart>
                 <Pie
-                    data={data}
+                    data={localizedData}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
                     outerRadius={80}
                     paddingAngle={5}
                     dataKey="value"
+                    nameKey="displayName"
                     stroke="none"
-                    onClick={handleSliceClick}
+                    onClick={(_, index) => handleSliceClick(data[index])}
                     style={{ cursor: "pointer" }}
                 >
-                    {data.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[entry.name] || DEFAULT_COLOR} opacity={0.8} />
+                    {localizedData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[data[index].name] || DEFAULT_COLOR} opacity={0.8} />
                     ))}
                 </Pie>
                 <Tooltip

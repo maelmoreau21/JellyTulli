@@ -1,7 +1,7 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslations } from "next-intl";
-import { Database, Package, Clock, Library, HardDrive, FileVideo, Music, Info, TrendingUp, Sparkles, Calendar, Tv, Book, Search, ChevronDown } from "lucide-react";
+import { Database, Package, Clock, Library, HardDrive, FileVideo, Music, Info, TrendingUp, Sparkles, Calendar, Tv, Book, Search } from "lucide-react";
 import Image from "next/image";
 import { getJellyfinImageUrl } from "@/lib/jellyfin";
 import Link from "next/link";
@@ -189,10 +189,6 @@ export default function LibraryStats({ totalTB, movieCount, seriesCount, albumCo
                     return an.localeCompare(bn);
                 }).map((lib, idx) => {
                     const normKey = normalizeLibraryKey(lib.collectionType || lib.name);
-                    let localizedLabel: string | null = null;
-                    if (normKey) {
-                        try { localizedLabel = tc(normKey); } catch { localizedLabel = null; }
-                    }
 
                     const displayName = getDisplayName(lib);
 

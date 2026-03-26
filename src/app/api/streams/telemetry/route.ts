@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 
         const playbackIds = sessions.map((s) => s.id);
         const telemetryRows = playbackIds.length > 0
-            ? await (prisma as any).telemetryEvent.findMany({
+            ? await prisma.telemetryEvent.findMany({
                 where: { playbackId: { in: playbackIds } },
                 orderBy: { positionMs: "asc" },
                 select: {
@@ -66,10 +66,10 @@ export async function GET(req: NextRequest) {
             eventsByPlaybackId.set(row.playbackId, list);
         }
 
-        // Serialize BigInt fields
+        // Serialize BigInt fields safely
         const serialized = sessions.map((s) => ({
             ...s,
-            telemetryEvents: (eventsByPlaybackId.get(s.id) || []).map((e: any) => ({
+            telemetryEvents: (eventsByPlaybackId.get(s.id) || []).map((e) => ({
                 ...e,
                 positionMs: Number(e.positionMs),
             })),

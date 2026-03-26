@@ -1,10 +1,35 @@
 export function recordMetric(name: string, value: number, tags?: Record<string, string>) {
   try {
-    // Lightweight local-first metrics recorder — extend to pushgateway or StatsD if needed.
-    if (process.env.METRICS_ENDPOINT) {
-      // TODO: implement remote push (optional)
+    const endpoint = process.env.METRICS_ENDPOINT;
+    if (endpoint) {
+      const apiKey = process.env.METRICS_API_KEY;
+      const headers: Record<string, string> = { 
+        'Content-Type': 'application/json',
+        'User-Agent': 'JellyTrack-Server/1.0'
+      };
+      if (apiKey) headers['X-Api-Key'] = apiKey;
+
+      // Fire and forget push (non-blocking)
+      fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ 
+          metric: name, 
+          value, 
+          tags: { ...tags, source: 'jellytrack-server' }, 
+          timestamp: new Date().toISOString() 
+        }),
+        // Ensure this doesn't hang the request
+        signal: AbortSignal.timeout(2000)
+      }).then(res => {
+        if (!res.ok) console.warn(`[Obs] Remote push returned ${res.status}`);
+      }).catch(err => console.error('[Obs] Push failed', err.message));
     }
-    console.log(`[Metric] ${name}=${value}`, tags ?? {});
+    
+    // Always log locally for debugging unless suppressed
+    if (process.env.DEBUG_METRICS === 'true') {
+      console.log(`[Metric] ${name}=${value}`, tags ?? {});
+    }
   } catch (e) {
     // non-fatal
     console.warn('[Observability] recordMetric failure', e);

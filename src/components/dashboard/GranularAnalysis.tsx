@@ -2,23 +2,24 @@ import prisma from "@/lib/prisma";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { unstable_cache } from "next/cache";
 import { format } from "date-fns";
-import { StandardAreaChart, StandardBarChart, StandardPieChart } from "@/components/charts/StandardMetricsCharts";
-import { StackedBarChart, StackedAreaChart } from "@/components/charts/StackedMetricsCharts";
-import { AttendanceHeatmap } from "@/components/charts/AttendanceHeatmap";
 import { getTranslations, getLocale } from 'next-intl/server';
 import { normalizeLibraryKey, getAvailableLibraryKeys } from '@/lib/mediaPolicy';
 import { normalizeLanguageTag } from '@/lib/language';
 import { formatHour } from "@/lib/utils";
 import { getCompletionMetrics } from "@/lib/mediaPolicy";
-// No more library rules
+import { GranularAnalysisClient } from "./GranularAnalysisClient";
 
-function isValidLang(lang: string | null | undefined): boolean {
-    if (!lang) return false;
-    const l = lang.toLowerCase().trim();
-    if (l === 'und' || l === 'undefined' || l === 'null' || l === 'none' || l === '' || l === 'unknown') return false;
-    // Allow ISO codes (2-3 chars) and common full names (up to 20 chars)
-    return l.length >= 2 && l.length <= 20;
-}
+type GranularData = {
+    dailyData: Record<string, string | number>[];
+    hourlyData: { time: string; plays: number; duration: number }[];
+    collections: string[];
+    dropOffData: { time: string; completion: number }[];
+    dropSegments: { name: string; value: number; fill: string }[];
+    topAbandoned: { title: string; fullTitle: string; mediaId: string; completion: number; count: number }[];
+    audioData: { name: string; value: number }[];
+    subtitleData: { name: string; value: number }[];
+    heatmapData: { day: number; hour: number; value: number }[];
+};
 
 const getGranularData = unstable_cache(
     async (type: string | undefined, timeRange: string, excludedLibraries: string[], locale: string) => {
@@ -50,7 +51,7 @@ const getGranularData = unstable_cache(
             orderBy: { startedAt: 'asc' }
         });
 
-        const dailyMap = new Map<string, any>();
+        const dailyMap = new Map<string, Record<string, string | number>>();
         const hourlyMap = new Map<string, { time: string; plays: number; duration: number }>();
         const collections = new Set<string>();
         const completionMap = new Map<string, { totalCompletion: number, sessions: number }>();
@@ -62,8 +63,6 @@ const getGranularData = unstable_cache(
         let dropAlmost = 0;
         let dropFinished = 0;
 
-        // Heatmap Data (Day of Week vs Hour)
-        // Array of 7 days, each having 24 hours
         const heatmapData: { day: number; hour: number; value: number }[] = [];
         for (let d = 0; d < 7; d++) {
             for (let h = 0; h < 24; h++) {
@@ -84,21 +83,18 @@ const getGranularData = unstable_cache(
             const hourKey = formatHour(hour, locale);
             const durationH = h.durationWatched / 3600;
 
-            // Heatmap aggregation
             const heatIdx = dayOfWeek * 24 + hour;
             if (heatmapData[heatIdx]) {
                 heatmapData[heatIdx].value += 1;
             }
 
-            // Daily Aggregation
             if (!dailyMap.has(dayKey)) dailyMap.set(dayKey, { time: dayKey, totalPlays: 0, totalDuration: 0 });
-            const dayEntry = dailyMap.get(dayKey);
-            dayEntry.totalPlays += 1;
-            dayEntry.totalDuration += durationH;
-            dayEntry[`${lib}_plays`] = (dayEntry[`${lib}_plays`] || 0) + 1;
-            dayEntry[`${lib}_duration`] = (dayEntry[`${lib}_duration`] || 0) + durationH;
+            const dayEntry = dailyMap.get(dayKey)!;
+            dayEntry.totalPlays = (Number(dayEntry.totalPlays) || 0) + 1;
+            dayEntry.totalDuration = (Number(dayEntry.totalDuration) || 0) + durationH;
+            dayEntry[`${lib}_plays`] = (Number(dayEntry[`${lib}_plays`]) || 0) + 1;
+            dayEntry[`${lib}_duration`] = (Number(dayEntry[`${lib}_duration`]) || 0) + durationH;
 
-            // Hourly Aggregation
             if (!hourlyMap.has(hourKey)) {
                 hourlyMap.set(hourKey, { time: hourKey, plays: 0, duration: 0 });
             }
@@ -108,9 +104,8 @@ const getGranularData = unstable_cache(
                 hourEntry.duration += durationH;
             }
 
-            // Completion Rate Aggregation
             if (h.media.durationMs) {
-                const completion = getCompletionMetrics(h.media, h.durationWatched);
+                const completion = getCompletionMetrics(h.media as any, h.durationWatched);
                 if (!completionMap.has(lib)) {
                     completionMap.set(lib, { totalCompletion: 0, sessions: 0 });
                 }
@@ -132,7 +127,6 @@ const getGranularData = unstable_cache(
                 }
             }
 
-            // Languages
             if (h.audioLanguage) {
                 const lang = normalizeLanguageTag(h.audioLanguage);
                 if (lang) {
@@ -140,13 +134,11 @@ const getGranularData = unstable_cache(
                 }
             }
 
-            // For subtitles, count disabled as OFF; otherwise normalize language token
             const sNorm = h.subtitleLanguage ? (normalizeLanguageTag(h.subtitleLanguage) || String(h.subtitleLanguage).toUpperCase()) : 'OFF';
             subMap.set(sNorm, (subMap.get(sNorm) || 0) + 1);
         });
 
         const dailyData = Array.from(dailyMap.values()).map(d => {
-            // Round durations
             d.totalDuration = parseFloat(Number(d.totalDuration).toFixed(2));
             Array.from(collections).forEach(c => {
                 if (d[`${c}_duration`]) d[`${c}_duration`] = parseFloat(Number(d[`${c}_duration`]).toFixed(2));
@@ -165,7 +157,6 @@ const getGranularData = unstable_cache(
             completion: Math.round(data.totalCompletion / data.sessions)
         })).sort((a, b) => b.completion - a.completion);
 
-        // Finalize Segment Data — 4 clear categories with distinct colors
         const dropSegments = [
             { name: "skipped", value: dropSkipped, fill: "#ef4444" },
             { name: "abandoned", value: dropAbandoned, fill: "#f97316" },
@@ -173,9 +164,8 @@ const getGranularData = unstable_cache(
             { name: "finished", value: dropFinished, fill: "#22c55e" },
         ];
 
-        // Finalize Top 5 Abandonnés — include mediaId for links
         const topAbandoned = Array.from(mediaDropMap.values())
-            .filter(m => m.count >= 1) // Lowered from 2 to 1 to show more data
+            .filter(m => m.count >= 1)
             .map(m => ({
                 title: m.title.length > 25 ? m.title.substring(0, 25) + '…' : m.title,
                 fullTitle: m.title,
@@ -183,10 +173,9 @@ const getGranularData = unstable_cache(
                 completion: Math.round(m.completion / m.count),
                 count: m.count
             }))
-            .sort((a, b) => a.completion - b.completion) // Lowest completion first
+            .sort((a, b) => a.completion - b.completion)
             .slice(0, 5);
 
-        // Finalize Languages (top 5 max for pies)
         const audioData = Array.from(audioMap.entries())
             .map(([name, value]) => ({ name, value }))
             .sort((a, b) => b.value - a.value).slice(0, 6);
@@ -199,7 +188,7 @@ const getGranularData = unstable_cache(
             dailyData, hourlyData, collections: Array.from(collections),
             dropOffData, dropSegments, topAbandoned, audioData, subtitleData,
             heatmapData
-        };
+        } as GranularData;
     },
     ['JellyTrack-granular-analysis-v3'],
     { revalidate: 300 }
@@ -207,12 +196,10 @@ const getGranularData = unstable_cache(
 
 export async function GranularAnalysis({ type, timeRange, excludedLibraries }: { type?: string, timeRange: string, excludedLibraries: string[] }) {
     const locale = await getLocale();
-    // const rules = await loadLibraryRules();
     const data = await getGranularData(type, timeRange, excludedLibraries, locale);
     const t = await getTranslations('granular');
     const tc = await getTranslations('common');
 
-    // Normalize library keys and prepare localized labels for charts
     const rawCollections: string[] = Array.isArray(data.collections) ? data.collections : [];
     const rawToNorm = new Map<string, string>();
     rawCollections.forEach((raw) => {
@@ -244,7 +231,6 @@ export async function GranularAnalysis({ type, timeRange, excludedLibraries }: {
     const rawKeys = Array.from(rawToNorm.values());
     const availableKeys = getAvailableLibraryKeys(rawKeys);
     
-    // Filter out keys that have no data at all in the current set to avoid legend clutter
     const normalizedKeys = availableKeys.filter(k => {
         const hasPlays = normalizedDailyData.some((d: any) => (d[`${k}_plays`] || 0) > 0);
         const hasDur = normalizedDailyData.some((d: any) => (d[`${k}_duration`] || 0) > 0);
@@ -252,8 +238,6 @@ export async function GranularAnalysis({ type, timeRange, excludedLibraries }: {
     });
 
     const labelMap: Record<string, string> = {};
-
-    // Build reverse map: normalized key -> original raw library names
     const normToRaw = new Map<string, string[]>();
     for (const [raw, norm] of rawToNorm.entries()) {
         if (!normToRaw.has(norm)) normToRaw.set(norm, []);
@@ -263,11 +247,9 @@ export async function GranularAnalysis({ type, timeRange, excludedLibraries }: {
     function humanizeLibraryName(value: string) {
         if (!value) return value;
         let s = String(value);
-        // replace separators, split camelCase and trim
         s = s.replace(/[_-]+/g, ' ');
         s = s.replace(/([a-z])([A-Z])/g, '$1 $2');
         s = s.trim();
-        // Capitalize words
         s = s.split(' ').map(w => w ? (w[0].toUpperCase() + w.slice(1)) : w).join(' ');
         return s;
     }
@@ -276,35 +258,23 @@ export async function GranularAnalysis({ type, timeRange, excludedLibraries }: {
         let label = '';
         try {
             const translated = tc(k);
-            // Prefer a real translation when available (and not just the key)
             if (translated && translated !== k && !translated.includes('.')) {
                 label = translated;
             }
-        } catch (e) {
-            // ignore and fallback below
-        }
-
+        } catch {}
         if (!label) {
             const raws = normToRaw.get(k) || [];
-            if (raws.length > 0) {
-                label = humanizeLibraryName(raws[0]);
-            } else {
-                label = humanizeLibraryName(k);
-            }
+            label = raws.length > 0 ? humanizeLibraryName(raws[0]) : humanizeLibraryName(k);
         }
-
         labelMap[k] = label;
     });
-    const tDashboard = await getTranslations('dashboard');
 
-    // Localize subtitle names (e.g. OFF -> Disabled) using the granular scope
     const localizedSubtitleData = (data.subtitleData || []).map((d: { name?: string; value?: number }) => {
         const name = String(d.name || '').toUpperCase();
         if (name === 'OFF' || name === 'NONE' || name === 'UNKNOWN') return { ...d, name: t('disabled') };
         return d;
     });
 
-    // Localize drop segments (data.dropSegments contains bucket keys)
     const localizedDropSegments = (data.dropSegments || []).map((s: { name?: string; value?: number; fill?: string }) => {
         const key = String(s.name || '').toLowerCase();
         switch (key) {
@@ -317,174 +287,42 @@ export async function GranularAnalysis({ type, timeRange, excludedLibraries }: {
     });
 
     return (
-        <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
-                <Card className="app-surface-soft border-border">
-                    <CardHeader>
-                        <CardTitle>{t('playsPerDay')}</CardTitle>
-                        <CardDescription>{t('playsPerDayDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <StandardBarChart data={data.dailyData} dataKey="totalPlays" fill="#3b82f6" name={t('playsPerDay')} />
-                    </CardContent>
-                </Card>
-
-                <Card className="app-surface-soft border-border">
-                    <CardHeader>
-                        <CardTitle>{t('durationPerDay')}</CardTitle>
-                        <CardDescription>{t('durationPerDayDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <StandardAreaChart data={data.dailyData} dataKey="totalDuration" stroke="#f59e0b" name={t('durationPerDay')} />
-                    </CardContent>
-                </Card>
-            </div>
-
-
-            <div className="grid gap-6 md:grid-cols-2">
-                <Card className="app-surface-soft border-border">
-                    <CardHeader>
-                        <CardTitle className="text-xl font-bold">{t('playsByLibTitle')}</CardTitle>
-                        <CardDescription>{t('playsByLibDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <StackedBarChart data={normalizedDailyData} keys={normalizedKeys} suffix="_plays" labelMap={labelMap} />
-                    </CardContent>
-                </Card>
-
-                <Card className="app-surface-soft border-border">
-                    <CardHeader>
-                        <CardTitle className="text-xl font-bold">{t('durationByLibTitle')}</CardTitle>
-                        <CardDescription>{t('durationByLibDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <StackedBarChart data={normalizedDailyData} keys={normalizedKeys} suffix="_duration" labelMap={labelMap} />
-                    </CardContent>
-                </Card>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-                <Card className="app-surface-soft border-border">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-bold">{t('playsHourlyAvg')}</CardTitle>
-                        <CardDescription>{t('playsHourlyAvgDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <StandardBarChart data={data.hourlyData} xAxisKey="time" dataKey="plays" fill="var(--primary)" name={t('playsHourlyAvg')} />
-                    </CardContent>
-                </Card>
-
-                <Card className="app-surface-soft border-border">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-bold">{t('durationHourlyAvg')}</CardTitle>
-                        <CardDescription>{t('durationHourlyAvgDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <StandardAreaChart data={data.hourlyData} dataKey="duration" stroke="var(--primary)" name={t('durationHourlyAvg')} />
-                    </CardContent>
-                </Card>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-                <Card className="app-surface-soft border-border">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-bold">{t('attendanceHeatmap')}</CardTitle>
-                        <CardDescription>{t('attendanceHeatmapDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex items-center justify-center p-6">
-                        <AttendanceHeatmap data={data.heatmapData} />
-                    </CardContent>
-                </Card>
-
-                <Card className="app-surface-soft border-border flex flex-col">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-bold">{t('avgCompletionByLib')}</CardTitle>
-                        <CardDescription>{t('avgCompletionByLibDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1">
-                        <StandardBarChart data={normalizedDropOffData} horizontal xAxisKey="time" dataKey="completion" fill="var(--primary)" name={t('completionPct')} />
-                    </CardContent>
-                </Card>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-                <Card className="app-surface-soft border-border">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-bold">{t('abandonSegments')}</CardTitle>
-                        <CardDescription>{t('abandonSegmentsDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="h-[300px] flex items-center justify-center">
-                        <StandardPieChart data={localizedDropSegments} nameKey="name" dataKey="value" />
-                    </CardContent>
-                </Card>
-
-                <Card className="app-surface-soft border-border">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-bold">{t('worstCompletion')}</CardTitle>
-                        <CardDescription>{t('worstCompletionDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            {data.topAbandoned.length === 0 ? (
-                                <p className="text-sm text-muted-foreground text-center py-6">—</p>
-                            ) : data.topAbandoned.map((m: any, i: number) => (
-                                <a
-                                    key={i}
-                                    href={`/media?q=${encodeURIComponent(m.fullTitle)}`}
-                                    className="block group"
-                                >
-                                    <div className="flex justify-between items-center text-sm mb-1 font-medium">
-                                        <div className="truncate pr-2 group-hover:text-primary transition-colors">
-                                            <span className="text-muted-foreground w-5 inline-block">{i + 1}.</span>
-                                            {m.title}
-                                        </div>
-                                        <span className="text-muted-foreground font-mono text-xs">{m.completion}% · {m.count}×</span>
-                                    </div>
-                                    <div className="h-2 bg-muted rounded-full overflow-hidden mt-1">
-                                        <div
-                                            className="h-full rounded-full transition-all duration-300"
-                                            style={{
-                                                width: `${m.completion}%`,
-                                                backgroundColor: m.completion < 10 ? 'var(--chart-5)' : m.completion < 50 ? 'var(--chart-4)' : 'var(--chart-3)'
-                                            }}
-                                        />
-                                    </div>
-                                </a>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-                <Card className="app-surface-soft border-border">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-bold">{t('audioBreakdown')}</CardTitle>
-                        <CardDescription>{t('audioBreakdownDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="h-[300px] flex items-center justify-center">
-                        {data.audioData && data.audioData.length > 0 ? (
-                            <StandardPieChart data={data.audioData} nameKey="name" dataKey="value" />
-                        ) : (
-                            <p className="text-xs text-muted-foreground">{tc('noData')}</p>
-                        )}
-                    </CardContent>
-                </Card>
-
-                <Card className="app-surface-soft border-border">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-bold">{t('subtitles')}</CardTitle>
-                        <CardDescription>{t('subtitlesDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="h-[300px] flex items-center justify-center">
-                        {localizedSubtitleData && localizedSubtitleData.length > 0 ? (
-                            <StandardPieChart data={localizedSubtitleData} nameKey="name" dataKey="value" />
-                        ) : (
-                            <p className="text-xs text-muted-foreground">{tc('noData')}</p>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
+        <GranularAnalysisClient 
+            data={data}
+            normalizedDailyData={normalizedDailyData}
+            normalizedKeys={normalizedKeys}
+            normalizedDropOffData={normalizedDropOffData}
+            labelMap={labelMap}
+            localizedSubtitleData={localizedSubtitleData}
+            localizedDropSegments={localizedDropSegments}
+            translations={{
+                playsPerDay: t('playsPerDay'),
+                playsPerDayDesc: t('playsPerDayDesc'),
+                durationPerDay: t('durationPerDay'),
+                durationPerDayDesc: t('durationPerDayDesc'),
+                playsByLibTitle: t('playsByLibTitle'),
+                playsByLibDesc: t('playsByLibDesc'),
+                durationByLibTitle: t('durationByLibTitle'),
+                durationByLibDesc: t('durationByLibDesc'),
+                playsHourlyAvg: t('playsHourlyAvg'),
+                playsHourlyAvgDesc: t('playsHourlyAvgDesc'),
+                durationHourlyAvg: t('durationHourlyAvg'),
+                durationHourlyAvgDesc: t('durationHourlyAvgDesc'),
+                attendanceHeatmap: t('attendanceHeatmap'),
+                attendanceHeatmapDesc: t('attendanceHeatmapDesc'),
+                avgCompletionByLib: t('avgCompletionByLib'),
+                avgCompletionByLibDesc: t('avgCompletionByLibDesc'),
+                completionPct: t('completionPct'),
+                abandonSegments: t('abandonSegments'),
+                abandonSegmentsDesc: t('abandonSegmentsDesc'),
+                worstCompletion: t('worstCompletion'),
+                worstCompletionDesc: t('worstCompletionDesc'),
+                audioBreakdown: t('audioBreakdown'),
+                audioBreakdownDesc: t('audioBreakdownDesc'),
+                subtitles: t('subtitles'),
+                subtitlesDesc: t('subtitlesDesc'),
+                noData: tc('noData')
+            }}
+        />
     );
 }

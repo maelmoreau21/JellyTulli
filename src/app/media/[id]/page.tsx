@@ -47,8 +47,15 @@ interface MediaProfilePageProps {
     params: Promise<{ id: string }>;
 }
 
+import { requireAuth, isAuthError } from "@/lib/auth";
+
 export default async function MediaProfilePage({ params }: MediaProfilePageProps) {
     const { id } = await params;
+
+    const auth = await requireAuth();
+    if (isAuthError(auth)) return auth;
+    const isAdmin = auth.isAdmin;
+    const sessionUserId = auth.jellyfinUserId;
 
     const media = await prisma.media.findUnique({
         where: { jellyfinMediaId: id },
@@ -222,10 +229,19 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
         }
     }
 
+    // IDOR Hardening: Non-admins only see their own history
+    const filteredBaseHistory = isAdmin 
+        ? media.playbackHistory 
+        : media.playbackHistory.filter(h => h.user?.jellyfinUserId === sessionUserId);
+
+    const filteredDescendantHistory = isAdmin
+        ? allDescendantHistory
+        : allDescendantHistory.filter(h => h.user?.jellyfinUserId === sessionUserId);
+
     // Use descendant history for parent types that have no direct playbackHistory
     const effectiveHistory = isParentType && allDescendantHistory.length > 0
-        ? [...media.playbackHistory, ...allDescendantHistory]
-        : media.playbackHistory;
+        ? [...filteredBaseHistory, ...filteredDescendantHistory]
+        : filteredBaseHistory;
 
     // Global stats (include children's playback for parent items like Series/Season/Album)
     const totalViews = effectiveHistory.length;
@@ -328,7 +344,9 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
         entry.sessions++;
         entry.totalSeconds += h.durationWatched;
     });
-    const userList = Array.from(userMap.values()).sort((a, b) => b.totalSeconds - a.totalSeconds);
+    const userList = Array.from(userMap.values())
+        .filter(u => isAdmin || u.jellyfinUserId === sessionUserId)
+        .sort((a, b) => b.totalSeconds - a.totalSeconds);
 
     // Audio & subtitle language distribution
     const audioLangCounts = new Map<string, number>();
@@ -684,7 +702,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                             <CardTitle>{t('telemetryTimeline')}</CardTitle>
                             <CardDescription>{isMusic ? t('telemetryTimelineMusicDesc') : t('telemetryTimelineVideoDesc')}</CardDescription>
                         </CardHeader>
-                        <CardContent><div className="h-[300px] w-full"><TelemetryChart data={isMusic ? telemetryData.map((d: any) => ({ ...d, audioChanges: 0, subtitleChanges: 0 })) : telemetryData} /></div></CardContent>
+                        <CardContent><div className="h-[300px] w-full"><TelemetryChart data={isMusic ? telemetryData.map((d) => ({ ...d, audioChanges: 0, subtitleChanges: 0 })) : telemetryData} /></div></CardContent>
                     </Card>
                 )}
 
@@ -702,7 +720,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
                                 <TableBody>
                                     {effectiveHistory.length === 0 ? (
                                         <TableRow><TableCell colSpan={isMusic ? 5 : 6} className="text-center h-24 text-muted-foreground">{t('noSession')}</TableCell></TableRow>
-                                    ) : effectiveHistory.slice(0, 200).map((h: any) => {
+                                    ) : effectiveHistory.slice(0, 200).map((h) => {
                                         const isTranscode = h.playMethod?.toLowerCase().includes("transcode");
                                         return (
                                             <TableRow key={h.id} className="border-zinc-200 dark:border-zinc-800/50 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 transition-colors">

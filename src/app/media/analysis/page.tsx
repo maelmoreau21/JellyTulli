@@ -8,7 +8,12 @@ import { normalizeResolution } from '@/lib/utils';
 
 export const dynamic = "force-dynamic";
 
+import { requireAdmin, isAuthError } from "@/lib/auth";
+
 export default async function AnalysisPage() {
+    const auth = await requireAdmin();
+    if (isAuthError(auth)) return auth;
+
     const t = await getTranslations('media');
     const tc = await getTranslations('common');
 
@@ -36,12 +41,24 @@ export default async function AnalysisPage() {
     let durationSum = 0;
     let durationCount = 0;
 
+    interface MediaLike {
+        id: string;
+        parentId: string | null;
+        genres: string[];
+        resolution: string | null;
+        durationMs: bigint | number | null;
+        directors: string[];
+        libraryName: string | null;
+        type: string | null;
+        collectionType: string | null;
+    }
+
     // Consider only video-like media for resolution counting
     const VIDEO_TYPES = new Set(['Movie', 'Series']);
     const AUDIO_TYPES = new Set(['MusicAlbum', 'Track']);
     const MAIN_TYPES = new Set(['Movie', 'Series', 'MusicAlbum']);
 
-    medias.forEach(m => {
+    medias.forEach((m: MediaLike) => {
         if (m.genres) m.genres.forEach((g: string) => genreCounts.set(g, (genreCounts.get(g) || 0) + 1));
         const isVideo = VIDEO_TYPES.has((m.type || '').toString());
         

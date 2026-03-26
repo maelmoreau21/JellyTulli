@@ -1,13 +1,8 @@
-import { Fragment } from "react";
 import { Users, ChevronLeft, ChevronRight } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogFilters } from "./LogFilters";
 import { ColumnToggle } from "./ColumnToggle";
 import { SavedFilters } from "@/components/SavedFilters";
-import { FallbackImage } from "@/components/FallbackImage";
-import LogRow from "./LogRow";
 import LogsListClient from "./LogsListClient";
 import prisma from "@/lib/prisma";
 import { getTranslations, getLocale } from 'next-intl/server';
@@ -169,14 +164,22 @@ export default async function LogsPage({
     }
 
     if (query) {
-        conditions.push({
-            OR: [
-                { user: { username: { contains: query, mode: "insensitive" } } },
-                { media: { title: { contains: query, mode: "insensitive" } } },
-                { ipAddress: { contains: query, mode: "insensitive" } },
-                { clientName: { contains: query, mode: "insensitive" } },
-            ]
-        });
+        if (query.startsWith("user:")) {
+            const u = query.replace("user:", "").trim();
+            conditions.push({ user: { username: { contains: u, mode: "insensitive" } } });
+        } else if (query.startsWith("media:")) {
+            const m = query.replace("media:", "").trim();
+            conditions.push({ media: { title: { contains: m, mode: "insensitive" } } });
+        } else {
+            conditions.push({
+                OR: [
+                    { user: { username: { contains: query, mode: "insensitive" } } },
+                    { media: { title: { contains: query, mode: "insensitive" } } },
+                    { ipAddress: { contains: query, mode: "insensitive" } },
+                    { clientName: { contains: query, mode: "insensitive" } },
+                ]
+            });
+        }
     }
 
     if (typeFilters.length === 1) {
@@ -344,16 +347,6 @@ export default async function LogsPage({
         return parent ? cleanStr(parent.title) : null;
     }
 
-    // Helper: get the media type icon prefix
-    function getMediaTypeLabel(type: string): { icon: string; label: string } | null {
-        switch (type) {
-            case 'Episode': return { icon: '📺', label: tl('episodeType') };
-            case 'Audio': return { icon: '🎵', label: tl('musicType') };
-            case 'Movie': return { icon: '🎬', label: tl('movieType') };
-            case 'Season': return { icon: '📺', label: tl('seasonType') };
-            default: return null;
-        }
-    }
 
     // Build pagination URL helper
     const buildPageUrl = (page: number) => {
@@ -385,18 +378,6 @@ export default async function LogsPage({
         watchPartyMap = new Map<string, string>();
     }
 
-    // Build party info for badges
-    const partyInfo = new Map<string, { members: Set<string>, mediaTitle: string }>();
-    safeLogs.forEach((log) => {
-        const pid = watchPartyMap.get(log.id);
-        if (pid) {
-            if (!partyInfo.has(pid)) partyInfo.set(pid, { members: new Set(), mediaTitle: log.media?.title || "" });
-            partyInfo.get(pid)!.members.add(log.user?.username || "?");
-        }
-    });
-
-    // Track which partyId has already shown the banner
-    const shownPartyBanners = new Set<string>();
 
     // Parse optional `colsState` query param (format: key:width,key2:width2)
     const rawColsState = typeof params.colsState === 'string' ? params.colsState : '';

@@ -8,7 +8,35 @@ import { isZapped, ZAPPING_CONDITION } from '@/lib/statsUtils';
 
 export const dynamic = "force-dynamic";
 
+type LibraryStatsEntry = {
+    displayName: string;
+    size: bigint;
+    duration: bigint;
+    watchedSeconds: number;
+    items: number;
+    movies: number;
+    series: number;
+    music: number;
+    tracks: number;
+    books: number;
+    collectionType: string | null;
+    uniqueMovies: Set<string>;
+    uniqueSeries: Set<string>;
+    uniqueMusicAlbums: Set<string>;
+    uniqueBooks: Set<string>;
+    pendingSeasonIds: Set<string>;
+    pendingAlbumIds: Set<string>;
+    ignoredTracks: number;
+    ignoredEpisodes: number;
+    rawNames: Set<string>;
+};
+
+import { requireAdmin, isAuthError } from "@/lib/auth";
+
 export default async function CollectionsPage({ searchParams }: { searchParams?: Record<string, string | string[]> }) {
+    const auth = await requireAdmin();
+    if (isAuthError(auth)) return auth;
+
     const t = await getTranslations('media');
     const tc = await getTranslations('common');
 
@@ -21,8 +49,7 @@ export default async function CollectionsPage({ searchParams }: { searchParams?:
         select: { id: true, jellyfinMediaId: true, parentId: true, type: true, size: true, durationMs: true, libraryName: true, title: true, collectionType: true }
     });
 
-    // Use a loose any map so we can store intermediate Sets for deduplication/resolution
-    const libraryStatsMap = new Map<string, any>();
+    const libraryStatsMap = new Map<string, LibraryStatsEntry>();
 
     const sanitizedLibraries = await getSanitizedLibraryNames();
     const ghostNames = new Set(GHOST_LIBRARY_NAMES);
@@ -30,7 +57,7 @@ export default async function CollectionsPage({ searchParams }: { searchParams?:
     // Initial pass to set up mapping from normalized key to preferred display name
     // and initialize the stats objects.
     for (const name of sanitizedLibraries) {
-        const key = normalizeLibraryKey(name) || name;
+        const key = normalizeLibraryKey(name) || name.trim().toLowerCase();
         if (!libraryStatsMap.has(key)) {
             libraryStatsMap.set(key, {
                 displayName: name, // Original name from Jellyfin is preferred
@@ -57,7 +84,7 @@ export default async function CollectionsPage({ searchParams }: { searchParams?:
         } else {
             // Already seen this normalized key (e.g. "music" vs "Musique")
             // Keep the first name as display name, but aggregate rawNames
-            libraryStatsMap.get(key).rawNames.add(name);
+            libraryStatsMap.get(key)!.rawNames.add(name);
         }
     }
 
@@ -125,14 +152,14 @@ export default async function CollectionsPage({ searchParams }: { searchParams?:
             totalSizeBytes += sizeBig;
         }
 
-        const LEAF_TYPES = new Set(['Movie', 'Episode', 'Audio', 'Book', 'AudioBook']);
+        const LEAF_TYPES = new Set(['Movie', 'Episode', 'Audio', 'Track', 'Book', 'AudioBook']);
         // Aggregate media duration (if present)
         if (m.durationMs != null) {
             const durBig = typeof m.durationMs === 'bigint' ? m.durationMs : BigInt(Math.floor(Number(m.durationMs)));
-            lib.duration = (lib.duration || BigInt(0)) + durBig;
             
-            // Avoid double counting: ignore container types like Series/Season in the global collection total
+            // Only aggregate if it's a leaf node to avoid overestimation by counting container times
             if (LEAF_TYPES.has(m.type || '')) {
+                lib.duration = (lib.duration || BigInt(0)) + durBig;
                 totalDurationMs += durBig;
             }
         }
@@ -237,9 +264,18 @@ export default async function CollectionsPage({ searchParams }: { searchParams?:
                     movies: 0, 
                     series: 0, 
                     music: 0, 
+                    tracks: 0,
                     books: 0, 
                     collectionType: null, 
-                    rawNames: new Set() 
+                    uniqueMovies: new Set<string>(),
+                    uniqueSeries: new Set<string>(),
+                    uniqueMusicAlbums: new Set<string>(),
+                    uniqueBooks: new Set<string>(),
+                    pendingSeasonIds: new Set<string>(),
+                    pendingAlbumIds: new Set<string>(),
+                    ignoredTracks: 0,
+                    ignoredEpisodes: 0,
+                    rawNames: new Set([key]) 
                 });
             }
             const lib = libraryStatsMap.get(key)!;

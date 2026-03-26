@@ -41,6 +41,8 @@ function getImageUrl(itemId: string, type: string = 'Primary', fallbackId?: stri
 }
 
 function StreamCard({ stream }: { stream: LiveStream }) {
+    const t = useTranslations('liveStreams');
+    const tc = useTranslations('common');
     const isAudio = stream.mediaType ? (stream.mediaType.toLowerCase().includes('audio') || stream.mediaType.toLowerCase() === 'track') : false;
     const isEpisode = stream.mediaType === 'Episode';
     const aspectClass = isAudio ? 'aspect-square' : isEpisode ? 'aspect-video' : 'aspect-[2/3]';
@@ -106,7 +108,7 @@ function StreamCard({ stream }: { stream: LiveStream }) {
                     {(stream.city !== "Unknown" || stream.country !== "Unknown") && (
                         <span className="text-[10px] opacity-70 truncate inline-flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
-                            <span>{stream.city !== "Unknown" ? `${stream.city}, ` : ''}{stream.country}</span>
+                            <span>{stream.city !== "Unknown" ? `${stream.city}, ` : ''}{stream.country === "Unknown" ? t('unknown') : stream.country}</span>
                         </span>
                     )}
                 </p>
@@ -129,7 +131,7 @@ function StreamCard({ stream }: { stream: LiveStream }) {
                         : "bg-emerald-500/10 text-emerald-500"
                         }`}
                 >
-                    {stream.playMethod}
+                    {stream.playMethod === "Transcode" ? tc('transcode') : tc('directPlay')}
                 </span>
                 <KillStreamButton sessionId={stream.sessionId} mediaTitle={stream.mediaTitle} />
             </div>
@@ -149,6 +151,8 @@ const GANTT_COLORS = [
 ];
 
 function StreamTimeline({ stream, colorIndex }: { stream: LiveStream; colorIndex: number }) {
+    const t = useTranslations('liveStreams');
+    const tc = useTranslations('common');
     const color = GANTT_COLORS[colorIndex % GANTT_COLORS.length];
     return (
         <div className="group flex items-center gap-3 py-1.5">
@@ -168,7 +172,7 @@ function StreamTimeline({ stream, colorIndex }: { stream: LiveStream; colorIndex
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                         <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${stream.playMethod === "Transcode" ? "bg-orange-500/10 text-orange-400" : "bg-emerald-500/10 text-emerald-400"}`}>
-                            {stream.playMethod === "Transcode" ? "TC" : "DP"}
+                            {stream.playMethod === "Transcode" ? t('transcodeAbbr') : t('directPlayAbbr')}
                         </span>
                         {stream.isPaused && <span className="text-[10px] text-yellow-500">⏸</span>}
                         <span className="text-[10px] text-muted-foreground">{stream.progressPercent}%</span>
@@ -248,7 +252,7 @@ export function LiveStreamsPanel({ initialStreams, initialBandwidth }: { initial
                         <button
                                 onClick={() => setForceCards(!forceCards)}
                                 className="p-1.5 rounded-md border border-border/50 app-surface-soft hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                                title={forceCards ? "Vue Timeline" : "Vue Cartes"}
+                                title={forceCards ? t('timelineView') : t('cardsView')}
                             >
                             {forceCards ? <Rows3 className="w-4 h-4 text-muted-foreground" /> : <LayoutList className="w-4 h-4 text-muted-foreground" />}
                         </button>

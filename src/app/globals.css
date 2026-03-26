@@ -54,47 +54,47 @@
 
 :root {
   --radius: 0.95rem;
-  /* Multicolor Satin Theme: Rich, comfortable, and textured pastel palette */
-  --background: oklch(0.85 0.04 230); /* Muted Azure Satin base */
-  --foreground: oklch(0.15 0.05 230);
-  --card: oklch(0.88 0.05 230 / 80%); /* Textured Satin Card */
-  --card-foreground: oklch(0.15 0.05 230);
-  --popover: oklch(0.88 0.05 230);
-  --popover-foreground: oklch(0.18 0.05 230);
-  --primary: oklch(0.55 0.12 250); /* Deep Azure Blue */
-  --primary-foreground: oklch(0.98 0.01 250);
-  --secondary: oklch(0.85 0.05 160); /* Soft Mint Satin */
-  --secondary-foreground: oklch(0.20 0.05 160);
-  --muted: oklch(0.85 0.04 230 / 60%);
-  --muted-foreground: oklch(0.35 0.05 230);
-  --accent: oklch(0.85 0.07 330); /* Soft Pink/Rose Satin */
-  --accent-foreground: oklch(0.25 0.06 330);
+  /* Glass Satin Theme: High-contrast, depth-focused palette with Glassmorphism */
+  --background: oklch(0.85 0.05 230); /* Slightly lighter base to increase contrast with deep cards */
+  --foreground: oklch(0.10 0.05 230);
+  --card: oklch(1 0 0 / 92%); /* More opaque cards for better definition */
+  --card-foreground: oklch(0.12 0.05 230);
+  --popover: oklch(0.99 0.005 230);
+  --popover-foreground: oklch(0.15 0.05 230);
+  --primary: oklch(0.55 0.12 250);
+  --primary-foreground: oklch(0.99 0.005 250);
+  --secondary: oklch(0.82 0.05 160); /* Soft Mint for depth */
+  --secondary-foreground: oklch(0.18 0.05 160);
+  --muted: oklch(0.80 0.04 230 / 55%);
+  --muted-foreground: oklch(0.30 0.05 230);
+  --accent: oklch(0.82 0.07 330); /* Rose Satin for highlights */
+  --accent-foreground: oklch(0.20 0.06 330);
   --destructive: oklch(0.6 0.15 25);
-  --border: oklch(0.75 0.05 230); /* Defined but soft boundaries */
-  --input: oklch(0.88 0.04 230);
+  --border: oklch(0.65 0.12 250 / 0.15); /* Stronger, more colorful border for definition */
+  --input: oklch(0.98 0.01 230 / 60%);
   --ring: oklch(0.55 0.10 250);
   --chart-1: oklch(0.55 0.12 250);
-  --chart-2: oklch(0.80 0.08 165);
-  --chart-3: oklch(0.82 0.10 330);
-  --chart-4: oklch(0.85 0.08 85);
-  --chart-5: oklch(0.82 0.06 210);
-  /* Chart UI variables (Multicolor Satin mode) */
-  --chart-axis-color: oklch(0.40 0.05 230);
-  --chart-grid-color: oklch(0.2 0.05 230 / 10%);
-  --chart-tooltip-bg: oklch(0.88 0.05 230 / 95%);
-  --chart-tooltip-border: 1px solid oklch(0.55 0.12 250 / 30%);
+  --chart-2: oklch(0.78 0.08 165);
+  --chart-3: oklch(0.80 0.10 330);
+  --chart-4: oklch(0.82 0.08 85);
+  --chart-5: oklch(0.78 0.06 210);
+  /* Chart UI variables (Glass Satin mode) */
+  --chart-axis-color: oklch(0.35 0.05 230 / 70%);
+  --chart-grid-color: oklch(0.15 0.05 230 / 12%);
+  --chart-tooltip-bg: oklch(0.99 0.005 230 / 92%);
+  --chart-tooltip-border: 1px solid oklch(0.55 0.12 250 / 25%);
   --chart-tooltip-radius: 18px;
-  --chart-tooltip-box-shadow: 0 15px 40px oklch(0.2 0.05 230 / 10%);
-  --chart-tooltip-backdrop: blur(12px);
-  --chart-label-color: oklch(0.35 0.05 230);
-  --chart-item-color: oklch(0.15 0.05 230);
-  --sidebar: oklch(0.86 0.04 230);
-  --sidebar-foreground: oklch(0.15 0.05 230);
+  --chart-tooltip-box-shadow: 0 15px 45px oklch(0.1 0.05 230 / 10%);
+  --chart-tooltip-backdrop: blur(20px);
+  --chart-label-color: oklch(0.30 0.05 230);
+  --chart-item-color: oklch(0.12 0.05 230);
+  --sidebar: oklch(0.98 0.005 220 / 85%);
+  --sidebar-foreground: oklch(0.12 0.05 230);
   --sidebar-primary: oklch(0.55 0.12 250);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.88 0.05 230);
-  --sidebar-accent-foreground: oklch(0.18 0.05 230);
-  --sidebar-border: oklch(0.80 0.05 230);
+  --sidebar-accent: oklch(0.99 0.005 230 / 60%);
+  --sidebar-accent-foreground: oklch(0.15 0.05 230);
+  --sidebar-border: oklch(0 0 0 / 6%);
   --sidebar-ring: oklch(0.55 0.12 250);
 }
 
@@ -170,8 +170,8 @@
   }
 
   html:not(.dark) {
-    /* Multicolor Satin Blend: Azure, Rose, and Mint */
-    background: linear-gradient(135deg, oklch(0.85 0.05 220), oklch(0.84 0.06 320), oklch(0.85 0.05 160));
+    /* Multicolor Satin Blend: Subtler gradient to let cards stand out */
+    background: linear-gradient(135deg, oklch(0.88 0.04 220), oklch(0.85 0.05 320), oklch(0.88 0.04 160));
     background-attachment: fixed;
   }
 
@@ -202,12 +202,14 @@
   }
 
   [data-slot="card"] {
-    border-color: oklch(0 0 0 / 8%);
+    border-color: oklch(1 0 0 / 25%);
     background-image:
-      linear-gradient(180deg, oklch(1 0 0 / 40%), oklch(1 0 0 / 10%));
+      linear-gradient(145deg, oklch(1 0 0 / 40%), oklch(1 0 0 / 5%));
     box-shadow:
-      0 1px 2px oklch(0 0 0 / 5%),
-      0 4px 12px oklch(0 0 0 / 3%);
+      0 1px 1px oklch(0 0 0 / 4%),
+      0 4px 12px oklch(0 0 0 / 3%),
+      0 15px 35px oklch(0.2 0.05 230 / 10%);
+    backdrop-filter: blur(25px);
   }
 
   .dark [data-slot="card"] {
@@ -220,14 +222,14 @@
 
 @layer components {
     .app-surface {
-      border-color: oklch(0 0 0 / 6%);
+      border-color: oklch(1 0 0 / 30%);
       background:
-        linear-gradient(135deg, oklch(1 0 0 / 90%), oklch(1 0 0 / 70%)),
+        linear-gradient(135deg, oklch(1 0 0 / 45%), oklch(1 0 0 / 15%)),
         var(--card);
       box-shadow:
-        0 10px 40px oklch(0.65 0.12 250 / 8%),
-        inset 0 1px 0 oklch(1 0 0 / 60%);
-      backdrop-filter: blur(20px);
+        0 20px 50px oklch(0.2 0.05 230 / 12%),
+        inset 0 1px 0 oklch(1 0 0 / 35%);
+      backdrop-filter: blur(25px);
     }
 
     .dark .app-surface {
@@ -243,11 +245,12 @@
     }
 
     .app-surface-soft {
-      border-color: oklch(0 0 0 / 6%);
-      background: var(--card); /* Ensure it follows the soft pastel card background in light mode */
-      opacity: 0.85;
-      box-shadow: inset 0 1px 0 oklch(1 0 0 / 30%);
-      backdrop-filter: blur(10px);
+      border-color: oklch(0.65 0.12 250 / 0.1);
+      background: oklch(1 0 0 / 85%);
+      box-shadow: 
+        0 4px 12px oklch(0 0 0 / 3%),
+        inset 0 1px 0 oklch(1 0 0 / 40%);
+      backdrop-filter: blur(12px);
     }
 
     .dark .app-surface-soft {
@@ -323,14 +326,15 @@
     .dashboard-page [data-slot="card"] {
         position: relative;
         overflow: hidden;
-        border-color: oklch(0.65 0.12 250 / 15%);
+        border-color: oklch(0.65 0.12 250 / 0.2);
         background:
-          linear-gradient(160deg, oklch(1 0 0 / 80%), oklch(1 0 0 / 20%)),
+          linear-gradient(160deg, oklch(1 0 0 / 95%), oklch(1 0 0 / 70%)),
           var(--card);
         box-shadow:
-          0 8px 25px oklch(0.65 0.12 250 / 6%),
-          inset 0 1px 1px oklch(1 0 0 / 60%);
-        backdrop-filter: blur(25px);
+          0 10px 30px oklch(0.65 0.12 250 / 8%),
+          0 2px 4px oklch(0 0 0 / 2%),
+          inset 0 1px 0 oklch(1 0 0 / 90%);
+        backdrop-filter: blur(30px);
     }
 
     .dark .dashboard-page [data-slot="card"] {
@@ -447,7 +451,9 @@ html:not(.dark) [class*="bg-zinc-200"],
 html:not(.dark) [class*="bg-slate-50"],
 html:not(.dark) [class*="bg-slate-100"],
 html:not(.dark) [class*="bg-gray-50"] {
-  background-color: oklch(0.88 0.04 230 / var(--tw-bg-opacity, 1)) !important;
+  background-color: oklch(1 0 0 / 92%) !important;
+  backdrop-filter: blur(25px);
+  border: 1px solid oklch(0.65 0.12 250 / 0.12);
 }
 
 .dark [class*="bg-white"]:not([class*="dark:bg-"]),
@@ -481,11 +487,13 @@ html:not(.dark) [class*="bg-gray-50"] {
 
 /* Satin 2.0 Specific Overrides for common white backgrounds */
 html:not(.dark) .bg-sidebar {
-  background-color: oklch(0.86 0.04 230 / 0.95) !important;
+  background-color: oklch(0.98 0.005 220 / 0.85) !important;
+  backdrop-filter: blur(30px);
 }
 
 html:not(.dark) .bg-card {
-  background-color: oklch(0.88 0.05 230 / 0.8) !important;
+  background-color: oklch(0.99 0.005 230 / 0.75) !important;
+  backdrop-filter: blur(25px);
 }
 
 .dark ::selection {
