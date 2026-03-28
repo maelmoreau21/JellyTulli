@@ -4,7 +4,9 @@ import CleanupClient from "./CleanupClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getTranslations } from 'next-intl/server';
 import { getCompletionMetrics } from "@/lib/mediaPolicy";
-// No more library rules
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -155,6 +157,10 @@ async function getCleanupData() {
 }
 
 export default async function CleanupPage() {
+    const sessionAuth = await getServerSession(authOptions);
+    if (!sessionAuth?.user?.isAdmin) {
+        redirect("/login");
+    }
     const t = await getTranslations('cleanup');
     return (
         <div className="flex-col md:flex">

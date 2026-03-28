@@ -426,6 +426,10 @@ Si vous souhaitez que j'ajoute un diagramme ER Mermaid ou des scripts SQL de mig
 
 ## 16. Modifications récentes (notes opérationnelles)
 
+    - **Security Audit & Hardening (Mars 2026)** :
+        - Patch IDOR vulnerabilities on `src/app/wrapped/[userId]/page.tsx` ensuring standard users can only access their own statistics, while enforcing an explicit redirection for unauthenticated visitors.
+        - Strict RBAC on dashboard internals: Restricted `/logs` (Global telemetry) and `/users` (User Leaderboard) pages via `requireAdmin()` pattern to prevent data leaks or cross-user monitoring.
+        - Robust Settings Perimeter: Transitioned all `/settings/*` pages (12 sub-routes) behind a server-rendered layout checking `sessionAuth?.user?.isAdmin` intercepting all configuration changes securely.
     - **Refonte UI & Thèmes (Mars 2026)** :
         - **Mode Clair "Satin 2.0"** : Évolution vers une esthétique encore plus reposante. Luminosité abaissée (L=0.85), tons pastels plus sourds, et suppression totale des fonds blancs pur (#FFFFFF). Redéfinition du bouton de thème et des surfaces globales.
         - **Prévention Automatisée des Fuites de Thème** : Mise en place d'un "catch-all" CSS global dans `globals.css` qui intercepte les classes Tailwind `bg-white`, `bg-zinc-50/100/200` et `bg-slate-x` pour les adoucir automatiquement en mode clair, garantissant une cohérence visuelle sans modifier chaque composant individuellement.

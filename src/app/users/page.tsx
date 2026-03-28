@@ -6,10 +6,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Clock, Monitor } from "lucide-react";
 import { getTranslations, getLocale } from 'next-intl/server';
 import { isZapped } from "@/lib/mediaPolicy";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
+    const sessionAuth = await getServerSession(authOptions);
+    if (!sessionAuth?.user?.isAdmin) {
+        redirect("/login");
+    }
+
     const t = await getTranslations('users');
     const tc = await getTranslations('common');
     const locale = await getLocale();

@@ -11,6 +11,9 @@ import type { Prisma } from '@prisma/client';
 import { ZAPPING_CONDITION } from "@/lib/statsUtils";
 
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic"; // Bypass statis rendering for real-time logs
 
@@ -133,6 +136,12 @@ export default async function LogsPage({
     searchParams: Promise<{ query?: string, sort?: string, page?: string, type?: string, cols?: string, colsState?: string, hideZapped?: string, client?: string, audio?: string, subtitle?: string, dateFrom?: string, dateTo?: string, resolution?: string, playMethod?: string, hour?: string, day?: string }>
 }) {
     const params = await searchParams;
+
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.isAdmin) {
+        redirect("/login");
+    }
+
     const tl = await getTranslations('logs');
     const tc = await getTranslations('common');
     const locale = await getLocale();

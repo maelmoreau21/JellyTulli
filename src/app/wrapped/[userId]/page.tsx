@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ZAPPING_CONDITION } from "@/lib/statsUtils";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
@@ -29,12 +29,15 @@ export default async function WrappedPage({ params, searchParams }: WrappedPageP
 
     const requestedYear = year ? parseInt(year) : new Date().getFullYear();
     const session = await getServerSession(authOptions);
+    if (!session) {
+        redirect("/login");
+    }
     const sessionUserId = (session?.user as any)?.jellyfinUserId;
     const isAdmin = (session?.user as any)?.isAdmin === true;
 
     // Non-admins can only view their own Wrapped
     if (!isAdmin && sessionUserId !== userId) {
-        notFound();
+        redirect("/login");
     }
 
     const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } }) as any;
