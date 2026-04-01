@@ -3,6 +3,7 @@ import { appendHealthEvent, markSyncFinished, markSyncStarted } from "@/lib/syst
 import { normalizeJellyfinId, compactJellyfinId } from "@/lib/jellyfinId";
 import { cleanupOrphanedSessions } from "@/lib/cleanup";
 import { GHOST_LIBRARY_NAMES } from "./libraryUtils";
+import { ensureMasterServer } from "@/lib/serverRegistry";
 
 /**
  * Fonction maîtresse de synchronisation de la librairie Jellyfin.
@@ -27,6 +28,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
     // Fetch global settings to get custom resolution thresholds if any
     const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
     const resolutionThresholds = (settings?.resolutionThresholds as Record<string, unknown>) || null;
+    const masterServer = await ensureMasterServer();
 
     const fetchWithRetry = async (url: string, options: RequestInit = {}, timeout = 30000, maxRetries = 3) => {
         for (let i = 0; i < maxRetries; i++) {
@@ -90,9 +92,9 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
             const jellyfinUserId = normalizeJellyfinId(user.Id);
             if (!jellyfinUserId) continue;
             await prisma.user.upsert({
-                where: { jellyfinUserId },
+                where: { jellyfinUserId_serverId: { jellyfinUserId, serverId: masterServer.id } },
                 update: { username: user.Name },
-                create: { jellyfinUserId, username: user.Name },
+                create: { serverId: masterServer.id, jellyfinUserId, username: user.Name },
             });
             usersCount++;
         }
@@ -290,7 +292,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
 
                 await prisma.$transaction(async (tx) => {
                     const matches = await tx.media.findMany({
-                        where: { jellyfinMediaId: { in: candidates } },
+                        where: { serverId: masterServer.id, jellyfinMediaId: { in: candidates } },
                         orderBy: { createdAt: "asc" },
                     });
 
@@ -299,6 +301,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
                     if (!primary) {
                         primary = await tx.media.create({
                             data: {
+                                serverId: masterServer.id,
                                 jellyfinMediaId,
                                 title: item.Name || "Unknown",
                                 type: item.Type,
@@ -363,7 +366,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
             console.log(`[Sync] Propagating resolutions for ${seriesResolutionMap.size} series...`);
             for (const [sid, res] of seriesResolutionMap.entries()) {
                 await prisma.media.updateMany({
-                    where: { jellyfinMediaId: sid, type: 'Series' },
+                    where: { serverId: masterServer.id, jellyfinMediaId: sid, type: 'Series' },
                     data: { resolution: res }
                 }).catch(e => console.error(`[Sync] Failed to update series resolution for ${sid}:`, e));
             }

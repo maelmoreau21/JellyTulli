@@ -21,6 +21,25 @@ export async function GET(request: Request) {
     const subStr = searchParams.get("subtitle") || "";
     const dateFrom = searchParams.get("dateFrom") || "";
     const dateTo = searchParams.get("dateTo") || "";
+    const serversParam = searchParams.get("servers") || "";
+
+    const jellytrackMode = (process.env.JELLYTRACK_MODE || "single").toLowerCase();
+    const serverRows = await prisma.server.findMany({
+        select: { id: true, isActive: true },
+    });
+    const activeServerRows = serverRows.filter((server) => server.isActive);
+    const selectableServerRows = activeServerRows.length > 0 ? activeServerRows : serverRows;
+    const multiServerEnabled = jellytrackMode === "multi" && selectableServerRows.length > 1;
+    const validServerIds = new Set(selectableServerRows.map((server) => server.id));
+    const requestedServerIds = serversParam
+        ? serversParam
+            .split(",")
+            .map((id) => id.trim())
+            .filter(Boolean)
+        : [];
+    const selectedServerIds = multiServerEnabled
+        ? requestedServerIds.filter((id) => validServerIds.has(id))
+        : [];
 
     const conditions: Prisma.PlaybackHistoryWhereInput[] = [];
     if (hideZapped) conditions.push(ZAPPING_CONDITION);
@@ -38,6 +57,7 @@ export async function GET(request: Request) {
 
     if (typeFilters.length === 1) conditions.push({ media: { type: typeFilters[0] } });
     else if (typeFilters.length > 1) conditions.push({ media: { type: { in: typeFilters } } });
+    if (selectedServerIds.length > 0) conditions.push({ serverId: { in: selectedServerIds } });
     if (clientStr) conditions.push({ clientName: { contains: clientStr, mode: "insensitive" } });
     if (audioStr) conditions.push({ OR: [{audioCodec: { contains: audioStr, mode: "insensitive" }}, {audioLanguage: { contains: audioStr, mode: "insensitive" }}] });
     if (subStr) conditions.push({ OR: [{subtitleCodec: { contains: subStr, mode: "insensitive" }}, {subtitleLanguage: { contains: subStr, mode: "insensitive" }}] });

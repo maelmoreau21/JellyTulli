@@ -19,11 +19,18 @@ services:
       DB_NAME: ${DB_NAME:-}
       # ─── Redis ───
       REDIS_URL: redis://redis:6379
+      # ─── JellyTrack mode ───
+      # single: interface multi-serveur masquee
+      # multi: active les filtres/statistiques par serveur (si >= 2 serveurs)
+      JELLYTRACK_MODE: ${JELLYTRACK_MODE:-single}
       # ─── Port de JellyTrack (changer aussi dans ports: ci-dessus) ───
       PORT: ${PORT:-3000}
       # ─── Jellyfin ───
       JELLYFIN_URL: http://jellyfin:8096           # IP réelle du serveur Jellyfin (pas localhost en Docker)
       JELLYFIN_API_KEY: your-jellyfin-api-key
+      # Identité du serveur maître (utilisée en mode single ou fallback)
+      JELLYFIN_SERVER_ID: ${JELLYFIN_SERVER_ID:-master}
+      JELLYFIN_SERVER_NAME: ${JELLYFIN_SERVER_NAME:-Master Jellyfin}
       # ─── Authentification ───
       ADMIN_PASSWORD: supersecretadmin             # ← À changer !
       NEXTAUTH_SECRET: your-generated-random-secret # ← À changer ! (openssl rand -base64 32)

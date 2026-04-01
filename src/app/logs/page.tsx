@@ -133,7 +133,7 @@ function detectWatchParties(logs: SafeLog[]): Map<string, string> {
 export default async function LogsPage({
     searchParams
 }: {
-    searchParams: Promise<{ query?: string, sort?: string, page?: string, type?: string, cols?: string, colsState?: string, hideZapped?: string, client?: string, audio?: string, subtitle?: string, dateFrom?: string, dateTo?: string, resolution?: string, playMethod?: string, hour?: string, day?: string }>
+    searchParams: Promise<{ query?: string, sort?: string, page?: string, type?: string, cols?: string, colsState?: string, hideZapped?: string, client?: string, audio?: string, subtitle?: string, dateFrom?: string, dateTo?: string, resolution?: string, playMethod?: string, hour?: string, day?: string, servers?: string }>
 }) {
     const params = await searchParams;
 
@@ -163,6 +163,29 @@ export default async function LogsPage({
     const playMethodParam = params.playMethod || "";
     const hourParam = params.hour || "";
     const dayParam = params.day || "";
+
+    const serverRows = await prisma.server.findMany({
+        select: { id: true, name: true, isActive: true },
+        orderBy: { name: "asc" },
+    });
+    const jellytrackMode = (process.env.JELLYTRACK_MODE || "single").toLowerCase();
+    const activeServerRows = serverRows.filter((server) => server.isActive);
+    const selectableServerOptions = (activeServerRows.length > 0 ? activeServerRows : serverRows).map((server) => ({
+        id: server.id,
+        name: server.name,
+    }));
+    const multiServerEnabled = jellytrackMode === "multi" && selectableServerOptions.length > 1;
+    const validServerIds = new Set(selectableServerOptions.map((server) => server.id));
+    const requestedServerIds = params.servers
+        ? params.servers
+            .split(",")
+            .map((id) => id.trim())
+            .filter(Boolean)
+        : [];
+    const selectedServerIds = multiServerEnabled
+        ? requestedServerIds.filter((id) => validServerIds.has(id))
+        : [];
+    const serversParam = selectedServerIds.length > 0 ? selectedServerIds.join(",") : "";
 
     // Build the non-fuzzy exact search constraint
     const whereClause: Prisma.PlaybackHistoryWhereInput = {} as Prisma.PlaybackHistoryWhereInput;
@@ -195,6 +218,10 @@ export default async function LogsPage({
         conditions.push({ media: { type: typeFilters[0] } });
     } else if (typeFilters.length > 1) {
         conditions.push({ media: { type: { in: typeFilters } } });
+    }
+
+    if (selectedServerIds.length > 0) {
+        conditions.push({ serverId: { in: selectedServerIds } });
     }
 
     if (clientParams) conditions.push({ clientName: { contains: clientParams, mode: "insensitive" } });
@@ -374,6 +401,7 @@ export default async function LogsPage({
         if (playMethodParam) p.set("playMethod", playMethodParam);
         if (hourParam) p.set("hour", hourParam);
         if (dayParam) p.set("day", dayParam);
+        if (serversParam) p.set("servers", serversParam);
         if (page > 1) p.set("page", String(page));
         const qs = p.toString();
         return `/logs${qs ? `?${qs}` : ""}`;
@@ -426,6 +454,9 @@ export default async function LogsPage({
                                         initialSubtitle={subtitleParams}
                                         initialDateFrom={dateFromParam}
                                         initialDateTo={dateToParam}
+                                        initialServers={serversParam}
+                                        serverOptions={selectableServerOptions}
+                                        multiServerEnabled={multiServerEnabled}
                                     />
                                 </div>
                                 <div className="flex items-center gap-2">

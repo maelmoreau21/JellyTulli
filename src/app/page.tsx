@@ -49,9 +49,12 @@ import { SystemHealthWidgets } from "@/components/dashboard/SystemHealthWidgets"
 import { CollapsibleCard } from "@/components/dashboard/CollapsibleCard";
 import { MediaFilter } from "@/components/dashboard/MediaFilter";
 import { PredictionsPanel } from "@/components/dashboard/PredictionsPanel";
+import { ServerFilter } from "@/components/dashboard/ServerFilter";
+import { buildLegacyStreamRedisKey, buildStreamRedisKey } from "@/lib/serverRegistry";
 
 
 type LiveStream = {
+  serverId: string;
   sessionId: string;
   itemId: string | null;
   parentItemId: string | null;
@@ -85,7 +88,7 @@ type History = {
   clientName?: string | null;
   playMethod?: string | null;
   userId?: string | null;
-  media?: { type?: string | null; title?: string | null } | null;
+  media?: { type?: string | null; title?: string | null; durationMs?: bigint | null; collectionType?: string | null } | null;
 };
 
 type TrendEntry = {
@@ -107,6 +110,7 @@ type TopUserAgg = {
 };
 
 type ActiveStreamRow = {
+  serverId: string;
   sessionId: string;
   mediaId: string;
   media: { jellyfinMediaId: string; title: string; type?: string | null; parentId?: string | null; artist?: string | null; durationMs?: bigint | null };
@@ -160,7 +164,17 @@ export const dynamic = "force-dynamic";
 
 // --- Aggregation Cache Helper ---
 const getDashboardMetrics = unstable_cache(
-  async (type: string | undefined, timeRange: string, excludedLibraries: string[], excludedTypes: string[], customFrom?: string, customTo?: string) => {
+  async (
+    type: string | undefined,
+    timeRange: string,
+    excludedLibraries: string[],
+    excludedTypes: string[],
+    customFrom?: string,
+    customTo?: string,
+    selectedServerIds: string[] = []
+  ) => {
+    void type;
+
     // 1. Calculate time windows
     let currentStartDate: Date | undefined;
     let previousStartDate: Date | undefined;
@@ -176,12 +190,9 @@ const getDashboardMetrics = unstable_cache(
       const toDate = new Date(customTo);
       toDate.setHours(23, 59, 59, 999);
 
-      // Calculate previous span of identical length
       const diff = toDate.getTime() - currentStartDate.getTime();
       previousStartDate = new Date(currentStartDate.getTime() - diff - 1);
       previousEndDate = new Date(currentStartDate.getTime() - 1);
-
-      // We overwrite previousEndDate to toDate for the main query filter later if we want a strict ceiling, but since we use `dateFilter = gte: currentStartDate` without ceiling for now, we should add ceiling.
     } else if (timeRange === "24h") {
       currentStartDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       previousStartDate = new Date(now.getTime() - 48 * 60 * 60 * 1000);
@@ -210,43 +221,66 @@ const getDashboardMetrics = unstable_cache(
       toDate.setHours(23, 59, 59, 999);
       dateFilter.lte = toDate;
     }
-    const prevDateFilter: { gte: Date; lt?: Date } | undefined = (previousStartDate && previousEndDate) ? { gte: previousStartDate, lt: previousEndDate } : undefined;
 
-    // 2. Build Media Filter
+    const prevDateFilter: { gte: Date; lt?: Date } | undefined =
+      previousStartDate && previousEndDate ? { gte: previousStartDate, lt: previousEndDate } : undefined;
+
+    // 2. Build media filter
     const AND: Array<Record<string, unknown>> = [];
-    
-    // We solely rely on excludedTypes here for dashboard filtering now
+
     if (excludedTypes && excludedTypes.length > 0) {
       const typeExclusions: string[] = [];
-      if (excludedTypes.includes('Movie')) typeExclusions.push('Movie');
-      if (excludedTypes.includes('Series')) typeExclusions.push('Series', 'Episode', 'Season');
-      if (excludedTypes.includes('MusicAlbum')) typeExclusions.push('MusicAlbum', 'Audio', 'Track');
-      if (excludedTypes.includes('Book')) typeExclusions.push('Book');
+      if (excludedTypes.includes("Movie")) typeExclusions.push("Movie");
+      if (excludedTypes.includes("Series")) typeExclusions.push("Series", "Episode", "Season");
+      if (excludedTypes.includes("MusicAlbum")) typeExclusions.push("MusicAlbum", "Audio", "Track");
+      if (excludedTypes.includes("Book")) typeExclusions.push("Book");
       if (typeExclusions.length > 0) {
         AND.push({ type: { notIn: typeExclusions } });
       }
     }
 
-    // 2.5 Hard Exclusion (Ghosts & Collections)
-    // We always exclude ghost names and 'boxsets' from global stats
-    AND.push({ 
+    AND.push({
       libraryName: { notIn: GHOST_LIBRARY_NAMES },
-      collectionType: { not: 'boxsets' }
+      collectionType: { not: "boxsets" },
     });
 
     const excludedClause = buildExcludedMediaClause(excludedLibraries);
     if (excludedClause) AND.push(excludedClause);
-    const mediaWhere = AND.length > 0 ? { AND } : {};
 
-    // 3. User & Hours (Current)
-    const totalUsers = await prisma.user.count();
+    const mediaWhere = AND.length > 0 ? { AND } : {};
     const zappedFilter = ZAPPING_CONDITION;
-    
-    const hoursWatchedAgg = await prisma.playbackHistory.aggregate({
-      _sum: { durationWatched: true },
-      where: { media: mediaWhere, startedAt: dateFilter, ...zappedFilter }
-    });
-    const hoursWatched = parseFloat(((hoursWatchedAgg._sum.durationWatched || 0) / 3600).toFixed(1));
+    const selectedServerScope = selectedServerIds.length > 0 ? { in: selectedServerIds } : undefined;
+
+    const playbackBaseWhere: Record<string, unknown> = { media: mediaWhere, ...zappedFilter };
+    if (selectedServerScope) {
+      playbackBaseWhere.serverId = selectedServerScope;
+    }
+
+    const userWhere = selectedServerScope ? { serverId: selectedServerScope } : undefined;
+
+    // 3. Main period metrics + history loaded in parallel
+    const [totalUsers, hoursWatchedAgg, histories] = await Promise.all([
+      prisma.user.count({ where: userWhere }),
+      prisma.playbackHistory.aggregate({
+        _sum: { durationWatched: true },
+        where: { ...playbackBaseWhere, startedAt: dateFilter },
+      }),
+      prisma.playbackHistory.findMany({
+        where: { ...playbackBaseWhere, startedAt: dateFilter },
+        select: {
+          startedAt: true,
+          durationWatched: true,
+          clientName: true,
+          playMethod: true,
+          userId: true,
+          media: { select: { type: true, title: true, durationMs: true, collectionType: true } },
+        },
+        orderBy: { startedAt: "asc" },
+      }) as Promise<History[]>,
+    ]);
+
+    const totalDurationWatched = Number(hoursWatchedAgg?._sum?.durationWatched ?? 0);
+    const hoursWatched = parseFloat((totalDurationWatched / 3600).toFixed(1));
 
     let previousHoursWatched = 0;
     let hoursGrowth = 0;
@@ -254,42 +288,43 @@ const getDashboardMetrics = unstable_cache(
     let previousActiveUsers = 0;
 
     if (prevDateFilter) {
-      const prevHoursAgg = await prisma.playbackHistory.aggregate({
-        _sum: { durationWatched: true },
-        where: { media: mediaWhere, startedAt: prevDateFilter, ...zappedFilter }
-      });
-      previousHoursWatched = parseFloat(((prevHoursAgg._sum.durationWatched || 0) / 3600).toFixed(1));
-      hoursGrowth = previousHoursWatched > 0 ? ((hoursWatched - previousHoursWatched) / previousHoursWatched) * 100 : 0;
+      const [prevHoursAgg, prevPlaysCount, prevActiveUsersAgg] = await Promise.all([
+        prisma.playbackHistory.aggregate({
+          _sum: { durationWatched: true },
+          where: { ...playbackBaseWhere, startedAt: prevDateFilter },
+        }),
+        prisma.playbackHistory.count({
+          where: { ...playbackBaseWhere, startedAt: prevDateFilter },
+        }),
+        prisma.playbackHistory.groupBy({
+          by: ["userId"],
+          where: { ...playbackBaseWhere, startedAt: prevDateFilter, userId: { not: null } },
+        }),
+      ]);
 
-      previousPlays = await prisma.playbackHistory.count({
-        where: { media: mediaWhere, startedAt: prevDateFilter, ...zappedFilter }
-      });
-      const prevActiveUsersAgg = await prisma.playbackHistory.groupBy({
-        by: ['userId'],
-        where: { media: mediaWhere, startedAt: prevDateFilter, userId: { not: null }, ...zappedFilter }
-      });
+      const previousDurationWatched = Number(prevHoursAgg?._sum?.durationWatched ?? 0);
+      previousHoursWatched = parseFloat((previousDurationWatched / 3600).toFixed(1));
+      hoursGrowth = previousHoursWatched > 0 ? ((hoursWatched - previousHoursWatched) / previousHoursWatched) * 100 : 0;
+      previousPlays = prevPlaysCount;
       previousActiveUsers = prevActiveUsersAgg.length;
     }
 
-    // 4. Load all history matching period
-    const histories = await prisma.playbackHistory.findMany({
-      where: { startedAt: dateFilter, media: mediaWhere, ...zappedFilter },
-      select: { startedAt: true, durationWatched: true, clientName: true, playMethod: true, userId: true, media: { select: { type: true, title: true } } },
-      orderBy: { startedAt: 'asc' }
-    });
-
-    // Sub-Categories Breakdown
-    let movieViews = 0, movieHours = 0;
-    let seriesViews = 0, seriesHours = 0;
-    let musicViews = 0, musicHours = 0;
-    let booksViews = 0, booksHours = 0;
+    // 4. Compute chart datasets from the loaded history
+    let movieViews = 0;
+    let movieHours = 0;
+    let seriesViews = 0;
+    let seriesHours = 0;
+    let musicViews = 0;
+    let musicHours = 0;
+    let booksViews = 0;
+    let booksHours = 0;
     let directPlayCount = 0;
 
     const trendMap = new Map<string, TrendEntry>();
     const getFormatKey = (d: Date) => {
-      if (timeRange === "24h") return `${d.getHours().toString().padStart(2, '0')}:00`;
-      else if (timeRange === "all") return `${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
-      else return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+      if (timeRange === "24h") return `${d.getHours().toString().padStart(2, "0")}:00`;
+      if (timeRange === "all") return `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
+      return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`;
     };
 
     histories.forEach((h) => {
@@ -297,29 +332,44 @@ const getDashboardMetrics = unstable_cache(
 
       const key = getFormatKey(new Date(h.startedAt));
       if (!trendMap.has(key)) {
-        trendMap.set(key, { time: key, movieVolume: 0, seriesVolume: 0, musicVolume: 0, booksVolume: 0, totalViews: 0, moviePlays: 0, seriesPlays: 0, musicPlays: 0, booksPlays: 0 });
+        trendMap.set(key, {
+          time: key,
+          movieVolume: 0,
+          seriesVolume: 0,
+          musicVolume: 0,
+          booksVolume: 0,
+          totalViews: 0,
+          moviePlays: 0,
+          seriesPlays: 0,
+          musicPlays: 0,
+          booksPlays: 0,
+        });
       }
+
       const entry = trendMap.get(key)!;
       const mType = (h.media?.type || "").toLowerCase();
       const hours = h.durationWatched / 3600;
 
-      // Classifying
-      if (mType.includes('movie')) {
+      if (mType.includes("movie")) {
         entry.movieVolume += hours;
         entry.moviePlays += 1;
-        movieViews++; movieHours += hours;
-      } else if (mType.includes('series') || mType.includes('episode')) {
+        movieViews++;
+        movieHours += hours;
+      } else if (mType.includes("series") || mType.includes("episode")) {
         entry.seriesVolume += hours;
         entry.seriesPlays += 1;
-        seriesViews++; seriesHours += hours;
-      } else if (mType.includes('audio') || mType.includes('track')) {
+        seriesViews++;
+        seriesHours += hours;
+      } else if (mType.includes("audio") || mType.includes("track")) {
         entry.musicVolume += hours;
         entry.musicPlays += 1;
-        musicViews++; musicHours += hours;
-      } else if (mType.includes('book')) {
+        musicViews++;
+        musicHours += hours;
+      } else if (mType.includes("book")) {
         entry.booksVolume += hours;
         entry.booksPlays += 1;
-        booksViews++; booksHours += hours;
+        booksViews++;
+        booksHours += hours;
       } else {
         entry.booksVolume += hours;
         entry.booksPlays += 1;
@@ -329,13 +379,13 @@ const getDashboardMetrics = unstable_cache(
     });
 
     const categoryPieData = [
-      { name: 'movies', value: parseFloat(movieHours.toFixed(2)) },
-      { name: 'series', value: parseFloat(seriesHours.toFixed(2)) },
-      { name: 'music', value: parseFloat(musicHours.toFixed(2)) },
-      { name: 'books', value: parseFloat(booksHours.toFixed(2)) },
-    ].filter(item => item.value > 0);
+      { name: "movies", value: parseFloat(movieHours.toFixed(2)) },
+      { name: "series", value: parseFloat(seriesHours.toFixed(2)) },
+      { name: "music", value: parseFloat(musicHours.toFixed(2)) },
+      { name: "books", value: parseFloat(booksHours.toFixed(2)) },
+    ].filter((item) => item.value > 0);
 
-    const trendData = Array.from(trendMap.values()).map(v => ({
+    const trendData = Array.from(trendMap.values()).map((v) => ({
       time: v.time,
       movieVolume: parseFloat(v.movieVolume.toFixed(2)),
       seriesVolume: parseFloat(v.seriesVolume.toFixed(2)),
@@ -350,44 +400,54 @@ const getDashboardMetrics = unstable_cache(
 
     const directPlayPercent = histories.length > 0 ? Math.round((directPlayCount / histories.length) * 100) : 100;
 
-    // Loyalty Top 5
-    const topUsersAgg = await prisma.playbackHistory.groupBy({
-      by: ['userId'],
+    const topUsersAgg = (await prisma.playbackHistory.groupBy({
+      by: ["userId"],
       _sum: { durationWatched: true },
-      where: { media: mediaWhere, startedAt: dateFilter, userId: { not: null }, ...zappedFilter },
-      orderBy: { _sum: { durationWatched: 'desc' } },
-      take: 5
+      where: { ...playbackBaseWhere, startedAt: dateFilter, userId: { not: null } },
+      orderBy: { _sum: { durationWatched: "desc" } },
+      take: 5,
+    })) as TopUserAgg[];
+
+    const topUserIds = topUsersAgg
+      .map((agg) => agg.userId)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+    const topUserRows = topUserIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: topUserIds } },
+          select: { id: true, username: true, jellyfinUserId: true },
+        })
+      : [];
+
+    const topUserMap = new Map(topUserRows.map((u) => [u.id, u]));
+    const topUsers = topUsersAgg.map((agg) => {
+      const user = topUserMap.get(agg.userId);
+      return {
+        username: user?.username || "?",
+        jellyfinUserId: user?.jellyfinUserId || "",
+        hours: parseFloat((((agg._sum.durationWatched as number | null) || 0) / 3600).toFixed(1)),
+      };
     });
 
-    const topUsers = await Promise.all((topUsersAgg as TopUserAgg[]).map(async (agg) => {
-      const u = await prisma.user.findUnique({ where: { id: agg.userId } });
-      return {
-        username: u?.username || "?",
-        jellyfinUserId: u?.jellyfinUserId || "",
-        hours: parseFloat(((agg._sum.durationWatched || 0) / 3600).toFixed(1))
-      };
-    }));
-
-    // Hourly
     const hourlyCounts = new Array(24).fill(0);
     histories.forEach((h) => {
       const hour = h.startedAt.getHours();
       hourlyCounts[hour]++;
     });
     const hourlyChartData: ActivityHourData[] = hourlyCounts.map((count, index) => ({
-      hour: `${index.toString().padStart(2, '0')}:00`, count
+      hour: `${index.toString().padStart(2, "0")}:00`,
+      count,
     }));
 
-    // Day of week
     const dayCounts = new Array(7).fill(0);
     histories.forEach((h) => {
       dayCounts[h.startedAt.getDay()]++;
     });
     const dayOfWeekChartData: DayOfWeekData[] = dayCounts.map((count, index) => ({
-      day: String(index), count
+      day: String(index),
+      count,
     }));
 
-    // Clients Platform Distro
     const platformCounts = new Map<string, number>();
     histories.forEach((h) => {
       const pName = h.clientName || "?";
@@ -398,11 +458,10 @@ const getDashboardMetrics = unstable_cache(
       .sort((a, b) => b.value - a.value)
       .slice(0, 8);
 
-    // Peak Concurrent Streams
-    const events: { time: number, type: number }[] = [];
+    const events: Array<{ time: number; type: number }> = [];
     histories.forEach((h) => {
       const start = h.startedAt.getTime();
-      const end = start + (h.durationWatched * 1000);
+      const end = start + h.durationWatched * 1000;
       events.push({ time: start, type: 1 });
       events.push({ time: end, type: -1 });
     });
@@ -411,8 +470,6 @@ const getDashboardMetrics = unstable_cache(
 
     let currentConcurrent = 0;
     let peakConcurrentStreams = 0;
-
-    // Track historical peak by hour for the chart
     const serverLoadMap = new Map<string, number>();
 
     for (const evt of events) {
@@ -422,20 +479,17 @@ const getDashboardMetrics = unstable_cache(
       }
 
       const evtFullHourKey = getFormatKey(new Date(evt.time));
-      // Overwrite the mapped hour with the max concurrency seen in that window
       const mappedVal = serverLoadMap.get(evtFullHourKey) || 0;
       if (currentConcurrent > mappedVal) {
         serverLoadMap.set(evtFullHourKey, currentConcurrent);
       }
     }
 
-    // Merge into trend data
-    const serverLoadData = Array.from(trendMap.values()).map(v => ({
+    const serverLoadData = Array.from(trendMap.values()).map((v) => ({
       time: v.time,
-      peakStreams: serverLoadMap.get(v.time) || 0
+      peakStreams: serverLoadMap.get(v.time) || 0,
     }));
 
-    // Monthly watch time — all data grouped by year_monthIndex (e.g., "2026_0" = Jan 2026)
     const monthlyMap = new Map<string, number>();
     histories.forEach((h) => {
       const d = new Date(h.startedAt);
@@ -443,41 +497,26 @@ const getDashboardMetrics = unstable_cache(
       monthlyMap.set(key, (monthlyMap.get(key) || 0) + h.durationWatched / 3600);
     });
     const monthlyWatchData: MonthlyWatchData[] = Array.from(monthlyMap.entries()).map(([month, hours]) => ({
-      month, hours: parseFloat(hours.toFixed(1))
+      month,
+      hours: parseFloat(hours.toFixed(1)),
     }));
 
-    // Completion ratio (abandoned vs finished)
-    // "Terminé" = watched >= 80% of media duration, "Partiel" = 20-80%, "Abandonné" = < 20% (excludes < 10% zapped)
-    let completed = 0, partial = 0, abandoned = 0;
-    // We need media durations for this — load them
-    // Fetch media with durations
-    const mediaWithDuration = await prisma.media.findMany({
-      where: { durationMs: { not: null } },
-      select: { id: true, title: true, durationMs: true },
-    });
-    const mediaDurationMap = new Map<string, number>();
-    mediaWithDuration.forEach(m => {
-      if (m.durationMs) mediaDurationMap.set(m.title, Number(m.durationMs) / 1000);
+    let completed = 0;
+    let partial = 0;
+    let abandoned = 0;
+    histories.forEach((h) => {
+      const completion = getCompletionMetrics(h.media || {}, h.durationWatched);
+      if (completion.bucket === "completed") completed++;
+      else if (completion.bucket === "partial") partial++;
+      else if (completion.bucket === "abandoned") abandoned++;
     });
 
-    // Also load full histories with mediaId for completion calc
-    const fullHistories = await prisma.playbackHistory.findMany({
-      where: { startedAt: dateFilter, media: mediaWhere, ...zappedFilter },
-      select: { durationWatched: true, media: { select: { title: true, durationMs: true, type: true, collectionType: true } } },
-    });
-    fullHistories.forEach((h) => {
-      const completion = getCompletionMetrics(h.media || {}, h.durationWatched);
-      if (completion.bucket === 'completed') completed++;
-      else if (completion.bucket === 'partial') partial++;
-      else if (completion.bucket === 'abandoned') abandoned++;
-    });
     const completionData: CompletionData[] = [
       { name: "completed", value: completed },
       { name: "partial", value: partial },
       { name: "abandoned", value: abandoned },
-    ].filter(d => d.value > 0);
+    ].filter((d) => d.value > 0);
 
-    // Client categories
     const clientCatMap = new Map<string, number>();
     histories.forEach((h) => {
       const cat = categorizeClient(h.clientName || "");
@@ -487,21 +526,21 @@ const getDashboardMetrics = unstable_cache(
       .map(([category, count]) => ({ category, count }))
       .sort((a, b) => b.count - a.count);
 
-    // Current period: total plays & active users
     const totalPlays = histories.length;
     const currentActiveUsers = new Set(histories.map((h) => h.userId).filter(Boolean)).size;
     const playsGrowth = previousPlays > 0 ? ((totalPlays - previousPlays) / previousPlays) * 100 : 0;
     const activeUsersGrowth = previousActiveUsers > 0 ? ((currentActiveUsers - previousActiveUsers) / previousActiveUsers) * 100 : 0;
 
-    // Today stats (always today regardless of selected timeRange)
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayHistories = await prisma.playbackHistory.findMany({
-      where: { startedAt: { gte: todayStart }, media: mediaWhere, ...zappedFilter },
+      where: { ...playbackBaseWhere, startedAt: { gte: todayStart } },
       select: { durationWatched: true, userId: true },
     });
     const todayPlays = todayHistories.length;
-    const todayHours = parseFloat((todayHistories.reduce((sum: number, h) => sum + (h.durationWatched || 0), 0) / 3600).toFixed(1));
+    const todayHours = parseFloat(
+      (todayHistories.reduce((sum: number, h) => sum + (h.durationWatched || 0), 0) / 3600).toFixed(1)
+    );
     const todayActiveUsers = new Set(todayHistories.map((h) => h.userId).filter(Boolean)).size;
 
     return {
@@ -531,58 +570,93 @@ const getDashboardMetrics = unstable_cache(
       completionData,
       clientCategoryData,
       breakdown: {
-        movieViews, movieHours: parseFloat(movieHours.toFixed(1)),
-        seriesViews, seriesHours: parseFloat(seriesHours.toFixed(1)),
-        musicViews, musicHours: parseFloat(musicHours.toFixed(1)),
-        booksViews, booksHours: parseFloat(booksHours.toFixed(1)),
-      }
+        movieViews,
+        movieHours: parseFloat(movieHours.toFixed(1)),
+        seriesViews,
+        seriesHours: parseFloat(seriesHours.toFixed(1)),
+        musicViews,
+        musicHours: parseFloat(musicHours.toFixed(1)),
+        booksViews,
+        booksHours: parseFloat(booksHours.toFixed(1)),
+      },
     };
   },
-  ['JellyTrack-dashboard'],
+  ["JellyTrack-dashboard-v2"],
   { revalidate: 60 }
 );
 
-async function HeatmapWrapper() {
-  // Fetch ALL playback history with media type for library filtering
-  const rawData = await prisma.playbackHistory.findMany({
-    select: { startedAt: true, media: { select: { collectionType: true, type: true } } }
-  });
+const getHeatmapData = unstable_cache(
+  async (selectedServerIdsKey: string) => {
+    const selectedServerIds = selectedServerIdsKey ? selectedServerIdsKey.split(",").filter(Boolean) : [];
+    const serverWhere = selectedServerIds.length > 0 ? { serverId: { in: selectedServerIds } } : undefined;
 
-  const countsByDateAndType = new Map<string, Map<string, number>>();
-  const yearsSet = new Set<number>();
-  const libraryTypes = new Set<string>();
-
-  rawData.forEach(r => {
-    const d = r.startedAt.toISOString().split('T')[0];
-    const lib = r.media?.collectionType || r.media?.type || 'unknown';
-    libraryTypes.add(lib);
-    yearsSet.add(r.startedAt.getFullYear());
-
-    if (!countsByDateAndType.has(d)) countsByDateAndType.set(d, new Map());
-    const dayMap = countsByDateAndType.get(d)!;
-    dayMap.set(lib, (dayMap.get(lib) || 0) + 1);
-    dayMap.set('_total', (dayMap.get('_total') || 0) + 1);
-  });
-
-  const heatmapDataByType: Record<string, HeatmapData[]> = {};
-
-  // Build per-library and total data sets
-  const allKeys = ['_total', ...Array.from(libraryTypes)];
-  for (const key of allKeys) {
-    const entries: HeatmapData[] = [];
-    countsByDateAndType.forEach((dayMap, date) => {
-      const count = dayMap.get(key) || 0;
-      if (count > 0) entries.push({ date, count, level: 0 });
+    const rawData = await prisma.playbackHistory.findMany({
+      where: serverWhere,
+      select: { startedAt: true, media: { select: { collectionType: true, type: true } } },
     });
-    heatmapDataByType[key] = entries;
-  }
 
-  const availableYears = Array.from(yearsSet).sort((a, b) => b - a);
+    const countsByDateAndType = new Map<string, Map<string, number>>();
+    const yearsSet = new Set<number>();
+    const libraryTypes = new Set<string>();
 
-  return <YearlyHeatmap data={heatmapDataByType['_total'] || []} availableYears={availableYears} dataByType={heatmapDataByType} libraryTypes={Array.from(libraryTypes)} />;
+    rawData.forEach((r) => {
+      const d = r.startedAt.toISOString().split("T")[0];
+      const lib = r.media?.collectionType || r.media?.type || "unknown";
+      libraryTypes.add(lib);
+      yearsSet.add(r.startedAt.getFullYear());
+
+      if (!countsByDateAndType.has(d)) countsByDateAndType.set(d, new Map());
+      const dayMap = countsByDateAndType.get(d)!;
+      dayMap.set(lib, (dayMap.get(lib) || 0) + 1);
+      dayMap.set("_total", (dayMap.get("_total") || 0) + 1);
+    });
+
+    const heatmapDataByType: Record<string, HeatmapData[]> = {};
+    const allKeys = ["_total", ...Array.from(libraryTypes)];
+    for (const key of allKeys) {
+      const entries: HeatmapData[] = [];
+      countsByDateAndType.forEach((dayMap, date) => {
+        const count = dayMap.get(key) || 0;
+        if (count > 0) entries.push({ date, count, level: 0 });
+      });
+      heatmapDataByType[key] = entries;
+    }
+
+    return {
+      heatmapDataByType,
+      availableYears: Array.from(yearsSet).sort((a, b) => b - a),
+      libraryTypes: Array.from(libraryTypes),
+    };
+  },
+  ["JellyTrack-heatmap-v3"],
+  { revalidate: 120 }
+);
+
+async function HeatmapWrapper({ selectedServerIds }: { selectedServerIds: string[] }) {
+  const selectedServerIdsKey = selectedServerIds.length > 0 ? [...selectedServerIds].sort().join(",") : "";
+  const { heatmapDataByType, availableYears, libraryTypes } = await getHeatmapData(selectedServerIdsKey);
+
+  return (
+    <YearlyHeatmap
+      data={heatmapDataByType["_total"] || []}
+      availableYears={availableYears}
+      dataByType={heatmapDataByType}
+      libraryTypes={libraryTypes}
+    />
+  );
 }
 
-export default async function DashboardPage(props: { searchParams: Promise<{ type?: string; timeRange?: string; from?: string; to?: string; excludeLibs?: string; excludeTypes?: string }> }) {
+export default async function DashboardPage(props: {
+  searchParams: Promise<{
+    type?: string;
+    timeRange?: string;
+    from?: string;
+    to?: string;
+    excludeLibs?: string;
+    excludeTypes?: string;
+    servers?: string;
+  }>;
+}) {
   // RBAC: Non-admin users are redirected to their profile page
   const authSession = await getServerSession(authOptions);
   if (!authSession?.user?.isAdmin) {
@@ -591,20 +665,52 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
   }
 
   const searchParams = await props.searchParams;
-  const { type, timeRange = "7d", from, to, excludeLibs, excludeTypes } = searchParams;
+  const { type, timeRange = "7d", from, to, excludeLibs, excludeTypes, servers: serversParam } = searchParams;
 
-  const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
+  const [settings, serverRows] = await Promise.all([
+    prisma.globalSettings.findUnique({ where: { id: "global" } }),
+    prisma.server.findMany({
+      select: { id: true, name: true, isActive: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
   const dbExcluded = settings?.excludedLibraries || [];
-  
-  // const libraryRules = await loadLibraryRules();
 
   // Combine DB settings with URL params for excluded libraries
-  const excludedLibsUrl = excludeLibs ? excludeLibs.split(',') : [];
+  const excludedLibsUrl = excludeLibs ? excludeLibs.split(",") : [];
   const excludedLibraries = Array.from(new Set([...dbExcluded, ...excludedLibsUrl]));
-  
-  const excludedTypesArr = excludeTypes ? excludeTypes.split(',') : [];
 
-  const metrics = await getDashboardMetrics(type, timeRange, excludedLibraries, excludedTypesArr, from, to) as DashboardMetrics;
+  const excludedTypesArr = excludeTypes ? excludeTypes.split(",") : [];
+
+  const jellytrackMode = (process.env.JELLYTRACK_MODE || "single").toLowerCase();
+  const activeServerRows = serverRows.filter((server) => server.isActive);
+  const selectableServerOptions = (activeServerRows.length > 0 ? activeServerRows : serverRows).map((server) => ({
+    id: server.id,
+    name: server.name,
+  }));
+
+  const multiServerEnabled = jellytrackMode === "multi" && selectableServerOptions.length > 1;
+  const validServerIds = new Set(selectableServerOptions.map((server) => server.id));
+  const requestedServerIds = serversParam
+    ? serversParam
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean)
+    : [];
+  const selectedServerIds = multiServerEnabled
+    ? requestedServerIds.filter((id) => validServerIds.has(id))
+    : [];
+
+  const metrics = (await getDashboardMetrics(
+    type,
+    timeRange,
+    excludedLibraries,
+    excludedTypesArr,
+    from,
+    to,
+    selectedServerIds
+  )) as DashboardMetrics;
   const healthSnapshot = await getLogHealthSnapshot();
 
   const t = await getTranslations('dashboard');
@@ -633,11 +739,14 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
     name: completionLabels[d.name] || d.name,
   }));
 
+  const selectedServerScope = selectedServerIds.length > 0 ? { in: selectedServerIds } : undefined;
+
   // Source of truth: Prisma ActiveStream table
   const activeStreamEntries = await prisma.activeStream.findMany({
+    where: selectedServerScope ? { serverId: selectedServerScope } : undefined,
     include: {
       user: { select: { username: true } },
-      media: { select: { title: true, type: true, parentId: true, artist: true } }
+      media: { select: { jellyfinMediaId: true, title: true, type: true, parentId: true, artist: true, durationMs: true } }
     }
   }) as unknown as ActiveStreamRow[];
   
@@ -647,7 +756,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
 
   if (activeStreamsCount > 0) {
     // Fetch real-time specifics from Redis if they exist
-    const redisKeys = activeStreamEntries.map(s => `stream:${s.sessionId}`);
+    const redisKeys = activeStreamEntries.map((s) => buildStreamRedisKey(s.serverId, s.sessionId));
     const redisPayloads = await Promise.all(redisKeys.map(k => redis.get(k)));
     const redisMap = new Map<string, Record<string, unknown>>();
     
@@ -655,28 +764,49 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
         if (p) {
             try {
                 const parsed = JSON.parse(p);
-                redisMap.set(activeStreamEntries[idx].sessionId, parsed);
+                const stream = activeStreamEntries[idx];
+                redisMap.set(`${stream.serverId}:${stream.sessionId}`, parsed);
             } catch {}
         }
     });
 
-    const relatedIds = new Set<string>();
+    // Backward compatibility: fallback to legacy key if scoped key is absent.
+    await Promise.all(activeStreamEntries.map(async (stream) => {
+      const mapKey = `${stream.serverId}:${stream.sessionId}`;
+      if (redisMap.has(mapKey)) return;
+      try {
+        const legacyPayload = await redis.get(buildLegacyStreamRedisKey(stream.sessionId));
+        if (!legacyPayload) return;
+        redisMap.set(mapKey, JSON.parse(legacyPayload));
+      } catch {}
+    }));
+
+    const relatedPairs = new Set<string>();
     for (const entry of activeStreamEntries) {
-      if (entry.mediaId) relatedIds.add(entry.mediaId);
       // We also need parent and grandparent for hierarchical display if not in Redis
-      if (entry.media?.parentId) relatedIds.add(entry.media.parentId);
+      if (entry.media?.parentId) relatedPairs.add(JSON.stringify([entry.serverId, entry.media.parentId]));
     }
+
+    const relatedTargets = Array.from(relatedPairs).map((pair) => {
+      const parsed = JSON.parse(pair) as [string, string];
+      return { serverId: parsed[0], jellyfinMediaId: parsed[1] };
+    });
     
-    const relatedMedia = relatedIds.size > 0
+    const relatedMedia = relatedTargets.length > 0
       ? await prisma.media.findMany({
-        where: { jellyfinMediaId: { in: Array.from(relatedIds) } },
-        select: { jellyfinMediaId: true, title: true, type: true, parentId: true, artist: true },
+        where: {
+          OR: relatedTargets.map((target) => ({
+            serverId: target.serverId,
+            jellyfinMediaId: target.jellyfinMediaId,
+          })),
+        },
+        select: { serverId: true, jellyfinMediaId: true, title: true, type: true, parentId: true, artist: true },
       })
       : [];
-    const mediaHierarchyMap = new Map(relatedMedia.map((m) => [m.jellyfinMediaId, m]));
+    const mediaHierarchyMap = new Map(relatedMedia.map((m) => [`${m.serverId}:${m.jellyfinMediaId}`, m]));
 
     liveStreams = activeStreamEntries.map((dbStream) => {
-        const payload = (redisMap.get(dbStream.sessionId) || {}) as Record<string, unknown>;
+        const payload = (redisMap.get(`${dbStream.serverId}:${dbStream.sessionId}`) || {}) as Record<string, unknown>;
 
         const isTranscoding = dbStream.playMethod === "Transcode"
             || (payload['isTranscoding'] === true)
@@ -685,8 +815,8 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
         totalBandwidthMbps += isTranscoding ? 12 : 6;
 
         const itemMedia = dbStream.media;
-        const parentMedia = itemMedia.parentId ? mediaHierarchyMap.get(itemMedia.parentId) : null;
-        const grandparentMedia = parentMedia?.parentId ? mediaHierarchyMap.get(parentMedia.parentId) : null;
+        const parentMedia = itemMedia.parentId ? mediaHierarchyMap.get(`${dbStream.serverId}:${itemMedia.parentId}`) : null;
+        const grandparentMedia = parentMedia?.parentId ? mediaHierarchyMap.get(`${dbStream.serverId}:${parentMedia.parentId}`) : null;
 
         // Build enriched subtitle
         let mediaSubtitle: string | null = null;
@@ -718,6 +848,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
         const subC = typeof payload['subtitleCodec'] === 'string' ? (payload['subtitleCodec'] as string) : null;
 
         return {
+          serverId: dbStream.serverId,
           sessionId: dbStream.sessionId,
           itemId: itemMedia.jellyfinMediaId,
           user: dbStream.user?.username || "Unknown",
@@ -734,6 +865,18 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
           audioCodec: dbStream.audioCodec || audioC || null,
           subtitleLanguage: dbStream.subtitleLanguage || subLang || null,
           subtitleCodec: dbStream.subtitleCodec || subC || null,
+          audioStreamIndex:
+            typeof payload["audioStreamIndex"] === "number"
+              ? (payload["audioStreamIndex"] as number)
+              : typeof payload["AudioStreamIndex"] === "number"
+              ? (payload["AudioStreamIndex"] as number)
+              : null,
+          subtitleStreamIndex:
+            typeof payload["subtitleStreamIndex"] === "number"
+              ? (payload["subtitleStreamIndex"] as number)
+              : typeof payload["SubtitleStreamIndex"] === "number"
+              ? (payload["SubtitleStreamIndex"] as number)
+              : null,
           mediaType: itemMedia.type,
           albumArtist: itemMedia.artist,
           posterItemId: (itemMedia.type === 'Audio' || itemMedia.type === 'Track') ? (itemMedia.parentId || itemMedia.jellyfinMediaId) : itemMedia.jellyfinMediaId,
@@ -745,11 +888,14 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
     <div className="dashboard-page flex-col md:flex">
       <div className="flex-1 space-y-4 md:space-y-6 p-4 md:p-8 pt-4 md:pt-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
-          <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6 min-w-0">
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h2>
-            <div className="w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
-              <MediaFilter />
+          <div className="flex flex-col gap-2 min-w-0">
+            <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6 min-w-0">
+              <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h2>
+              <div className="w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+                <MediaFilter />
+              </div>
             </div>
+            <ServerFilter servers={selectableServerOptions} enabled={multiServerEnabled} />
           </div>
           <div className="flex items-center gap-2 md:gap-4 shrink-0">
             <TimeRangeSelector />
@@ -995,7 +1141,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
 
               /* Yearly Heatmap Contribution Component - Phase 6 */
               <Suspense key="heatmap" fallback={<Skeleton className="h-[250px] w-full rounded-xl" />}>
-                <HeatmapWrapper />
+                <HeatmapWrapper selectedServerIds={selectedServerIds} />
               </Suspense>,
 
               /* Dataviz Row : Plateformes + Top Users + Live */
@@ -1042,7 +1188,11 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
                   </CardContent>
                 </Card>
 
-                <LiveStreamsPanel initialStreams={liveStreams} initialBandwidth={totalBandwidthMbps} />
+                <LiveStreamsPanel
+                  initialStreams={liveStreams}
+                  initialBandwidth={totalBandwidthMbps}
+                  selectedServerIds={selectedServerIds}
+                />
               </div>,
 
               /* Third Row Analytics - Hourly + Day of Week */
@@ -1114,16 +1264,31 @@ export default async function DashboardPage(props: { searchParams: Promise<{ typ
 
           <TabsContent value="analytics" className="space-y-6">
             <Suspense fallback={<Skeleton className="h-[400px] w-full bg-zinc-200/50 dark:bg-zinc-900/50 rounded-xl" />}>
-              <DeepInsights type={type} timeRange={timeRange} excludedLibraries={excludedLibraries} />
+              <DeepInsights
+                type={type}
+                timeRange={timeRange}
+                excludedLibraries={excludedLibraries}
+                selectedServerIds={selectedServerIds}
+              />
             </Suspense>
             <Suspense fallback={<Skeleton className="h-[400px] w-full bg-zinc-200/50 dark:bg-zinc-900/50 rounded-xl" />}>
-              <GranularAnalysis type={type} timeRange={timeRange} excludedLibraries={excludedLibraries} />
+              <GranularAnalysis
+                type={type}
+                timeRange={timeRange}
+                excludedLibraries={excludedLibraries}
+                selectedServerIds={selectedServerIds}
+              />
             </Suspense>
           </TabsContent>
 
           <TabsContent value="network" className="space-y-6">
             <Suspense fallback={<Skeleton className="h-[400px] w-full bg-zinc-200/50 dark:bg-zinc-900/50 rounded-xl" />}>
-              <NetworkAnalysis type={type} timeRange={timeRange} excludedLibraries={excludedLibraries} />
+              <NetworkAnalysis
+                type={type}
+                timeRange={timeRange}
+                excludedLibraries={excludedLibraries}
+                selectedServerIds={selectedServerIds}
+              />
             </Suspense>
           </TabsContent>
         </Tabs>

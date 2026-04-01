@@ -43,6 +43,7 @@ export async function performAutoBackup(): Promise<string> {
         }
 
         // Fetch all data
+        const servers = await prisma.server.findMany();
         const users = await prisma.user.findMany();
         const media = await prisma.media.findMany();
         const playbackHistory = await prisma.playbackHistory.findMany();
@@ -56,6 +57,7 @@ export async function performAutoBackup(): Promise<string> {
             exportDate: new Date().toISOString(),
             type: "auto-backup",
             data: {
+                servers,
                 users,
                 media,
                 playbackHistory,

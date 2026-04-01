@@ -5,9 +5,12 @@ import { getTranslations } from 'next-intl/server';
 import { getCompletionMetrics, isZapped } from "@/lib/mediaPolicy";
 // No more library rules
 
-export default async function UserInfo({ userId }: { userId: string }) {
-    const user = await prisma.user.findUnique({
-        where: { jellyfinUserId: userId },
+export default async function UserInfo({ userId, userIds = [] }: { userId: string; userIds?: string[] }) {
+    const targetJellyfinIds = Array.from(new Set([userId, ...userIds].filter(Boolean)));
+
+    const users = await prisma.user.findMany({
+        where: { jellyfinUserId: { in: targetJellyfinIds } },
+        orderBy: { createdAt: "asc" },
         select: { username: true, jellyfinUserId: true, lastActive: true, playbackHistory: {
                 select: {
                     durationWatched: true,
@@ -23,7 +26,9 @@ export default async function UserInfo({ userId }: { userId: string }) {
         }
     });
 
-    if (!user) return null;
+    if (users.length === 0) return null;
+
+    const mergedHistory = users.flatMap((u) => u.playbackHistory);
 
     const t = await getTranslations('userProfile');
     // const rules = await loadLibraryRules();
@@ -50,7 +55,7 @@ export default async function UserInfo({ userId }: { userId: string }) {
         media?: { genres?: string[]; type?: string; durationMs?: bigint | null; title?: string; jellyfinMediaId?: string } | null;
     };
 
-    user.playbackHistory.forEach((session: any) => {
+    mergedHistory.forEach((session: any) => {
         const s = session as any;
         if (isZapped(s)) return;
         totalSeconds += s.durationWatched;
@@ -96,11 +101,15 @@ export default async function UserInfo({ userId }: { userId: string }) {
         }
     });
 
-    const sessionCount = user.playbackHistory.filter(s => !isZapped(s)).length;
+    const sessionCount = mergedHistory.filter(s => !isZapped(s)).length;
     const totalHours = parseFloat((totalSeconds / 3600).toFixed(1));
     const avgSessionMin = sessionCount > 0 ? Math.round(totalSeconds / sessionCount / 60) : 0;
     const avgCompletion = completionCount > 0 ? Math.round(totalCompletions / completionCount) : 0;
-    const lastActive = user.lastActive;
+    const lastActive = users.reduce<Date | null>((acc, current) => {
+        if (!current.lastActive) return acc;
+        if (!acc || current.lastActive > acc) return current.lastActive;
+        return acc;
+    }, null);
 
     const getTopItem = (map: Map<string, number>) => {
         if (map.size === 0) return "N/A";
@@ -146,7 +155,7 @@ export default async function UserInfo({ userId }: { userId: string }) {
     const uniqueMovies = new Set<string>();
     const uniqueSeries = new Set<string>();
     const uniqueMusic = new Set<string>();
-    user.playbackHistory.forEach((session: any) => {
+    mergedHistory.forEach((session: any) => {
         const s = session as any;
         if (isZapped(s)) return;
         if (s.media?.type === 'Movie' && s.media.jellyfinMediaId) uniqueMovies.add(s.media.jellyfinMediaId);

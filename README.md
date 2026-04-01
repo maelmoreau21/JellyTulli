@@ -40,7 +40,7 @@ JellyTrack collecte et analyse les événements Jellyfin (playback start/progres
 - **Installation recommandée** : installez le serveur JellyTrack via Docker / GHCR, et installez le plugin Jellyfin via le dépôt Jellyfin.
 - **Pourquoi** : le plugin envoie les événements de lecture (start / progress / stop) vers JellyTrack. Sans plugin ni configuration de webhooks côté Jellyfin, JellyTrack ne recevra aucune donnée et l'interface restera vide. Inversement, le plugin doit être configuré avec l'URL d'une instance JellyTrack opérationnelle — installé seul il n'aura pas d'effet visible.
 - **Alternative** : si vous ne pouvez pas installer le plugin, vous pouvez configurer des webhooks Jellyfin pour pointer vers `/api/webhook/jellyfin`, mais le plugin reste la méthode la plus simple et complète.
- - **Langue** : le plugin détecte par défaut la langue UI du serveur Jellyfin et l'envoie dans le `Heartbeat` vers JellyTrack. Vous pouvez également surcharger cette valeur dans la configuration du plugin si besoin.
+- **Langue** : le plugin détecte par défaut la langue UI du serveur Jellyfin et l'envoie dans le `Heartbeat` vers JellyTrack. Vous pouvez également surcharger cette valeur dans la configuration du plugin si besoin.
 
 ## Quickstart — Docker (GHCR) — recommandé
 
@@ -51,15 +51,15 @@ git clone https://github.com/maelmoreau21/JellyTrack.git
 cd JellyTrack
 ```
 
-2. Adapter `docker-compose.yml` / variables d'environnement (voir section Variables ci‑dessous).
+1. Adapter `docker-compose.yml` / variables d'environnement (voir section Variables ci‑dessous).
 
-3. Lancer la stack :
+1. Lancer la stack :
 
 ```bash
 docker compose up -d
 ```
 
-4. Ouvrir l'interface : `http://<host>:<APP_PORT>` (par défaut 3000) — se connecter avec `ADMIN_PASSWORD`.
+1. Ouvrir l'interface : `http://<host>:<APP_PORT>` (par défaut 3000) — se connecter avec `ADMIN_PASSWORD`.
 
 ## Plugin Jellyfin — installation (RECOMMANDÉE)
 
@@ -85,8 +85,7 @@ L'installation manuelle (copie de la DLL) reste possible mais n'est pas recomman
 ```bash
 npm ci
 docker compose up -d postgres redis
-cp .env.example .env.local
-# éditer .env.local puis :
+# créer/éditer .env.local puis :
 npx prisma db push
 npm run dev
 ```
@@ -97,6 +96,9 @@ npm run dev
 - `REDIS_URL` — ex: `redis://localhost:6379`
 - `JELLYFIN_URL` — URL de Jellyfin
 - `JELLYFIN_API_KEY` — clé API Jellyfin (si nécessaire)
+- `JELLYTRACK_MODE` — `single` (par défaut) ou `multi` (active le filtrage multi-serveur dans l'UI)
+- `JELLYFIN_SERVER_ID` — identifiant du serveur maître (fallback)
+- `JELLYFIN_SERVER_NAME` — nom du serveur maître (fallback)
 - `JELLYFIN_WEBHOOK_SECRET` — secret pour valider les webhooks (production)
 - `ADMIN_PASSWORD` — mot de passe admin initial
 - `NEXTAUTH_SECRET` — secret NextAuth/JWT
@@ -104,6 +106,27 @@ npm run dev
 - `PORT` / `APP_PORT` — ports d'écoute
 
 Voir `docker-compose.yml` pour un exemple complet.
+
+## Mode multi-serveur (ajouter un 2e serveur Jellyfin)
+
+JellyTrack supporte 2 modes :
+
+- `single` : comportement historique, pas de filtre serveur.
+- `multi` : active les vues et filtres par serveur (dashboard, live streams, logs) si au moins 2 serveurs sont detectes.
+
+Pour ajouter un deuxieme serveur Jellyfin, suivez ce pas-a-pas :
+
+1. Passez JellyTrack en mode multi. Dans votre environnement Docker, definissez `JELLYTRACK_MODE=multi`, puis redemarrez JellyTrack (`docker compose up -d`).
+2. Recuperez les parametres plugin depuis JellyTrack. Dans JellyTrack, ouvrez Parametres > Plugin, generez une cle API plugin (ou reutilisez la cle existante), puis copiez l'endpoint plugin affiche (`/api/plugin/events`).
+3. Configurez le plugin sur chaque serveur Jellyfin. Sur le serveur 1 et le serveur 2, renseignez l'URL JellyTrack (endpoint plugin), la meme API key plugin, puis un nom/ID serveur s'ils sont proposes par le plugin.
+4. Forcez l'apparition du serveur dans JellyTrack. Lancez une lecture sur le 2e serveur (start/progress/stop). A la reception du premier evenement, JellyTrack enregistre automatiquement ce serveur.
+5. Verifiez dans l'interface. Le filtre serveur doit apparaitre sur le dashboard et dans les filtres avances des logs, et Parametres > Plugin doit indiquer une connexion active (heartbeat).
+
+Si le 2e serveur n'apparait pas :
+
+- Verifiez que chaque Jellyfin peut joindre l'URL publique de JellyTrack (reverse proxy/NAT).
+- Verifiez que l'API key plugin est identique des deux cotes.
+- Verifiez que le plugin envoie bien des evenements `start/progress/stop`.
 
 ## Mises à jour
 

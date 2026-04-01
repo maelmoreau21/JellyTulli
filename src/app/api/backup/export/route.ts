@@ -12,6 +12,7 @@ export async function GET() {
 
     try {
         // Fetch all the data we need to construct a huge JSON backup file.
+        const servers = await prisma.server.findMany();
         const users = await prisma.user.findMany();
         const media = await prisma.media.findMany();
         const playbackHistory = await prisma.playbackHistory.findMany();
@@ -24,6 +25,7 @@ export async function GET() {
             version: "1.0",
             exportDate: new Date().toISOString(),
             data: {
+                servers,
                 users,
                 media,
                 playbackHistory,

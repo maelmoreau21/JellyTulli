@@ -14,15 +14,20 @@ export async function GET(req: NextRequest) {
     if (isAuthError(auth)) return auth;
 
     const mediaId = req.nextUrl.searchParams.get("mediaId");
+    const jellyfinServerId = req.nextUrl.searchParams.get("serverId");
     if (!mediaId) {
         return NextResponse.json({ error: "mediaId is required" }, { status: 400 });
     }
 
     try {
         // Find the internal media record
-        const media = await prisma.media.findUnique({
-            where: { jellyfinMediaId: mediaId },
-            select: { id: true, durationMs: true },
+        const media = await prisma.media.findFirst({
+            where: {
+                jellyfinMediaId: mediaId,
+                ...(jellyfinServerId ? { server: { jellyfinServerId } } : {}),
+            },
+            orderBy: { createdAt: "asc" },
+            select: { id: true, durationMs: true, serverId: true },
         });
 
         if (!media) {
@@ -77,6 +82,7 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({
             mediaId,
+            serverId: media.serverId,
             durationMs: media.durationMs ? Number(media.durationMs) : null,
             sessions: serialized,
         });

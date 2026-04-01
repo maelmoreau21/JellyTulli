@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 import { requireAdmin, isAuthError } from "@/lib/auth";
 import { apiT } from "@/lib/i18n-api";
 // No rules
 import { replaceSystemHealthState } from "@/lib/systemHealth";
+import { getMasterServerIdentityFromEnv } from "@/lib/serverRegistry";
 
 export async function POST(req: NextRequest) {
     const auth = await requireAdmin();
@@ -42,7 +44,30 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: await apiT('backupFormatInvalid') }, { status: 400 });
         }
 
-        const { users, media, playbackHistory, telemetryEvents, settings, systemHealth } = backup.data;
+        const { servers, users, media, playbackHistory, telemetryEvents, settings, systemHealth } = backup.data;
+        const masterIdentity = getMasterServerIdentityFromEnv();
+        const normalizedServers = Array.isArray(servers) && servers.length > 0
+            ? servers.map((s: Record<string, unknown>, index: number) => ({
+                id: (typeof s.id === "string" && s.id) ? s.id : randomUUID(),
+                jellyfinServerId: (typeof s.jellyfinServerId === "string" && s.jellyfinServerId)
+                    ? s.jellyfinServerId
+                    : `imported-server-${index + 1}`,
+                name: (typeof s.name === "string" && s.name) ? s.name : `Imported Server ${index + 1}`,
+                url: (typeof s.url === "string" && s.url) ? s.url : masterIdentity.url,
+                isActive: typeof s.isActive === "boolean" ? s.isActive : true,
+                createdAt: s.createdAt ? new Date(String(s.createdAt)) : new Date(),
+                updatedAt: s.updatedAt ? new Date(String(s.updatedAt)) : new Date(),
+            }))
+            : [{
+                id: randomUUID(),
+                jellyfinServerId: masterIdentity.jellyfinServerId,
+                name: masterIdentity.name,
+                url: masterIdentity.url,
+                isActive: true,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            }];
+        const defaultServerId = normalizedServers[0].id;
 
         // Restore using transaction
         await prisma.$transaction(async (tx) => {
@@ -52,6 +77,22 @@ export async function POST(req: NextRequest) {
             await tx.playbackHistory.deleteMany();
             await tx.media.deleteMany();
             await tx.user.deleteMany();
+            await tx.server.deleteMany();
+
+            // Restore servers first (FK parent)
+            for (const s of normalizedServers) {
+                await tx.server.create({
+                    data: {
+                        id: s.id,
+                        jellyfinServerId: s.jellyfinServerId,
+                        name: s.name,
+                        url: s.url,
+                        isActive: s.isActive,
+                        createdAt: s.createdAt,
+                        updatedAt: s.updatedAt,
+                    }
+                });
+            }
 
             // Restore users
             if (users?.length > 0) {
@@ -59,6 +100,7 @@ export async function POST(req: NextRequest) {
                     await tx.user.create({
                         data: {
                             id: u.id,
+                            serverId: u.serverId || defaultServerId,
                             jellyfinUserId: u.jellyfinUserId,
                             username: u.username,
                             createdAt: new Date(u.createdAt),
@@ -73,6 +115,7 @@ export async function POST(req: NextRequest) {
                     await tx.media.create({
                         data: {
                             id: m.id,
+                            serverId: m.serverId || defaultServerId,
                             jellyfinMediaId: m.jellyfinMediaId,
                             title: m.title,
                             type: m.type,
@@ -95,6 +138,7 @@ export async function POST(req: NextRequest) {
                     await tx.playbackHistory.create({
                         data: {
                             id: ph.id,
+                            serverId: ph.serverId || defaultServerId,
                             userId: ph.userId,
                             mediaId: ph.mediaId,
                             startedAt: new Date(ph.startedAt),
@@ -120,10 +164,15 @@ export async function POST(req: NextRequest) {
 
             // Restore telemetry events (if present in backup)
             if (telemetryEvents?.length > 0) {
+                const playbackServerMap = new Map<string, string>();
+                for (const ph of playbackHistory || []) {
+                    if (ph?.id) playbackServerMap.set(String(ph.id), String(ph.serverId || defaultServerId));
+                }
                 for (const ev of telemetryEvents) {
                     await tx.telemetryEvent.create({
                         data: {
                             id: ev.id,
+                            serverId: ev.serverId || playbackServerMap.get(String(ev.playbackId)) || defaultServerId,
                             playbackId: ev.playbackId,
                             eventType: ev.eventType,
                             positionMs: ev.positionMs != null ? BigInt(ev.positionMs) : BigInt(0),

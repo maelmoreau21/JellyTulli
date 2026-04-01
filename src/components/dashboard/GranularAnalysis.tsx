@@ -22,13 +22,15 @@ type GranularData = {
 };
 
 const getGranularData = unstable_cache(
-    async (type: string | undefined, timeRange: string, excludedLibraries: string[], locale: string) => {
+    async (type: string | undefined, timeRange: string, excludedLibraries: string[], locale: string, selectedServerIds: string[] = []) => {
         // Use defaults
         let currentStartDate = new Date();
         if (timeRange === "24h") currentStartDate.setDate(currentStartDate.getDate() - 1);
         else if (timeRange === "7d") currentStartDate.setDate(currentStartDate.getDate() - 7);
         else if (timeRange === "30d") currentStartDate.setDate(currentStartDate.getDate() - 30);
         else currentStartDate = new Date(0);
+
+        const selectedServerScope = selectedServerIds.length > 0 ? { in: selectedServerIds } : undefined;
 
         let mediaTypeFilter: Record<string, unknown> = {};
         if (type === 'movie') mediaTypeFilter = { type: 'Movie' };
@@ -40,6 +42,7 @@ const getGranularData = unstable_cache(
             where: {
                 startedAt: { gte: currentStartDate },
                 media: mediaTypeFilter,
+                ...(selectedServerScope ? { serverId: selectedServerScope } : {}),
             },
             select: {
                 startedAt: true,
@@ -190,13 +193,23 @@ const getGranularData = unstable_cache(
             heatmapData
         } as GranularData;
     },
-    ['JellyTrack-granular-analysis-v3'],
+    ['JellyTrack-granular-analysis-v4'],
     { revalidate: 300 }
 );
 
-export async function GranularAnalysis({ type, timeRange, excludedLibraries }: { type?: string, timeRange: string, excludedLibraries: string[] }) {
+export async function GranularAnalysis({
+    type,
+    timeRange,
+    excludedLibraries,
+    selectedServerIds = []
+}: {
+    type?: string;
+    timeRange: string;
+    excludedLibraries: string[];
+    selectedServerIds?: string[];
+}) {
     const locale = await getLocale();
-    const data = await getGranularData(type, timeRange, excludedLibraries, locale);
+    const data = await getGranularData(type, timeRange, excludedLibraries, locale, selectedServerIds);
     const t = await getTranslations('granular');
     const tc = await getTranslations('common');
 

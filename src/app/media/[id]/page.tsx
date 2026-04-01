@@ -57,9 +57,13 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
     if (isAuthError(auth)) return auth;
     const isAdmin = auth.isAdmin;
     const sessionUserId = auth.jellyfinUserId;
+    const sessionLinkedUserIds = auth.linkedJellyfinUserIds.length > 0
+        ? new Set(auth.linkedJellyfinUserIds)
+        : new Set(sessionUserId ? [sessionUserId] : []);
 
-    const media = await prisma.media.findUnique({
+    const media = await prisma.media.findFirst({
         where: { jellyfinMediaId: id },
+        orderBy: { createdAt: "asc" },
         include: {
             playbackHistory: {
                 include: { user: true },
@@ -129,7 +133,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
         while (cur) {
             if (seen.has(cur)) break;
             seen.add(cur);
-            const p = await prisma.media.findUnique({ where: { jellyfinMediaId: cur }, select: { jellyfinMediaId: true, title: true, type: true, parentId: true } });
+            const p = await prisma.media.findFirst({ where: { serverId: media.serverId, jellyfinMediaId: cur }, orderBy: { createdAt: "asc" }, select: { jellyfinMediaId: true, title: true, type: true, parentId: true } });
             if (!p) break;
             if (p.type === 'Season') {
                 ancestors.season = { jellyfinMediaId: p.jellyfinMediaId, title: p.title, type: p.type };
@@ -166,7 +170,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
     let allDescendantHistory: PlaybackHistory[] = [];
     if (isParentType) {
         const childMedia = await prisma.media.findMany({
-            where: { parentId: media.jellyfinMediaId },
+            where: { serverId: media.serverId, parentId: media.jellyfinMediaId },
             include: {
                 playbackHistory: {
                     include: { user: true },
@@ -181,7 +185,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
         if (media.type === 'Series' && childMedia.length > 0) {
             const seasonIds = childMedia.map(c => c.jellyfinMediaId);
             grandchildMedia = await prisma.media.findMany({
-                where: { parentId: { in: seasonIds } },
+                where: { serverId: media.serverId, parentId: { in: seasonIds } },
                 include: {
                     playbackHistory: {
                         include: { user: true },
@@ -233,12 +237,18 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
     // IDOR Hardening: Non-admins only see their own history
     const filteredBaseHistory = (isAdmin 
         ? media.playbackHistory 
-        : media.playbackHistory.filter(h => h.user?.jellyfinUserId === sessionUserId))
+        : media.playbackHistory.filter((h) => {
+            const uid = h.user?.jellyfinUserId;
+            return !!uid && sessionLinkedUserIds.has(uid);
+        }))
         .filter(h => !isZapped(h));
 
     const filteredDescendantHistory = (isAdmin
         ? allDescendantHistory
-        : allDescendantHistory.filter(h => h.user?.jellyfinUserId === sessionUserId))
+        : allDescendantHistory.filter((h) => {
+            const uid = h.user?.jellyfinUserId;
+            return !!uid && sessionLinkedUserIds.has(uid);
+        }))
         .filter(h => !isZapped(h));
 
     // Use descendant history for parent types that have no direct playbackHistory
@@ -348,7 +358,7 @@ export default async function MediaProfilePage({ params }: MediaProfilePageProps
         entry.totalSeconds += h.durationWatched;
     });
     const userList = Array.from(userMap.values())
-        .filter(u => isAdmin || u.jellyfinUserId === sessionUserId)
+        .filter((u) => isAdmin || sessionLinkedUserIds.has(u.jellyfinUserId))
         .sort((a, b) => b.totalSeconds - a.totalSeconds);
 
     // Audio & subtitle language distribution

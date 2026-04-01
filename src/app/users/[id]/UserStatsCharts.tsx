@@ -5,25 +5,30 @@ import { CompletionRatioChart, CompletionData } from "@/components/charts/Comple
 import { ActivityByHourChart, ActivityHourData } from "@/components/charts/ActivityByHourChart";
 import { getTranslations } from 'next-intl/server';
 
-export default async function UserStatsCharts({ userId }: { userId: string }) {
+export default async function UserStatsCharts({ userId, userIds = [] }: { userId: string; userIds?: string[] }) {
     const t = await getTranslations('userProfile');
     const td = await getTranslations('dashboard');
 
-    const user = await prisma.user.findUnique({
-        where: { jellyfinUserId: userId },
-        select: {
-            id: true,
-            playbackHistory: {
-                select: {
-                    startedAt: true,
-                    durationWatched: true,
-                    media: { select: { durationMs: true } }
-                }
-            }
-        }
+    const targetJellyfinIds = Array.from(new Set([userId, ...userIds].filter(Boolean)));
+
+    const users = await prisma.user.findMany({
+        where: { jellyfinUserId: { in: targetJellyfinIds } },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
     });
 
-    if (!user || user.playbackHistory.length === 0) return null;
+    if (users.length === 0) return null;
+
+    const histories = await prisma.playbackHistory.findMany({
+        where: { userId: { in: users.map((u) => u.id) } },
+        select: {
+            startedAt: true,
+            durationWatched: true,
+            media: { select: { durationMs: true } }
+        },
+    });
+
+    if (histories.length === 0) return null;
 
     const dayCounts = new Array(7).fill(0);
     const hourCounts = new Array(24).fill(0);
@@ -31,8 +36,8 @@ export default async function UserStatsCharts({ userId }: { userId: string }) {
     let partial = 0;
     let abandoned = 0;
 
-    type StatsSession = { startedAt: string; durationWatched: number; media?: { durationMs?: number } };
-    user.playbackHistory.forEach((session: StatsSession) => {
+    type StatsSession = { startedAt: Date; durationWatched: number; media?: { durationMs?: bigint | null } | null };
+    histories.forEach((session: StatsSession) => {
         const startedAt = new Date(session.startedAt);
         const day = startedAt.getDay();
         const hour = startedAt.getHours();

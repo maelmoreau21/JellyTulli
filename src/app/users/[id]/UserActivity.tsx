@@ -3,23 +3,28 @@ import { UserActivityChart, ActivityData } from "@/components/charts/UserActivit
 import prisma from "@/lib/prisma";
 import { getTranslations } from 'next-intl/server';
 
-export default async function UserActivity({ userId }: { userId: string }) {
+export default async function UserActivity({ userId, userIds = [] }: { userId: string; userIds?: string[] }) {
     const last30Days = new Date();
     last30Days.setDate(last30Days.getDate() - 29);
     last30Days.setHours(0, 0, 0, 0);
 
-    // Requête Prisma limitée aux 30 derniers jours pour éviter de surcharger
-    const user = await prisma.user.findUnique({
-        where: { jellyfinUserId: userId },
-        include: {
-            playbackHistory: {
-                where: { startedAt: { gte: last30Days } },
-                select: { startedAt: true, durationWatched: true }
-            }
-        }
+    const targetJellyfinIds = Array.from(new Set([userId, ...userIds].filter(Boolean)));
+
+    const users = await prisma.user.findMany({
+        where: { jellyfinUserId: { in: targetJellyfinIds } },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
     });
 
-    if (!user) return null;
+    if (users.length === 0) return null;
+
+    const sessions = await prisma.playbackHistory.findMany({
+        where: {
+            userId: { in: users.map((u) => u.id) },
+            startedAt: { gte: last30Days },
+        },
+        select: { startedAt: true, durationWatched: true },
+    });
 
     const t = await getTranslations('userProfile');
 
@@ -30,8 +35,8 @@ export default async function UserActivity({ userId }: { userId: string }) {
         activityMap.set(`${d.getDate()}/${d.getMonth() + 1}`, 0);
     }
 
-    type SimpleSession = { startedAt: string; durationWatched: number };
-    user.playbackHistory.forEach((session: SimpleSession) => {
+    type SimpleSession = { startedAt: Date; durationWatched: number };
+    sessions.forEach((session: SimpleSession) => {
         const d = new Date(session.startedAt);
         const key = `${d.getDate()}/${d.getMonth() + 1}`;
         if (activityMap.has(key)) {

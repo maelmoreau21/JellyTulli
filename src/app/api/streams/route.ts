@@ -2,14 +2,28 @@ import { NextResponse } from "next/server";
 import redis from "@/lib/redis";
 import { requireAdmin, isAuthError } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { buildLegacyStreamRedisKey, buildStreamRedisKey } from "@/lib/serverRegistry";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
     const auth = await requireAdmin();
     if (isAuthError(auth)) return auth;
+
+    const url = new URL(req.url);
+    const serversParam = url.searchParams.get("servers");
+    const selectedServerIds = serversParam
+        ? serversParam
+            .split(",")
+            .map((id) => id.trim())
+            .filter(Boolean)
+        : [];
+
+    const selectedServerScope = selectedServerIds.length > 0 ? { in: selectedServerIds } : undefined;
+
     try {
         const activeStreamEntries = await prisma.activeStream.findMany({
+            where: selectedServerScope ? { serverId: selectedServerScope } : undefined,
             include: {
                 user: { select: { username: true } },
                 media: { select: { title: true, type: true, parentId: true, artist: true, durationMs: true, jellyfinMediaId: true } }
@@ -37,7 +51,7 @@ export async function GET() {
         let totalBandwidthMbps = 0;
 
         if (activeStreamEntries.length > 0) {
-            const redisKeys = activeStreamEntries.map(s => `stream:${s.sessionId}`);
+            const redisKeys = activeStreamEntries.map(s => buildStreamRedisKey(s.serverId, s.sessionId));
             const redisPayloads = await Promise.all(redisKeys.map(k => redis.get(k)));
             const redisMap = new Map<string, RedisStreamPayload>();
             
@@ -45,26 +59,49 @@ export async function GET() {
                 if (p) {
                     try {
                         const parsed = JSON.parse(p) as RedisStreamPayload;
-                        redisMap.set(activeStreamEntries[idx].sessionId, parsed);
+                        const stream = activeStreamEntries[idx];
+                        redisMap.set(`${stream.serverId}:${stream.sessionId}`, parsed);
                     } catch {}
                 }
             });
 
-            const relatedIds = new Set<string>();
+            // Backward compatibility: try legacy key if new key is missing.
+            await Promise.all(activeStreamEntries.map(async (stream) => {
+                const mapKey = `${stream.serverId}:${stream.sessionId}`;
+                if (redisMap.has(mapKey)) return;
+                try {
+                    const legacyPayload = await redis.get(buildLegacyStreamRedisKey(stream.sessionId));
+                    if (!legacyPayload) return;
+                    const parsed = JSON.parse(legacyPayload) as RedisStreamPayload;
+                    redisMap.set(mapKey, parsed);
+                } catch {}
+            }));
+
+            const relatedPairs = new Set<string>();
             for (const entry of activeStreamEntries) {
-                if (entry.media.parentId) relatedIds.add(entry.media.parentId);
+                if (entry.media.parentId) relatedPairs.add(JSON.stringify([entry.serverId, entry.media.parentId]));
             }
-            
-            const relatedMedia = relatedIds.size > 0
+
+            const relatedTargets = Array.from(relatedPairs).map((pair) => {
+                const parsed = JSON.parse(pair) as [string, string];
+                return { serverId: parsed[0], jellyfinMediaId: parsed[1] };
+            });
+
+            const relatedMedia = relatedTargets.length > 0
               ? await prisma.media.findMany({
-                where: { jellyfinMediaId: { in: Array.from(relatedIds) } },
-                select: { jellyfinMediaId: true, title: true, type: true, parentId: true, artist: true },
+                where: {
+                    OR: relatedTargets.map((target) => ({
+                        serverId: target.serverId,
+                        jellyfinMediaId: target.jellyfinMediaId,
+                    })),
+                },
+                select: { serverId: true, jellyfinMediaId: true, title: true, type: true, parentId: true, artist: true },
               })
               : [];
-            const mediaHierarchyMap = new Map(relatedMedia.map((m) => [m.jellyfinMediaId, m]));
+            const mediaHierarchyMap = new Map(relatedMedia.map((m) => [`${m.serverId}:${m.jellyfinMediaId}`, m]));
 
             liveStreams = activeStreamEntries.map((dbStream) => {
-                const payload = redisMap.get(dbStream.sessionId) || {};
+                const payload = redisMap.get(`${dbStream.serverId}:${dbStream.sessionId}`) || {};
                 
                 const isTranscoding = dbStream.playMethod === "Transcode" 
                     || payload?.isTranscoding === true
@@ -73,8 +110,8 @@ export async function GET() {
                 totalBandwidthMbps += isTranscoding ? 12 : 6;
 
                 const itemMedia = dbStream.media;
-                const parentMedia = itemMedia.parentId ? mediaHierarchyMap.get(itemMedia.parentId) : null;
-                const grandparentMedia = parentMedia?.parentId ? mediaHierarchyMap.get(parentMedia.parentId) : null;
+                const parentMedia = itemMedia.parentId ? mediaHierarchyMap.get(`${dbStream.serverId}:${itemMedia.parentId}`) : null;
+                const grandparentMedia = parentMedia?.parentId ? mediaHierarchyMap.get(`${dbStream.serverId}:${parentMedia.parentId}`) : null;
 
                 let mediaSubtitle: string | null = null;
                 if (payload?.mediaSubtitle) {
@@ -99,6 +136,7 @@ export async function GET() {
                 }
 
                 return {
+                    serverId: dbStream.serverId,
                     sessionId: dbStream.sessionId,
                     itemId: itemMedia.jellyfinMediaId,
                     parentItemId: itemMedia.parentId,

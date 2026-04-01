@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, ArrowUpDown, ChevronDown, Download, Filter, Film, Tv, Music, BookOpen } from "lucide-react";
+import { Search, ArrowUpDown, ChevronDown, Download, Filter, Film, Tv, Music, BookOpen, Server } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from 'next-intl';
@@ -17,19 +17,32 @@ interface LogFiltersProps {
     initialSubtitle: string;
     initialDateFrom: string;
     initialDateTo: string;
+    initialServers: string;
+    serverOptions: Array<{ id: string; name: string }>;
+    multiServerEnabled: boolean;
 }
 
-export function LogFilters({ initialQuery, initialSort, initialHideZapped, initialType, initialClient, initialAudio, initialSubtitle, initialDateFrom, initialDateTo }: LogFiltersProps) {
+export function LogFilters({ initialQuery, initialSort, initialHideZapped, initialType, initialClient, initialAudio, initialSubtitle, initialDateFrom, initialDateTo, initialServers, serverOptions, multiServerEnabled }: LogFiltersProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const t = useTranslations('logs');
     const tc = useTranslations('common');
+    const tch = useTranslations('charts');
 
     const [isAdvancedOpen, setIsAdvancedOpen] = useState(
-        !!initialType || !!initialClient || !!initialAudio || !!initialSubtitle || !!initialDateFrom || !!initialDateTo
+        !!initialType || !!initialClient || !!initialAudio || !!initialSubtitle || !!initialDateFrom || !!initialDateTo || !!initialServers
     );
     const initialMediaTypes = initialType ? initialType.split(',').map(s => s.trim()).filter(Boolean) : [];
     const [mediaTypes, setMediaTypes] = useState<string[]>(initialMediaTypes);
+    const validServerIds = new Set(serverOptions.map((server) => server.id));
+    const initialServerIds = initialServers
+        ? initialServers
+            .split(',')
+            .map((id) => id.trim())
+            .filter((id) => id.length > 0 && validServerIds.has(id))
+        : [];
+    const [selectedServers, setSelectedServers] = useState<string[]>(initialServerIds);
+    const allServersSelected = selectedServers.length === 0;
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -56,6 +69,7 @@ export function LogFilters({ initialQuery, initialSort, initialHideZapped, initi
         if (subtitle) params.set("subtitle", subtitle); else params.delete("subtitle");
         if (dateFrom) params.set("dateFrom", dateFrom); else params.delete("dateFrom");
         if (dateTo) params.set("dateTo", dateTo); else params.delete("dateTo");
+        if (multiServerEnabled && selectedServers.length > 0) params.set("servers", selectedServers.join(",")); else params.delete("servers");
 
         params.delete("page");
         router.push(`/logs?${params.toString()}`);
@@ -196,6 +210,54 @@ export function LogFilters({ initialQuery, initialSort, initialHideZapped, initi
                             })}
                         </div>
                     </div>
+
+                    {multiServerEnabled && serverOptions.length > 1 && (
+                        <div className="space-y-2">
+                            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{tch('server')}</label>
+                            <div className="flex flex-wrap items-center p-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg w-fit">
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedServers([])}
+                                    className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                                        allServersSelected
+                                            ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 shadow-sm"
+                                            : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300"
+                                    }`}
+                                >
+                                    {tc('all')}
+                                </button>
+
+                                {serverOptions.map((server) => {
+                                    const isActive = allServersSelected ? true : selectedServers.includes(server.id);
+                                    return (
+                                        <button
+                                            key={server.id}
+                                            type="button"
+                                            onClick={() => {
+                                                if (allServersSelected) {
+                                                    setSelectedServers([server.id]);
+                                                    return;
+                                                }
+                                                setSelectedServers((prev) =>
+                                                    prev.includes(server.id)
+                                                        ? prev.filter((id) => id !== server.id)
+                                                        : [...prev, server.id]
+                                                );
+                                            }}
+                                            className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                                                isActive
+                                                    ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 shadow-sm"
+                                                    : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300"
+                                            }`}
+                                        >
+                                            <Server className="w-4 h-4" />
+                                            {server.name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="space-y-1.5 flex flex-col">

@@ -32,6 +32,8 @@ export const authOptions: NextAuthOptions = {
                     throw new Error(apiTSync(locale, 'tooManyAttempts', { minutes: Math.ceil((retryAfterSeconds || 900) / 60) }));
                 }
 
+                // Master-server auth model: credentials are always validated
+                // against the primary Jellyfin instance configured in env.
                 const jellyfinUrl = process.env.JELLYFIN_URL;
                 if (!jellyfinUrl) {
                     throw new Error(apiTSync(locale, 'jellyfinUrlMissing'));

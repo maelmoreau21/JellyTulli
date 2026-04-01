@@ -19,8 +19,10 @@ function createPrismaStub() {
       if (prop === '$connect' || prop === '$disconnect') return async () => {};
       return async (..._args: unknown[]) => {
         if (prop === 'findMany') return [];
+        if (prop === 'groupBy') return [];
         if (prop === 'findUnique' || prop === 'findFirst' || prop === 'findUniqueOrThrow') return null;
         if (prop === 'count') return 0;
+        if (prop === 'aggregate') return { _sum: {}, _avg: {}, _min: {}, _max: {}, _count: {} };
         if (prop === 'upsert' || prop === 'create' || prop === 'update' || prop === 'delete') return {};
         return null;
       };
@@ -37,17 +39,16 @@ function createPrismaStub() {
   return dbProxy;
 }
 
-// Prefer a harmless stub when running locally without a database, or when
-// developers want to run the app quickly without a DB. Use the stub when
-// NODE_ENV is development OR when no DATABASE_URL is configured. This keeps
-// the dev server bootable even if Postgres is not available.
-const useStub = process.env.NODE_ENV === 'development' || !process.env.DATABASE_URL;
+// Prefer a harmless stub only when DATABASE_URL is missing, or when
+// PRISMA_USE_STUB is explicitly enabled for quick UI-only development.
+const forceStub = process.env.PRISMA_USE_STUB === '1' || process.env.PRISMA_USE_STUB === 'true';
+const useStub = forceStub || !process.env.DATABASE_URL;
 
 // Export either the real Prisma client (when configured) or a harmless stub for local dev without a DB.
 let prisma: PrismaClient;
 
 if (useStub) {
-  console.warn('[prisma] DATABASE_URL not set or running in development — using development stub (no DB).');
+  console.warn('[prisma] Using development stub (no DB). Set DATABASE_URL (and PRISMA_USE_STUB=false) to use the real database.');
   // Cast the stub proxy to PrismaClient for type inference only — runtime remains the proxy.
   prisma = (globalThis.prismaGlobal ?? createPrismaStub()) as unknown as PrismaClient;
   globalThis.prismaGlobal = prisma;

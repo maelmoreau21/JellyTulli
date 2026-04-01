@@ -58,8 +58,9 @@ export default async function WrappedPage({ params, searchParams }: WrappedPageP
         }
     }
 
-    let user = await prisma.user.findUnique({
+    let user = await prisma.user.findFirst({
         where: { jellyfinUserId: userId },
+        orderBy: { createdAt: "asc" },
         include: {
             playbackHistory: {
                 where: {
@@ -78,8 +79,9 @@ export default async function WrappedPage({ params, searchParams }: WrappedPageP
 
     if (!user) {
         if (sessionUserId === userId) {
-            user = await prisma.user.findUnique({
+            user = await prisma.user.findFirst({
                 where: { jellyfinUserId: userId },
+                orderBy: { createdAt: "asc" },
                 include: {
                     playbackHistory: {
                         where: { 

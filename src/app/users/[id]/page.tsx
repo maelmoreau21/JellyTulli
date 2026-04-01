@@ -9,6 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getTranslations } from 'next-intl/server';
+import { ensureMasterServer } from "@/lib/serverRegistry";
+import { resolveLinkedAccounts } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -34,23 +36,33 @@ export default async function UserDetailPage({ params, searchParams }: UserPageP
         redirect(myJellyfinId ? `/users/${myJellyfinId}` : "/login");
     }
 
-    let user = await prisma.user.findUnique({
+    let user = await prisma.user.findFirst({
         where: { jellyfinUserId },
+        orderBy: { createdAt: "asc" },
         select: { username: true, jellyfinUserId: true },
     });
 
     if (!user) {
         if (myJellyfinId === jellyfinUserId) {
+            const masterServer = await ensureMasterServer();
             user = await prisma.user.upsert({
-                where: { jellyfinUserId },
-                update: {},
-                create: { jellyfinUserId, username: session?.user?.name || "User" },
+                where: { jellyfinUserId_serverId: { jellyfinUserId, serverId: masterServer.id } },
+                update: { username: session?.user?.name || "User" },
+                create: { serverId: masterServer.id, jellyfinUserId, username: session?.user?.name || "User" },
                 select: { username: true, jellyfinUserId: true },
             });
         } else {
             notFound();
         }
     }
+
+    const linkedAccounts = await resolveLinkedAccounts({
+        jellyfinUserId,
+        username: user.username || session?.user?.name || undefined,
+    });
+    const linkedUserIds = linkedAccounts.linkedJellyfinUserIds.length > 0
+        ? linkedAccounts.linkedJellyfinUserIds
+        : [jellyfinUserId];
 
     const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } }) as any;
     let showWrappedButton = true;
@@ -96,20 +108,20 @@ export default async function UserDetailPage({ params, searchParams }: UserPageP
                 </div>
 
                 <Suspense fallback={<Skeleton className="w-full h-[250px] rounded-xl bg-zinc-900/50" />}>
-                    <UserInfo userId={jellyfinUserId} />
+                    <UserInfo userId={jellyfinUserId} userIds={linkedUserIds} />
                 </Suspense>
 
                 <Suspense fallback={<Skeleton className="w-full h-[300px] rounded-xl bg-zinc-900/50 mt-6" />}>
-                    <UserActivity userId={jellyfinUserId} />
+                    <UserActivity userId={jellyfinUserId} userIds={linkedUserIds} />
                 </Suspense>
 
                 <Suspense fallback={<Skeleton className="w-full h-[320px] rounded-xl bg-zinc-900/50 mt-6" />}>
-                    <UserStatsCharts userId={jellyfinUserId} />
+                    <UserStatsCharts userId={jellyfinUserId} userIds={linkedUserIds} />
                 </Suspense>
 
 
                 <Suspense fallback={<Skeleton className="w-full h-[500px] rounded-xl bg-zinc-900/50 mt-6" />}>
-                    <UserRecentMedia userId={jellyfinUserId} page={currentHistoryPage} />
+                    <UserRecentMedia userId={jellyfinUserId} userIds={linkedUserIds} page={currentHistoryPage} />
                 </Suspense>
             </div>
         </div>

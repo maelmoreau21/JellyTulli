@@ -8,6 +8,7 @@ import { KillStreamButton } from "@/components/dashboard/KillStreamButton";
 import { useTranslations } from "next-intl";
 
 interface LiveStream {
+    serverId: string;
     sessionId: string;
     itemId: string | null;
     parentItemId: string | null;
@@ -191,7 +192,15 @@ function StreamTimeline({ stream, colorIndex }: { stream: LiveStream; colorIndex
     );
 }
 
-export function LiveStreamsPanel({ initialStreams, initialBandwidth }: { initialStreams: LiveStream[]; initialBandwidth: number }) {
+export function LiveStreamsPanel({
+    initialStreams,
+    initialBandwidth,
+    selectedServerIds = []
+}: {
+    initialStreams: LiveStream[];
+    initialBandwidth: number;
+    selectedServerIds?: string[];
+}) {
     const t = useTranslations('liveStreams');
     const [streams, setStreams] = useState<LiveStream[]>(initialStreams);
     const [bandwidth, setBandwidth] = useState(initialBandwidth);
@@ -199,7 +208,12 @@ export function LiveStreamsPanel({ initialStreams, initialBandwidth }: { initial
 
     const fetchStreams = useCallback(async () => {
         try {
-            const res = await fetch("/api/streams", { cache: "no-store" });
+            const params = new URLSearchParams();
+            if (selectedServerIds.length > 0) {
+                params.set("servers", selectedServerIds.join(","));
+            }
+            const query = params.toString();
+            const res = await fetch(`/api/streams${query ? `?${query}` : ""}`, { cache: "no-store" });
             if (res.ok) {
                 const data = await res.json();
                 setStreams(data.streams || []);
@@ -208,7 +222,7 @@ export function LiveStreamsPanel({ initialStreams, initialBandwidth }: { initial
         } catch {
             // silently ignore network errors
         }
-    }, []);
+    }, [selectedServerIds]);
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -267,11 +281,11 @@ export function LiveStreamsPanel({ initialStreams, initialBandwidth }: { initial
                         </p>
                     ) : useTimeline ? (
                         streams.map((stream, i) => (
-                            <StreamTimeline key={stream.sessionId} stream={stream} colorIndex={i} />
+                            <StreamTimeline key={`${stream.serverId}:${stream.sessionId}`} stream={stream} colorIndex={i} />
                         ))
                     ) : (
                         streams.map((stream) => (
-                            <StreamCard key={stream.sessionId} stream={stream} />
+                            <StreamCard key={`${stream.serverId}:${stream.sessionId}`} stream={stream} />
                         ))
                     )}
                 </div>

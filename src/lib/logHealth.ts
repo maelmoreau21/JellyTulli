@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import redis from "@/lib/redis";
 // No rules
 import { readSystemHealthState } from "@/lib/systemHealth";
+import { buildLegacyStreamRedisKey, buildStreamRedisKey } from "@/lib/serverRegistry";
 
 export async function getLogHealthSnapshot() {
     const anomalyWindowStart = new Date();
@@ -13,6 +14,7 @@ export async function getLogHealthSnapshot() {
         prisma.activeStream.findMany({
             select: {
                 id: true,
+                serverId: true,
                 sessionId: true,
                 userId: true,
                 mediaId: true,
@@ -70,9 +72,14 @@ export async function getLogHealthSnapshot() {
     }
 
     const redisKeySet = new Set(redisKeys);
-    const dbStreamsWithoutRedis = activeStreams.filter((stream) => !redisKeySet.has(`stream:${stream.sessionId}`));
-    const dbSessionIdSet = new Set(activeStreams.map((stream) => stream.sessionId));
-    const redisOrphanKeys = redisKeys.filter((key) => !dbSessionIdSet.has(key.replace("stream:", "")));
+    const expectedRedisKeys = new Set(activeStreams.map((stream) => buildStreamRedisKey(stream.serverId, stream.sessionId)));
+    const expectedLegacyKeys = new Set(activeStreams.map((stream) => buildLegacyStreamRedisKey(stream.sessionId)));
+    const dbStreamsWithoutRedis = activeStreams.filter((stream) => {
+        const scopedKey = buildStreamRedisKey(stream.serverId, stream.sessionId);
+        const legacyKey = buildLegacyStreamRedisKey(stream.sessionId);
+        return !redisKeySet.has(scopedKey) && !redisKeySet.has(legacyKey);
+    });
+    const redisOrphanKeys = redisKeys.filter((key) => !expectedRedisKeys.has(key) && !expectedLegacyKeys.has(key));
 
     const dailyMap = new Map<string, { day: string; monitorErrors: number; syncErrors: number; backupErrors: number; cleanupOps: number; syncSuccesses: number }>();
     for (let index = 0; index < 14; index++) {

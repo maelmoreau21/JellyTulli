@@ -7,6 +7,12 @@ import { compactJellyfinId, normalizeJellyfinId } from "@/lib/jellyfinId";
 import { cleanupOrphanedSessions } from "@/lib/cleanup";
 import { normalizeResolution, clampDuration } from '@/lib/utils';
 import { markMonitorPoll, appendHealthEvent } from "@/lib/systemHealth";
+import {
+    buildLegacyStreamRedisKey,
+    buildStreamRedisKey,
+    extractServerIdentityFromPayload,
+    upsertServerRecord,
+} from "@/lib/serverRegistry";
 // Lightweight local types for incoming Jellyfin payloads
 type JellyfinPerson = { type?: string; Type?: string; name?: string; Name?: string };
 type Studio = { name?: string; Name?: string };
@@ -75,7 +81,7 @@ function computeProgressPercent(positionTicks: number, runTimeTicks: number | nu
     return Math.min(100, Math.max(0, Math.round((positionTicks / runTimeTicks) * 100)));
 }
 
-async function upsertCanonicalUser(rawJellyfinUserId: unknown, rawUsername: unknown, bumpLastActive: boolean = false) {
+async function upsertCanonicalUser(serverId: string, rawJellyfinUserId: unknown, rawUsername: unknown, bumpLastActive: boolean = false) {
     const jellyfinUserId = normalizeJellyfinId(rawJellyfinUserId);
     if (!jellyfinUserId) return null;
  
@@ -87,7 +93,7 @@ async function upsertCanonicalUser(rawJellyfinUserId: unknown, rawUsername: unkn
  
     return prisma.$transaction(async (tx) => {
         const matches = await tx.user.findMany({
-            where: { jellyfinUserId: { in: candidates } },
+            where: { serverId, jellyfinUserId: { in: candidates } },
             orderBy: { createdAt: "asc" },
         });
  
@@ -96,6 +102,7 @@ async function upsertCanonicalUser(rawJellyfinUserId: unknown, rawUsername: unkn
         if (!primary) {
             primary = await tx.user.create({
                 data: {
+                    serverId,
                     jellyfinUserId,
                     username: username || jellyfinUserId,
                     lastActive: bumpLastActive ? new Date() : undefined,
@@ -128,6 +135,7 @@ async function upsertCanonicalUser(rawJellyfinUserId: unknown, rawUsername: unkn
 }
 
 async function upsertCanonicalMedia(input: {
+    serverId: string;
     rawJellyfinMediaId: unknown;
     title: string;
     type: string;
@@ -150,7 +158,7 @@ async function upsertCanonicalMedia(input: {
 
     return prisma.$transaction(async (tx) => {
         const matches = await tx.media.findMany({
-            where: { jellyfinMediaId: { in: candidates } },
+            where: { serverId: input.serverId, jellyfinMediaId: { in: candidates } },
             orderBy: { createdAt: "asc" },
         });
 
@@ -159,6 +167,7 @@ async function upsertCanonicalMedia(input: {
         if (!primary) {
             primary = await tx.media.create({
                 data: {
+                    serverId: input.serverId,
                     jellyfinMediaId,
                     title: input.title,
                     type: input.type,
@@ -211,6 +220,7 @@ async function upsertCanonicalMedia(input: {
 }
 
 async function buildMediaSubtitle(input: {
+    serverId: string;
     type: string;
     seriesName?: string | null;
     seasonName?: string | null;
@@ -231,8 +241,10 @@ async function buildMediaSubtitle(input: {
 
     if (!input.parentItemId) return null;
 
-    const parent = await prisma.media.findUnique({
-        where: { jellyfinMediaId: input.parentItemId },
+    const parentCandidates = Array.from(new Set([input.parentItemId, compactJellyfinId(input.parentItemId)]));
+
+    const parent = await prisma.media.findFirst({
+        where: { serverId: input.serverId, jellyfinMediaId: { in: parentCandidates } },
         select: { title: true, parentId: true, artist: true },
     });
 
@@ -245,8 +257,9 @@ async function buildMediaSubtitle(input: {
     }
 
     if (input.type === "Episode" && parent.parentId) {
-        const grandparent = await prisma.media.findUnique({
-            where: { jellyfinMediaId: parent.parentId },
+        const grandparentCandidates = Array.from(new Set([parent.parentId, compactJellyfinId(parent.parentId)]));
+        const grandparent = await prisma.media.findFirst({
+            where: { serverId: input.serverId, jellyfinMediaId: { in: grandparentCandidates } },
             select: { title: true },
         });
         if (grandparent?.title) return `${grandparent.title} — ${parent.title}`;
@@ -369,6 +382,8 @@ export async function POST(req: Request) {
             return corsJson({ error: "Missing 'event' field." }, { status: 400 });
         }
 
+        const sourceServer = await upsertServerRecord(extractServerIdentityFromPayload(payload));
+
         // Keep connection status fresh even if the plugin sends few heartbeats.
         if (event !== "Heartbeat" && event !== "PlaybackProgress") {
             await prisma.globalSettings.upsert({
@@ -387,13 +402,13 @@ export async function POST(req: Request) {
                 update: {
                     pluginLastSeen: new Date(),
                     pluginVersion: payload.pluginVersion || payload.PluginVersion || null,
-                    pluginServerName: payload.serverName || payload.ServerName || null,
+                    pluginServerName: sourceServer.name || payload.serverName || payload.ServerName || null,
                 },
                 create: {
                     id: "global",
                     pluginLastSeen: new Date(),
                     pluginVersion: payload.pluginVersion || payload.PluginVersion || null,
-                    pluginServerName: payload.serverName || payload.ServerName || null,
+                    pluginServerName: sourceServer.name || payload.serverName || payload.ServerName || null,
                 },
             });
 
@@ -404,7 +419,7 @@ export async function POST(req: Request) {
                 const jellyfinUserId = normalizeJellyfinId(u.jellyfinUserId || u.JellyfinUserId || u.id || u.Id);
                 const username = u.username || u.Username || u.name || u.Name;
                 if (!jellyfinUserId || !username) continue;
-                await upsertCanonicalUser(jellyfinUserId, username, true);
+                await upsertCanonicalUser(sourceServer.id, jellyfinUserId, username, true);
                 syncedUsers++;
             }
 
@@ -455,9 +470,10 @@ export async function POST(req: Request) {
             }
 
             // Upsert canonical user/media and merge legacy compact IDs when needed.
-            const dbUser = await upsertCanonicalUser(jellyfinUserId, username, true);
+            const dbUser = await upsertCanonicalUser(sourceServer.id, jellyfinUserId, username, true);
             const collectionType = media.collectionType || media.CollectionType || inferLibraryKey({ type });
             const dbMedia = await upsertCanonicalMedia({
+                serverId: sourceServer.id,
                 rawJellyfinMediaId: jellyfinMediaId,
                 title,
                 type,
@@ -513,7 +529,7 @@ export async function POST(req: Request) {
                         const now = Date.now();
                         
                         const existingOpen = await prisma.playbackHistory.findFirst({
-                            where: { userId: dbUser.id, mediaId: dbMedia.id, endedAt: null },
+                            where: { serverId: sourceServer.id, userId: dbUser.id, mediaId: dbMedia.id, endedAt: null },
                         });
                         
                         let historyId: string | null = null;
@@ -525,7 +541,7 @@ export async function POST(req: Request) {
                             
                             const mergeWindow = new Date(now - recentMergeWindowMs);
                             const recentClosed = await prisma.playbackHistory.findFirst({
-                                where: { userId: dbUser.id, mediaId: dbMedia.id, endedAt: { not: null, gte: mergeWindow } },
+                                where: { serverId: sourceServer.id, userId: dbUser.id, mediaId: dbMedia.id, endedAt: { not: null, gte: mergeWindow } },
                                 orderBy: { endedAt: "desc" },
                             });
                             
@@ -551,6 +567,7 @@ export async function POST(req: Request) {
                             } else {
                                 const created = await prisma.playbackHistory.create({
                                     data: {
+                                        serverId: sourceServer.id,
                                         userId: dbUser.id,
                                         mediaId: dbMedia.id,
                                         playMethod,
@@ -571,6 +588,7 @@ export async function POST(req: Request) {
 
                                 await prisma.playbackHistory.updateMany({
                                     where: { 
+                                        serverId: sourceServer.id,
                                         userId: dbUser.id, 
                                         endedAt: null, 
                                         NOT: { id: historyId } 
@@ -594,7 +612,7 @@ export async function POST(req: Request) {
                     } else {
                         // Fallback without lock
                         const existingOpen = await prisma.playbackHistory.findFirst({
-                            where: { userId: dbUser.id, mediaId: dbMedia.id, endedAt: null },
+                            where: { serverId: sourceServer.id, userId: dbUser.id, mediaId: dbMedia.id, endedAt: null },
                         });
                         const positionTicks = session.positionTicks != null ? Number(session.positionTicks) : 0;
                         const now = Date.now();
@@ -607,7 +625,7 @@ export async function POST(req: Request) {
                             
                             const mergeWindow = new Date(now - recentMergeWindowMs);
                             const recentClosed = await prisma.playbackHistory.findFirst({
-                                where: { userId: dbUser.id, mediaId: dbMedia.id, endedAt: { not: null, gte: mergeWindow } },
+                                where: { serverId: sourceServer.id, userId: dbUser.id, mediaId: dbMedia.id, endedAt: { not: null, gte: mergeWindow } },
                                 orderBy: { endedAt: "desc" },
                             });
                             
@@ -620,6 +638,7 @@ export async function POST(req: Request) {
                             } else {
                                 const created = await prisma.playbackHistory.create({
                                     data: {
+                                        serverId: sourceServer.id,
                                         userId: dbUser.id,
                                         mediaId: dbMedia.id,
                                         playMethod, clientName, deviceName, ipAddress,
@@ -629,7 +648,7 @@ export async function POST(req: Request) {
                                 });
                                 historyId = created.id;
                                 await prisma.playbackHistory.updateMany({
-                                    where: { userId: dbUser.id, endedAt: null, NOT: { id: historyId } },
+                                    where: { serverId: sourceServer.id, userId: dbUser.id, endedAt: null, NOT: { id: historyId } },
                                     data: { endedAt: new Date() }
                                 });
                                 await mergeOpenPlaybacks(dbUser.id, dbMedia.id);
@@ -660,6 +679,7 @@ export async function POST(req: Request) {
                 const playbackPositionTicks = Number(session.positionTicks || 0);
                 const progressPercent = computeProgressPercent(playbackPositionTicks, runTimeTicks);
                 const mediaSubtitle = await buildMediaSubtitle({
+                    serverId: sourceServer.id,
                     type,
                     seriesName: media.seriesName || media.SeriesName || null,
                     seasonName: media.seasonName || media.SeasonName || null,
@@ -669,8 +689,9 @@ export async function POST(req: Request) {
                     parentItemId,
                 });
                 await prisma.activeStream.upsert({
-                    where: { sessionId },
+                    where: { sessionId_serverId: { sessionId, serverId: sourceServer.id } },
                     update: {
+                        serverId: sourceServer.id,
                         userId: dbUser.id,
                         mediaId: dbMedia.id,
                         playMethod,
@@ -689,6 +710,7 @@ export async function POST(req: Request) {
                         positionTicks: session.positionTicks != null ? BigInt(session.positionTicks) : null,
                     },
                     create: {
+                        serverId: sourceServer.id,
                         sessionId,
                         userId: dbUser.id,
                         mediaId: dbMedia.id,
@@ -713,6 +735,9 @@ export async function POST(req: Request) {
                 const redisPayload = JSON.stringify({
                     sessionId,
                     SessionId: sessionId,
+                    serverId: sourceServer.id,
+                    sourceServerId: sourceServer.jellyfinServerId,
+                    sourceServerName: sourceServer.name,
                     userId: dbUser.id,
                     UserId: dbUser.id,
                     mediaId: dbMedia.id,
@@ -757,7 +782,7 @@ export async function POST(req: Request) {
                     subtitleStreamIndex: session.subtitleStreamIndex ?? session.SubtitleStreamIndex ?? null,
                     SubtitleStreamIndex: session.subtitleStreamIndex ?? session.SubtitleStreamIndex ?? null,
                 });
-                await redis.setex(`stream:${sessionId}`, 60, redisPayload);
+                await redis.setex(buildStreamRedisKey(sourceServer.id, sessionId), 60, redisPayload);
             }
 
             // Discord notification
@@ -770,7 +795,7 @@ export async function POST(req: Request) {
                     } else if (condition === "NEW_IP_ONLY") {
                         if (dbUser) {
                             const pastCount = await prisma.playbackHistory.count({
-                                where: { userId: dbUser.id, ipAddress },
+                                where: { serverId: sourceServer.id, userId: dbUser.id, ipAddress },
                             });
                             shouldSend = pastCount === 0;
                         }
@@ -861,10 +886,10 @@ export async function POST(req: Request) {
             const userCandidates = jellyfinUserId ? Array.from(new Set([jellyfinUserId, compactJellyfinId(jellyfinUserId)])) : [];
             const mediaCandidates = jellyfinMediaId ? Array.from(new Set([jellyfinMediaId, compactJellyfinId(jellyfinMediaId)])) : [];
             const user = userCandidates.length > 0
-                ? await prisma.user.findFirst({ where: { jellyfinUserId: { in: userCandidates } }, orderBy: { createdAt: "asc" } })
+                ? await prisma.user.findFirst({ where: { serverId: sourceServer.id, jellyfinUserId: { in: userCandidates } }, orderBy: { createdAt: "asc" } })
                 : null;
             const media = mediaCandidates.length > 0
-                ? await prisma.media.findFirst({ where: { jellyfinMediaId: { in: mediaCandidates } }, orderBy: { createdAt: "asc" } })
+                ? await prisma.media.findFirst({ where: { serverId: sourceServer.id, jellyfinMediaId: { in: mediaCandidates } }, orderBy: { createdAt: "asc" } })
                 : null;
 
             if (user && media) {
@@ -872,7 +897,7 @@ export async function POST(req: Request) {
                 await prisma.user.update({ where: { id: user.id }, data: { lastActive: new Date() } });
 
                 const lastPlayback = await prisma.playbackHistory.findFirst({
-                    where: { userId: user.id, mediaId: media.id, endedAt: null },
+                    where: { serverId: sourceServer.id, userId: user.id, mediaId: media.id, endedAt: null },
                     orderBy: { startedAt: "desc" },
                 });
 
@@ -883,7 +908,7 @@ export async function POST(req: Request) {
                     // Fallback to ActiveStream position if payload position is 0
                     let effectiveTicks = positionTicks;
                     if (effectiveTicks <= 0 && sessionId) {
-                        const active = await prisma.activeStream.findUnique({ where: { sessionId }, select: { positionTicks: true } });
+                        const active = await prisma.activeStream.findUnique({ where: { sessionId_serverId: { sessionId, serverId: sourceServer.id } }, select: { positionTicks: true } });
                         if (active?.positionTicks) effectiveTicks = Number(active.positionTicks);
                     }
 
@@ -927,7 +952,7 @@ export async function POST(req: Request) {
                     const stopPositionMs = positionTicks > 0 ? BigInt(Math.floor(positionTicks / 10_000)) : BigInt(0);
                     if (stopPositionMs > 0) {
                         await prisma.telemetryEvent.create({
-                            data: { playbackId: lastPlayback.id, eventType: "stop", positionMs: stopPositionMs },
+                            data: { serverId: sourceServer.id, playbackId: lastPlayback.id, eventType: "stop", positionMs: stopPositionMs },
                         });
                     }
 
@@ -945,15 +970,17 @@ export async function POST(req: Request) {
 
                 // Cleanup ActiveStream + Redis
                 if (sessionId) {
-                    const activeStream = await prisma.activeStream.findUnique({ where: { sessionId } });
+                    const activeStream = await prisma.activeStream.findUnique({ where: { sessionId_serverId: { sessionId, serverId: sourceServer.id } } });
                     if (activeStream) {
-                        await redis.del(`stream:${sessionId}`);
+                        await redis.del(buildStreamRedisKey(sourceServer.id, sessionId));
+                        await redis.del(buildLegacyStreamRedisKey(sessionId));
                         await prisma.activeStream.delete({ where: { id: activeStream.id } });
                     }
                 } else {
-                    const activeStream = await prisma.activeStream.findFirst({ where: { userId: user.id, mediaId: media.id } });
+                    const activeStream = await prisma.activeStream.findFirst({ where: { serverId: sourceServer.id, userId: user.id, mediaId: media.id } });
                     if (activeStream) {
-                        await redis.del(`stream:${activeStream.sessionId}`);
+                        await redis.del(buildStreamRedisKey(sourceServer.id, activeStream.sessionId));
+                        await redis.del(buildLegacyStreamRedisKey(activeStream.sessionId));
                         await prisma.activeStream.delete({ where: { id: activeStream.id } });
                     }
                 }
@@ -1012,13 +1039,13 @@ export async function POST(req: Request) {
 
             const mediaCandidates = Array.from(new Set([jellyfinMediaId, compactJellyfinId(jellyfinMediaId)]));
             const existingMedia = await prisma.media.findFirst({
-                where: { jellyfinMediaId: { in: mediaCandidates } },
+                where: { serverId: sourceServer.id, jellyfinMediaId: { in: mediaCandidates } },
                 orderBy: { createdAt: "asc" },
                 select: { title: true, type: true, collectionType: true, durationMs: true, artist: true, libraryName: true, parentId: true },
             });
             const existingStream = sessionId
                 ? await prisma.activeStream.findUnique({
-                    where: { sessionId },
+                    where: { sessionId_serverId: { sessionId, serverId: sourceServer.id } },
                     select: {
                         clientName: true,
                         deviceName: true,
@@ -1067,8 +1094,9 @@ export async function POST(req: Request) {
                 return corsJson({ success: true, ignored: true, message: "Library excluded." });
             }
 
-            const user = await upsertCanonicalUser(jellyfinUserId, username, true);
+            const user = await upsertCanonicalUser(sourceServer.id, jellyfinUserId, username, true);
             const media = await upsertCanonicalMedia({
+                serverId: sourceServer.id,
                 rawJellyfinMediaId: jellyfinMediaId,
                 title: resolvedTitle,
                 type: resolvedType,
@@ -1095,7 +1123,7 @@ export async function POST(req: Request) {
             const geoData = getGeoLocation(resolvedIpAddress);
 
             const lastPlayback = await prisma.playbackHistory.findFirst({
-                where: { userId: user.id, mediaId: media.id, endedAt: null },
+                where: { serverId: sourceServer.id, userId: user.id, mediaId: media.id, endedAt: null },
                 orderBy: { startedAt: "desc" },
             });
 
@@ -1106,7 +1134,7 @@ export async function POST(req: Request) {
                     if (lock.acquired) {
                         // Re-check inside the lock to avoid races
                         const recheck = await prisma.playbackHistory.findFirst({
-                            where: { userId: user.id, mediaId: media.id, endedAt: null },
+                            where: { serverId: sourceServer.id, userId: user.id, mediaId: media.id, endedAt: null },
                             orderBy: { startedAt: "desc" },
                         });
                         if (recheck) {
@@ -1115,7 +1143,7 @@ export async function POST(req: Request) {
                             // Try to reopen recent closed session before creating a new one
                             const mergeWindow = new Date(Date.now() - MERGE_WINDOW_MS);
                             const recentClosed = await prisma.playbackHistory.findFirst({
-                                where: { userId: user.id, mediaId: media.id, endedAt: { not: null, gte: mergeWindow } },
+                                where: { serverId: sourceServer.id, userId: user.id, mediaId: media.id, endedAt: { not: null, gte: mergeWindow } },
                                 orderBy: { endedAt: "desc" },
                             });
                             if (recentClosed) {
@@ -1132,6 +1160,7 @@ export async function POST(req: Request) {
                             } else {
                                 activePlayback = await prisma.playbackHistory.create({
                                     data: {
+                                        serverId: sourceServer.id,
                                         userId: user.id,
                                         mediaId: media.id,
                                         playMethod: resolvedPlayMethod,
@@ -1153,7 +1182,7 @@ export async function POST(req: Request) {
                                 });
                                 // Merge any concurrently-created open sessions and re-resolve the activePlayback
                                 await mergeOpenPlaybacks(user.id, media.id);
-                                activePlayback = await prisma.playbackHistory.findFirst({ where: { userId: user.id, mediaId: media.id, endedAt: null }, orderBy: { startedAt: "desc" } });
+                                activePlayback = await prisma.playbackHistory.findFirst({ where: { serverId: sourceServer.id, userId: user.id, mediaId: media.id, endedAt: null }, orderBy: { startedAt: "desc" } });
                             }
                         }
                     } else {
@@ -1161,7 +1190,7 @@ export async function POST(req: Request) {
                         for (let i = 0; i < 6 && !activePlayback; i++) {
                             await new Promise((r) => setTimeout(r, 50));
                             const re = await prisma.playbackHistory.findFirst({
-                                where: { userId: user.id, mediaId: media.id, endedAt: null },
+                                where: { serverId: sourceServer.id, userId: user.id, mediaId: media.id, endedAt: null },
                                 orderBy: { startedAt: "desc" },
                             });
                             if (re) {
@@ -1172,7 +1201,7 @@ export async function POST(req: Request) {
                         if (!activePlayback) {
                             const mergeWindow = new Date(Date.now() - MERGE_WINDOW_MS);
                             const recentClosed = await prisma.playbackHistory.findFirst({
-                                where: { userId: user.id, mediaId: media.id, endedAt: { not: null, gte: mergeWindow } },
+                                where: { serverId: sourceServer.id, userId: user.id, mediaId: media.id, endedAt: { not: null, gte: mergeWindow } },
                                 orderBy: { endedAt: "desc" },
                             });
                             if (recentClosed) {
@@ -1181,6 +1210,7 @@ export async function POST(req: Request) {
                             } else {
                                 activePlayback = await prisma.playbackHistory.create({
                                     data: {
+                                        serverId: sourceServer.id,
                                         userId: user.id,
                                         mediaId: media.id,
                                         playMethod: resolvedPlayMethod,
@@ -1203,7 +1233,7 @@ export async function POST(req: Request) {
                                 });
                                 // Merge any concurrently-created open sessions and re-resolve the activePlayback
                                 await mergeOpenPlaybacks(user.id, media.id);
-                                activePlayback = await prisma.playbackHistory.findFirst({ where: { userId: user.id, mediaId: media.id, endedAt: null }, orderBy: { startedAt: "desc" } });
+                                activePlayback = await prisma.playbackHistory.findFirst({ where: { serverId: sourceServer.id, userId: user.id, mediaId: media.id, endedAt: null }, orderBy: { startedAt: "desc" } });
                             }
                         }
                     }
@@ -1374,15 +1404,16 @@ export async function POST(req: Request) {
             }
             if (telemetryEvents.length > 0) {
                 await prisma.telemetryEvent.createMany({
-                    data: telemetryEvents.map((e) => ({ playbackId: activePlayback.id, eventType: e.eventType, positionMs: e.positionMs, metadata: e.metadata || null })),
+                    data: telemetryEvents.map((e) => ({ serverId: sourceServer.id, playbackId: activePlayback.id, eventType: e.eventType, positionMs: e.positionMs, metadata: e.metadata || null })),
                 });
             }
 
             // Update ActiveStream position + Redis
             if (sessionId) {
                 await prisma.activeStream.upsert({
-                    where: { sessionId },
+                    where: { sessionId_serverId: { sessionId, serverId: sourceServer.id } },
                     update: {
+                        serverId: sourceServer.id,
                         userId: user.id,
                         mediaId: media.id,
                         playMethod: resolvedPlayMethod,
@@ -1401,6 +1432,7 @@ export async function POST(req: Request) {
                         positionTicks: positionTicks > 0 ? BigInt(positionTicks) : null,
                     },
                     create: {
+                        serverId: sourceServer.id,
                         sessionId,
                         userId: user.id,
                         mediaId: media.id,
@@ -1422,7 +1454,7 @@ export async function POST(req: Request) {
                 });
 
                 const progressPercent = computeProgressPercent(positionTicks, runTimeTicks > 0 ? runTimeTicks : null);
-                const redisKey = `stream:${sessionId}`;
+                const redisKey = buildStreamRedisKey(sourceServer.id, sessionId);
                 const cachedStream = await redis.get(redisKey);
                 let parsed: Record<string, unknown> = {};
                 if (cachedStream) {
@@ -1434,6 +1466,7 @@ export async function POST(req: Request) {
                 }
 
                 const mediaSubtitle = await buildMediaSubtitle({
+                    serverId: sourceServer.id,
                     type: resolvedType,
                     seriesName,
                     seasonName,
@@ -1447,6 +1480,9 @@ export async function POST(req: Request) {
                     ...parsed,
                     sessionId,
                     SessionId: sessionId,
+                    serverId: sourceServer.id,
+                    sourceServerId: sourceServer.jellyfinServerId,
+                    sourceServerName: sourceServer.name,
                     itemId: jellyfinMediaId,
                     ItemId: jellyfinMediaId,
                     parentItemId: parentItemId || null,
@@ -1509,6 +1545,7 @@ export async function POST(req: Request) {
                 if (!jellyfinMediaId) continue;
                 const collectionType = item.collectionType || item.CollectionType || inferLibraryKey({ type });
                 await upsertCanonicalMedia({
+                    serverId: sourceServer.id,
                     rawJellyfinMediaId: jellyfinMediaId,
                     title,
                     type,

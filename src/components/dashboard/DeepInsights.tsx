@@ -76,12 +76,14 @@ function buildMediaTypeFilter(type: string | undefined, excludedLibraries: strin
 }
 
 const getDeepInsights = unstable_cache(
-    async (type: string | undefined, timeRange: string, excludedLibraries: string[]) => {
+    async (type: string | undefined, timeRange: string, excludedLibraries: string[], selectedServerIds: string[] = []) => {
         // Build date and media filters from parameters
         const dateFilter = buildDateFilter(timeRange);
         const mediaWhere = buildMediaTypeFilter(type, excludedLibraries);
         const historyWhere: Record<string, unknown> = {};
+        const selectedServerScope = selectedServerIds.length > 0 ? { in: selectedServerIds } : undefined;
         if (dateFilter) historyWhere.startedAt = dateFilter;
+        if (selectedServerScope) historyWhere.serverId = selectedServerScope;
         if (Object.keys(mediaWhere).length > 0) historyWhere.media = mediaWhere;
 
         // Find most watched media (take more for series/album aggregation)
@@ -102,15 +104,24 @@ const getDeepInsights = unstable_cache(
 
         // === Preload ALL Seasons, Series, and Albums for robust parent chain resolution ===
         const allSeasons = await prisma.media.findMany({
-            where: { type: 'Season' },
+            where: {
+                type: 'Season',
+                ...(selectedServerScope ? { serverId: selectedServerScope } : {}),
+            },
             select: { jellyfinMediaId: true, parentId: true, title: true }
         });
         const allSeries = await prisma.media.findMany({
-            where: { type: 'Series' },
+            where: {
+                type: 'Series',
+                ...(selectedServerScope ? { serverId: selectedServerScope } : {}),
+            },
             select: { jellyfinMediaId: true, title: true }
         });
         const allAlbums = await prisma.media.findMany({
-            where: { type: 'MusicAlbum' },
+            where: {
+                type: 'MusicAlbum',
+                ...(selectedServerScope ? { serverId: selectedServerScope } : {}),
+            },
             select: { jellyfinMediaId: true, title: true, artist: true }
         });
 
@@ -137,6 +148,7 @@ const getDeepInsights = unstable_cache(
         // === DEDICATED SERIES AGGREGATION ===
         const episodeHistoryWhere: Record<string, unknown> = { media: { type: 'Episode' } };
         if (dateFilter) episodeHistoryWhere.startedAt = dateFilter;
+        if (selectedServerScope) episodeHistoryWhere.serverId = selectedServerScope;
 
         const allEpisodeHistory = await prisma.playbackHistory.groupBy({
             by: ['mediaId'],
@@ -169,6 +181,7 @@ const getDeepInsights = unstable_cache(
         // === DEDICATED ALBUM AGGREGATION ===
         const audioHistoryWhere: Record<string, unknown> = { media: { type: 'Audio' } };
         if (dateFilter) audioHistoryWhere.startedAt = dateFilter;
+        if (selectedServerScope) audioHistoryWhere.serverId = selectedServerScope;
 
         const allAudioHistory = await prisma.playbackHistory.groupBy({
             by: ['mediaId'],
@@ -392,21 +405,31 @@ const getDeepInsights = unstable_cache(
         return { categorized, topClients, streamMethodsChartData, resolutionChartData, deviceChartData, topGenres, topDirectors, topActors, audioChartData, subtitleChartData } as DeepInsightsData;
     },
     // Dynamic cache key — varies with params so different filters get different cached results
-    ['JellyTrack-deep-insights-v4'],
+    ['JellyTrack-deep-insights-v5'],
     { revalidate: 300 }
 );
 
 import Link from 'next/link';
 import { User, Film as FilmIcon, Star } from 'lucide-react';
 
-export async function DeepInsights({ type, timeRange, excludedLibraries }: { type?: string, timeRange: string, excludedLibraries: string[] }) {
+export async function DeepInsights({
+    type,
+    timeRange,
+    excludedLibraries,
+    selectedServerIds = []
+}: {
+    type?: string;
+    timeRange: string;
+    excludedLibraries: string[];
+    selectedServerIds?: string[];
+}) {
     const t = await getTranslations('deepInsights');
     const tc = await getTranslations('common');
     const tCharts = await getTranslations('charts');
     const tGranular = await getTranslations('granular');
     const tm = await getTranslations('media');
 
-    const data = await getDeepInsights(type, timeRange, excludedLibraries);
+    const data = await getDeepInsights(type, timeRange, excludedLibraries, selectedServerIds);
 
 
     const localizedResolutionChartData = (data.resolutionChartData || []).map((d: { name: string; value: number }) => {

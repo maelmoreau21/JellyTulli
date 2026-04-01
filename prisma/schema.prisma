@@ -7,22 +7,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Server {
+  id                String            @id @default(uuid())
+  jellyfinServerId  String            @unique
+  name              String
+  url               String
+  isActive          Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  users             User[]
+  media             Media[]
+  playbackHistory   PlaybackHistory[]
+  telemetryEvents   TelemetryEvent[]
+  activeStreams     ActiveStream[]
+}
+
 model User {
   id              String            @id @default(uuid())
-  jellyfinUserId  String            @unique
+  serverId        String
+  jellyfinUserId  String
   username        String
   isActive        Boolean           @default(true)
   lastActive      DateTime?         // Dernière activité réelle (via heartbeat ou playback)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   
+  server          Server            @relation(fields: [serverId], references: [id], onDelete: Cascade)
   playbackHistory PlaybackHistory[]
   activeStreams   ActiveStream[]
+
+  @@unique([jellyfinUserId, serverId])
+  @@index([serverId])
 }
 
 model Media {
   id              String            @id @default(uuid())
-  jellyfinMediaId String            @unique
+  serverId        String
+  jellyfinMediaId String
   title           String
   type            String            // e.g., "Movie", "Episode", "Track"
   collectionType  String?           // e.g., "movies", "tvshows"
@@ -40,9 +62,12 @@ model Media {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
+  server          Server            @relation(fields: [serverId], references: [id], onDelete: Cascade)
   playbackHistory PlaybackHistory[]
   activeStreams   ActiveStream[]
 
+  @@unique([jellyfinMediaId, serverId])
+  @@index([serverId])
   @@index([type])
   @@index([collectionType])
   @@index([jellyfinMediaId])
@@ -50,6 +75,7 @@ model Media {
 
 model PlaybackHistory {
   id              String    @id @default(uuid())
+  serverId        String
   userId          String?
   mediaId         String
   
@@ -80,37 +106,47 @@ model PlaybackHistory {
   audioChanges     Int       @default(0) // Number of audio track switches
   subtitleChanges  Int       @default(0) // Number of subtitle track switches
   
+  server          Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
   user            User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   media           Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
   telemetryEvents TelemetryEvent[]
 
+  @@index([serverId])
   @@index([userId])
   @@index([mediaId])
   @@index([startedAt])
+  @@index([serverId, startedAt])
   @@index([userId, startedAt])
+  @@index([serverId, userId, startedAt])
   @@index([mediaId, startedAt])
+  @@index([serverId, mediaId, startedAt])
   @@index([clientName])
   @@index([playMethod])
 }
 
 model TelemetryEvent {
   id          String   @id @default(uuid())
+  serverId    String
   playbackId  String
   eventType   String   // "pause", "audio_change", "subtitle_change", "stop"
   positionMs  BigInt   // Position within the media in milliseconds
   metadata    String?  // Optional JSON (e.g., new language, codec info)
   createdAt   DateTime @default(now())
 
+  server      Server          @relation(fields: [serverId], references: [id], onDelete: Cascade)
   playback    PlaybackHistory @relation(fields: [playbackId], references: [id], onDelete: Cascade)
 
+  @@index([serverId])
   @@index([playbackId])
   @@index([eventType])
+  @@index([serverId, eventType])
   @@index([playbackId, eventType])
 }
 
 model ActiveStream {
   id              String   @id @default(uuid())
-  sessionId       String   @unique // Jellyfin Session ID
+  serverId        String
+  sessionId       String   // Jellyfin Session ID
   userId          String
   mediaId         String
   
@@ -138,10 +174,14 @@ model ActiveStream {
   startedAt       DateTime @default(now())
   lastPingAt      DateTime @updatedAt // Dernière mise à jour (via webhook)
   
+  server          Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   media           Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
+  @@unique([sessionId, serverId])
+  @@index([serverId])
   @@index([lastPingAt])
+  @@index([serverId, lastPingAt])
 }
 
 model GlobalSettings {

@@ -9,15 +9,39 @@ import { getTranslations } from 'next-intl/server';
 import { normalizeResolution } from '@/lib/utils';
 
 const getNetworkData = unstable_cache(
-    async (type: string | undefined, timeRange: string, excludedLibraries: string[]) => {
+    async (type: string | undefined, timeRange: string, excludedLibraries: string[], selectedServerIds: string[] = []) => {
         let currentStartDate = new Date();
         if (timeRange === "24h") currentStartDate.setDate(currentStartDate.getDate() - 1);
         else if (timeRange === "7d") currentStartDate.setDate(currentStartDate.getDate() - 7);
         else if (timeRange === "30d") currentStartDate.setDate(currentStartDate.getDate() - 30);
         else currentStartDate = new Date(0);
 
+        const mediaAnd: Array<Record<string, unknown>> = [];
+        if (type === 'movie') mediaAnd.push({ type: 'Movie' });
+        else if (type === 'series') mediaAnd.push({ type: { in: ['Series', 'Episode'] } });
+        else if (type === 'music') mediaAnd.push({ type: { in: ['Audio', 'Track', 'MusicAlbum'] } });
+        else if (type === 'book') mediaAnd.push({ type: { in: ['Book', 'AudioBook'] } });
+
+        if (excludedLibraries.length > 0) {
+            mediaAnd.push({
+                NOT: {
+                    OR: [
+                        { libraryName: { in: excludedLibraries } },
+                        { collectionType: { in: excludedLibraries } },
+                    ],
+                },
+            });
+        }
+
+        const mediaWhere = mediaAnd.length > 0 ? { AND: mediaAnd } : undefined;
+        const selectedServerScope = selectedServerIds.length > 0 ? { in: selectedServerIds } : undefined;
+
         const history = await prisma.playbackHistory.findMany({
-            where: { startedAt: { gte: currentStartDate } },
+            where: {
+                startedAt: { gte: currentStartDate },
+                ...(mediaWhere ? { media: mediaWhere } : {}),
+                ...(selectedServerScope ? { serverId: selectedServerScope } : {}),
+            },
             select: {
                 id: true,
                 playMethod: true,
@@ -184,12 +208,22 @@ const getNetworkData = unstable_cache(
             }
         };
     },
-    ['JellyTrack-network-analysis-v1'],
+    ['JellyTrack-network-analysis-v2'],
     { revalidate: 300 }
 );
 
-export async function NetworkAnalysis({ type, timeRange, excludedLibraries }: { type?: string, timeRange: string, excludedLibraries: string[] }) {
-    const data = await getNetworkData(type, timeRange, excludedLibraries);
+export async function NetworkAnalysis({
+    type,
+    timeRange,
+    excludedLibraries,
+    selectedServerIds = []
+}: {
+    type?: string;
+    timeRange: string;
+    excludedLibraries: string[];
+    selectedServerIds?: string[];
+}) {
+    const data = await getNetworkData(type, timeRange, excludedLibraries, selectedServerIds);
     const t = await getTranslations('network');
 
     return (

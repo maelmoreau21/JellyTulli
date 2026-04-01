@@ -10,6 +10,7 @@ import type { SafeLog, SafeTelemetryEvent } from '@/types/logs';
 const ITEMS_PER_PAGE = 50;
 
 type MediaCompact = {
+    serverId: string;
     jellyfinMediaId: string;
     title?: string | null;
     type?: string | null;
@@ -18,15 +19,18 @@ type MediaCompact = {
     durationMs?: bigint | null;
 };
 
-export default async function UserRecentMedia({ userId, page = 1 }: { userId: string; page?: number }) {
+export default async function UserRecentMedia({ userId, userIds = [], page = 1 }: { userId: string; userIds?: string[]; page?: number }) {
     const t = await getTranslations('userProfile');
 
-    const user = await prisma.user.findUnique({
-        where: { jellyfinUserId: userId },
+    const targetJellyfinIds = Array.from(new Set([userId, ...userIds].filter(Boolean)));
+
+    const users = await prisma.user.findMany({
+        where: { jellyfinUserId: { in: targetJellyfinIds } },
+        orderBy: { createdAt: "asc" },
         select: { id: true },
     });
 
-    if (!user) {
+    if (users.length === 0) {
         return (
             <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm mt-6">
                 <CardHeader>
@@ -37,10 +41,12 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
         );
     }
 
+    const userDbIds = users.map((u) => u.id);
+
     // Count total sessions for pagination
     const totalCount = await prisma.playbackHistory.count({
         where: { 
-            userId: user.id,
+            userId: { in: userDbIds },
             ...ZAPPING_CONDITION
         },
     });
@@ -62,12 +68,12 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
     // Fetch paginated sessions
     const sessions = await prisma.playbackHistory.findMany({
         where: { 
-            userId: user.id,
+            userId: { in: userDbIds },
             ...ZAPPING_CONDITION
         },
         include: {
             user: { select: { id: true, username: true, jellyfinUserId: true } },
-            media: { select: { id: true, jellyfinMediaId: true, title: true, type: true, parentId: true, artist: true, resolution: true } },
+            media: { select: { id: true, serverId: true, jellyfinMediaId: true, title: true, type: true, parentId: true, artist: true, resolution: true } },
             telemetryEvents: { select: { eventType: true, positionMs: true, createdAt: true, metadata: true } },
         },
         orderBy: { startedAt: "desc" },
@@ -76,39 +82,61 @@ export default async function UserRecentMedia({ userId, page = 1 }: { userId: st
     });
 
     const activePairs = await prisma.activeStream.findMany({
-        where: { userId: user.id },
+        where: { userId: { in: userDbIds } },
         select: { userId: true, mediaId: true }
     });
     const activePairSet = new Set(activePairs.map((entry) => `${entry.userId}:${entry.mediaId}`));
 
     // Build parent chain for enriched media titles
-    const parentIds = new Set<string>();
+    const parentPairs = new Set<string>();
     sessions.forEach((s) => {
-        if (s.media?.parentId) parentIds.add(s.media.parentId);
+        if (s.media?.parentId && s.media?.serverId) {
+            parentPairs.add(JSON.stringify([s.media.serverId, s.media.parentId]));
+        }
     });
-    const parentMedia = parentIds.size > 0
+    const parentTargets = Array.from(parentPairs).map((pair) => {
+        const parsed = JSON.parse(pair) as [string, string];
+        return { serverId: parsed[0], jellyfinMediaId: parsed[1] };
+    });
+    const parentMedia = parentTargets.length > 0
         ? await prisma.media.findMany({
-            where: { jellyfinMediaId: { in: Array.from(parentIds) } },
-            select: { jellyfinMediaId: true, title: true, type: true, parentId: true, artist: true },
+            where: {
+                OR: parentTargets.map((target) => ({
+                    serverId: target.serverId,
+                    jellyfinMediaId: target.jellyfinMediaId,
+                })),
+            },
+            select: { serverId: true, jellyfinMediaId: true, title: true, type: true, parentId: true, artist: true },
         })
         : [];
-    const grandparentIds = new Set<string>();
-    parentMedia.forEach(pm => { if (pm.parentId) grandparentIds.add(pm.parentId); });
-    const grandparentMedia = grandparentIds.size > 0
+    const grandparentPairs = new Set<string>();
+    parentMedia.forEach((pm) => {
+        if (pm.parentId) grandparentPairs.add(JSON.stringify([pm.serverId, pm.parentId]));
+    });
+    const grandparentTargets = Array.from(grandparentPairs).map((pair) => {
+        const parsed = JSON.parse(pair) as [string, string];
+        return { serverId: parsed[0], jellyfinMediaId: parsed[1] };
+    });
+    const grandparentMedia = grandparentTargets.length > 0
         ? await prisma.media.findMany({
-            where: { jellyfinMediaId: { in: Array.from(grandparentIds) } },
-            select: { jellyfinMediaId: true, title: true, type: true, artist: true },
+            where: {
+                OR: grandparentTargets.map((target) => ({
+                    serverId: target.serverId,
+                    jellyfinMediaId: target.jellyfinMediaId,
+                })),
+            },
+            select: { serverId: true, jellyfinMediaId: true, title: true, type: true, artist: true },
         })
         : [];
-    const parentMap = new Map(parentMedia.map(pm => [pm.jellyfinMediaId, pm]));
-    const grandparentMap = new Map(grandparentMedia.map(gp => [gp.jellyfinMediaId, gp]));
+    const parentMap = new Map(parentMedia.map(pm => [`${pm.serverId}:${pm.jellyfinMediaId}`, pm]));
+    const grandparentMap = new Map(grandparentMedia.map(gp => [`${gp.serverId}:${gp.jellyfinMediaId}`, gp]));
 
     function getMediaSubtitle(media?: MediaCompact | null): string | null {
         if (!media?.parentId) return null;
-        const parent = parentMap.get(media.parentId);
+        const parent = parentMap.get(`${media.serverId}:${media.parentId}`);
         if (!parent) return null;
         if (media.type === 'Episode') {
-            const gp = parent.parentId ? grandparentMap.get(parent.parentId) : null;
+            const gp = parent.parentId ? grandparentMap.get(`${media.serverId}:${parent.parentId}`) : null;
             if (gp) return `${gp.title} — ${parent.title}`;
             return parent.title;
         }
