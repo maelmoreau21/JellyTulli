@@ -9,6 +9,9 @@ import AllMediaControls from '@/components/media/AllMediaControls';
 import { normalizeResolution } from '@/lib/utils';
 import { isZapped, ZAPPING_CONDITION } from '@/lib/statsUtils';
 import { buildExcludedMediaClause } from '@/lib/mediaPolicy';
+import { ServerFilter } from '@/components/dashboard/ServerFilter';
+import { cookies } from 'next/headers';
+import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIds } from '@/lib/serverScope';
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +26,7 @@ type AllMediaSearchParams = {
     genre?: string;
     page?: string;
     resolution?: string;
+    servers?: string;
 };
 
 export default async function AllMediaPage({ searchParams: searchParamsPromise }: { searchParams?: Promise<AllMediaSearchParams> }) {
@@ -40,18 +44,43 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
     const genre = typeof searchParams?.genre === 'string' ? (searchParams.genre || '').trim() : undefined;
     const currentPage = Math.max(1, parseInt(searchParams?.page || '1', 10) || 1);
 
-    const settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
+    const [settings, serverRows] = await Promise.all([
+        prisma.globalSettings.findUnique({ where: { id: 'global' } }),
+        prisma.server.findMany({
+            select: { id: true, name: true, isActive: true },
+            orderBy: { name: 'asc' },
+        }),
+    ]);
     const excludedLibraries = settings?.excludedLibraries || [];
+
+    const jellytrackMode = (process.env.JELLYTRACK_MODE || 'single').toLowerCase();
+    const activeServerRows = serverRows.filter((server) => server.isActive);
+    const selectableServerOptions = (activeServerRows.length > 0 ? activeServerRows : serverRows).map((server) => ({
+        id: server.id,
+        name: server.name,
+    }));
+    const multiServerEnabled = jellytrackMode === 'multi' && selectableServerOptions.length > 1;
+    const cookieStore = await cookies();
+    const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;
+    const { selectedServerIds, selectedServerIdsParam: serversParam } = resolveSelectedServerIds({
+        multiServerEnabled,
+        selectableServerIds: selectableServerOptions.map((server) => server.id),
+        requestedServersParam: searchParams?.servers,
+        cookieServersParam: persistedScopeCookie,
+    });
+    const selectedServerScope = selectedServerIds.length > 0 ? { in: selectedServerIds } : undefined;
 
     const baseTypes = ['Movie', 'Series', 'MusicAlbum'];
     const displayTypes = baseTypes.filter(t => !excludedTypes.includes(t));
 
     interface MediaWhere {
         type: { in: string[] };
+        serverId?: { in: string[] };
         AND?: any[]; // Prisma's AND is tricky to type perfectly without importing generated types, leaving as is for now or using unknown[]
     }
 
     const mediaWhere: MediaWhere = { type: { in: displayTypes.length > 0 ? displayTypes : baseTypes } };
+    if (selectedServerScope) mediaWhere.serverId = selectedServerScope;
     const excludedClause = buildExcludedMediaClause(excludedLibraries);
     if (excludedClause) mediaWhere.AND = [excludedClause];
 
@@ -191,6 +220,7 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
         if (sortBy !== 'plays') params.set('sortBy', sortBy);
         if (q) params.set('q', q);
         if (genre) params.set('genre', genre);
+        if (serversParam) params.set('servers', serversParam);
         if (page > 1) params.set('page', String(page));
         const qs = params.toString();
         return `/media/all${qs ? `?${qs}` : ''}`;
@@ -199,6 +229,13 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
     return (
         <div className="p-6 max-w-[1400px] mx-auto">
             <h1 className="text-2xl font-bold mb-4">{t('allMedia') || 'Tous les médias'}</h1>
+            <div className="mb-4">
+                <ServerFilter
+                    servers={selectableServerOptions}
+                    enabled={multiServerEnabled}
+                    showOutsideDashboard
+                />
+            </div>
             <AllMediaControls />
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
                 {displayMedia.map((media) => (

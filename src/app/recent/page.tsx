@@ -12,6 +12,9 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { getTranslations, getLocale } from 'next-intl/server';
 import { buildExcludedMediaClause } from '@/lib/mediaPolicy';
+import { ServerFilter } from "@/components/dashboard/ServerFilter";
+import { cookies } from "next/headers";
+import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIds } from "@/lib/serverScope";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +38,7 @@ function isNew(date: Date): boolean {
   return date >= sevenDaysAgo;
 }
 
-export default async function RecentPage({ searchParams }: { searchParams: Promise<{ type?: string; page?: string }> }) {
+export default async function RecentPage({ searchParams }: { searchParams: Promise<{ type?: string; page?: string; servers?: string }> }) {
   const t = await getTranslations('recent');
   const tc = await getTranslations('common');
   const locale = await getLocale();
@@ -49,9 +52,31 @@ export default async function RecentPage({ searchParams }: { searchParams: Promi
   const type = sParams.type;
   const currentPage = Math.max(1, parseInt(sParams.page || "1", 10) || 1);
 
-  // Retrieve settings for excluded libraries
-  const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } });
+  const [settings, serverRows] = await Promise.all([
+    prisma.globalSettings.findUnique({ where: { id: "global" } }),
+    prisma.server.findMany({
+      select: { id: true, name: true, isActive: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
   const excludedLibraries = settings?.excludedLibraries || [];
+
+  const jellytrackMode = (process.env.JELLYTRACK_MODE || "single").toLowerCase();
+  const activeServerRows = serverRows.filter((server) => server.isActive);
+  const selectableServerOptions = (activeServerRows.length > 0 ? activeServerRows : serverRows).map((server) => ({
+    id: server.id,
+    name: server.name,
+  }));
+  const multiServerEnabled = jellytrackMode === "multi" && selectableServerOptions.length > 1;
+  const cookieStore = await cookies();
+  const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;
+  const { selectedServerIds, selectedServerIdsParam: serversParam } = resolveSelectedServerIds({
+    multiServerEnabled,
+    selectableServerIds: selectableServerOptions.map((server) => server.id),
+    requestedServersParam: sParams.servers,
+    cookieServersParam: persistedScopeCookie,
+  });
+  const selectedServerScope = selectedServerIds.length > 0 ? { in: selectedServerIds } : undefined;
 
   // Build type filter — show parent-level items (Movie, Series, MusicAlbum) by default
   const displayTypes = type === "movie" ? ["Movie"]
@@ -61,6 +86,7 @@ export default async function RecentPage({ searchParams }: { searchParams: Promi
 
   const mediaWhere = (() => {
     const clauses: Record<string, unknown>[] = [{ type: { in: displayTypes } } as Record<string, unknown>];
+    if (selectedServerScope) clauses.push({ serverId: selectedServerScope } as Record<string, unknown>);
     const excluded = buildExcludedMediaClause(excludedLibraries);
     if (excluded) clauses.push(excluded as Record<string, unknown>);
     return { AND: clauses };
@@ -93,6 +119,7 @@ export default async function RecentPage({ searchParams }: { searchParams: Promi
     const sp = new URLSearchParams();
     if (params.type) sp.set("type", params.type);
     if (params.page) sp.set("page", params.page);
+    if (serversParam) sp.set("servers", serversParam);
     return `/recent?${sp.toString()}`;
   };
 
@@ -117,6 +144,12 @@ export default async function RecentPage({ searchParams }: { searchParams: Promi
           </div>
           <span className="app-chip text-sm px-2.5 py-1 rounded-md">{totalCount} {t('mediaCount')}</span>
         </div>
+
+        <ServerFilter
+          servers={selectableServerOptions}
+          enabled={multiServerEnabled}
+          showOutsideDashboard
+        />
 
         {/* Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-6">

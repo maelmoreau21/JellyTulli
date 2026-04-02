@@ -14,6 +14,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { getTranslations } from 'next-intl/server';
+import { cookies } from "next/headers";
 
 // Charts — lazy-loaded for performance (recharts is heavy)
 import { LazyComposedTrendChart as ComposedTrendChart } from "@/components/charts/LazyCharts";
@@ -51,6 +52,7 @@ import { MediaFilter } from "@/components/dashboard/MediaFilter";
 import { PredictionsPanel } from "@/components/dashboard/PredictionsPanel";
 import { ServerFilter } from "@/components/dashboard/ServerFilter";
 import { buildLegacyStreamRedisKey, buildStreamRedisKey } from "@/lib/serverRegistry";
+import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIds } from "@/lib/serverScope";
 
 
 type LiveStream = {
@@ -691,16 +693,14 @@ export default async function DashboardPage(props: {
   }));
 
   const multiServerEnabled = jellytrackMode === "multi" && selectableServerOptions.length > 1;
-  const validServerIds = new Set(selectableServerOptions.map((server) => server.id));
-  const requestedServerIds = serversParam
-    ? serversParam
-        .split(",")
-        .map((id) => id.trim())
-        .filter(Boolean)
-    : [];
-  const selectedServerIds = multiServerEnabled
-    ? requestedServerIds.filter((id) => validServerIds.has(id))
-    : [];
+  const cookieStore = await cookies();
+  const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;
+  const { selectedServerIds } = resolveSelectedServerIds({
+    multiServerEnabled,
+    selectableServerIds: selectableServerOptions.map((server) => server.id),
+    requestedServersParam: serversParam,
+    cookieServersParam: persistedScopeCookie,
+  });
 
   const metrics = (await getDashboardMetrics(
     type,

@@ -1,16 +1,39 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin, isAuthError } from "@/lib/auth";
+import { resolveSelectedServerIds } from "@/lib/serverScope";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
     const auth = await requireAdmin();
     if (isAuthError(auth)) return auth;
 
     try {
+        const { searchParams } = new URL(req.url);
+        const requestedServersParam = searchParams.get("servers");
+
+        const serverRows = await prisma.server.findMany({
+            select: { id: true, isActive: true },
+            orderBy: { name: "asc" },
+        });
+        const jellytrackMode = (process.env.JELLYTRACK_MODE || "single").toLowerCase();
+        const activeServerRows = serverRows.filter((server) => server.isActive);
+        const selectableServerIds = (activeServerRows.length > 0 ? activeServerRows : serverRows).map((server) => server.id);
+        const multiServerEnabled = jellytrackMode === "multi" && selectableServerIds.length > 1;
+        const { selectedServerIds } = resolveSelectedServerIds({
+            multiServerEnabled,
+            selectableServerIds,
+            requestedServersParam,
+            cookieServersParam: null,
+        });
+        const selectedServerScope = selectedServerIds.length > 0 ? { in: selectedServerIds } : undefined;
+
         const media = await prisma.media.findMany({
-            where: { type: { in: ['Movie', 'Series'] } },
+            where: {
+                type: { in: ['Movie', 'Series'] },
+                ...(selectedServerScope ? { serverId: selectedServerScope } : {}),
+            },
             select: {
                 directors: true,
                 actors: true,

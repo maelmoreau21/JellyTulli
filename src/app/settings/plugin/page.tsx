@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { RefreshCw, CheckCircle2, AlertCircle, KeyRound, Copy, Eye, EyeOff, Plug, Unplug } from "lucide-react";
+import { RefreshCw, CheckCircle2, AlertCircle, KeyRound, Copy, Eye, EyeOff, Plug, Unplug, ShieldCheck, HeartPulse } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ export default function SettingsPluginPage() {
     const [pluginUrlCopied, setPluginUrlCopied] = useState(false);
 
     const pluginEndpoint = typeof window !== 'undefined' ? `${window.location.origin}/api/plugin/events` : '/api/plugin/events';
+    const maskedApiKey = pluginApiKey || "********************************";
 
     useEffect(() => {
         let mounted = true;
@@ -35,7 +37,7 @@ export default function SettingsPluginPage() {
                     const data = await res.json();
                     if (!mounted) return;
                     setPluginHasKey(!!data.hasApiKey);
-                    setPluginApiKey(data.apiKey || null);
+                    setPluginApiKey(null);
                     setPluginLastSeen(data.pluginLastSeen || null);
                     setPluginVersion(data.pluginVersion || null);
                     setPluginServerName(data.pluginServerName || null);
@@ -72,6 +74,7 @@ export default function SettingsPluginPage() {
             if (res.ok) {
                 setPluginApiKey(data.apiKey || null);
                 setPluginHasKey(true);
+                setShowApiKey(false);
                 setPluginMsg({ type: 'success', text: t('pluginKeyGenerated') || 'API key generated' });
             } else {
                 setPluginMsg({ type: 'error', text: data.error || tc('error') });
@@ -93,6 +96,7 @@ export default function SettingsPluginPage() {
             if (res.ok) {
                 setPluginApiKey(null);
                 setPluginHasKey(false);
+                setShowApiKey(false);
                 setPluginMsg({ type: 'success', text: t('pluginKeyRevoked') || 'API key revoked' });
             } else {
                 setPluginMsg({ type: 'error', text: data.error || tc('error') });
@@ -160,6 +164,25 @@ export default function SettingsPluginPage() {
                         )}
                     </div>
 
+                    <div className="flex justify-end">
+                        <div className="flex items-center gap-2">
+                            <Link
+                                href="/settings/plugin/security"
+                                className="inline-flex items-center gap-2 text-xs px-3 py-2 rounded-md border border-border hover:bg-muted transition-colors"
+                            >
+                                <ShieldCheck className="w-4 h-4" />
+                                Security Center
+                            </Link>
+                            <Link
+                                href="/admin/plugin-health"
+                                className="inline-flex items-center gap-2 text-xs px-3 py-2 rounded-md border border-border hover:bg-muted transition-colors"
+                            >
+                                <HeartPulse className="w-4 h-4" />
+                                Health Center
+                            </Link>
+                        </div>
+                    </div>
+
                     {!pluginHasKey ? (
                         <div className="text-center py-6">
                             <KeyRound className="w-10 h-10 mx-auto mb-3 text-zinc-500 opacity-50" />
@@ -181,26 +204,33 @@ export default function SettingsPluginPage() {
                                     <div className="flex-1 relative">
                                         <Input
                                             readOnly
-                                            type={showApiKey ? "text" : "password"}
-                                            value={pluginApiKey || ""}
+                                            type={showApiKey && !!pluginApiKey ? "text" : "password"}
+                                            value={maskedApiKey}
                                             className="font-mono text-sm pr-10"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowApiKey(!showApiKey)}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                                            disabled={!pluginApiKey}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed"
                                         >
                                             {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                         </button>
                                     </div>
                                     <button
                                         onClick={handleCopyApiKey}
-                                        className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium border border-border hover:bg-muted transition-colors text-foreground"
+                                        disabled={!pluginApiKey}
+                                        className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium border border-border hover:bg-muted transition-colors text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Copy className="w-4 h-4" />
-                                        {apiKeyCopied ? t('pluginApiKeyCopied') : t('pluginCopyKey')}
+                                        {!pluginApiKey ? 'Cle masquee' : (apiKeyCopied ? t('pluginApiKeyCopied') : t('pluginCopyKey'))}
                                     </button>
                                 </div>
+                                {!pluginApiKey && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        La cle API enregistree est masquee pour la securite. Regenerer pour l'afficher une seule fois.
+                                    </p>
+                                )}
                             </div>
 
                             <div className="space-y-2">

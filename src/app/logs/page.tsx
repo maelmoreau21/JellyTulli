@@ -4,6 +4,7 @@ import { LogFilters } from "./LogFilters";
 import { ColumnToggle } from "./ColumnToggle";
 import { SavedFilters } from "@/components/SavedFilters";
 import LogsListClient from "./LogsListClient";
+import { ServerFilter } from "@/components/dashboard/ServerFilter";
 import prisma from "@/lib/prisma";
 import { getTranslations, getLocale } from 'next-intl/server';
 import type { SafeLog, SafeMedia, SafeTelemetryEvent } from '@/types/logs';
@@ -14,6 +15,8 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIds } from "@/lib/serverScope";
 
 export const dynamic = "force-dynamic"; // Bypass statis rendering for real-time logs
 
@@ -175,17 +178,14 @@ export default async function LogsPage({
         name: server.name,
     }));
     const multiServerEnabled = jellytrackMode === "multi" && selectableServerOptions.length > 1;
-    const validServerIds = new Set(selectableServerOptions.map((server) => server.id));
-    const requestedServerIds = params.servers
-        ? params.servers
-            .split(",")
-            .map((id) => id.trim())
-            .filter(Boolean)
-        : [];
-    const selectedServerIds = multiServerEnabled
-        ? requestedServerIds.filter((id) => validServerIds.has(id))
-        : [];
-    const serversParam = selectedServerIds.length > 0 ? selectedServerIds.join(",") : "";
+    const cookieStore = await cookies();
+    const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;
+    const { selectedServerIds, selectedServerIdsParam: serversParam } = resolveSelectedServerIds({
+        multiServerEnabled,
+        selectableServerIds: selectableServerOptions.map((server) => server.id),
+        requestedServersParam: params.servers,
+        cookieServersParam: persistedScopeCookie,
+    });
 
     // Build the non-fuzzy exact search constraint
     const whereClause: Prisma.PlaybackHistoryWhereInput = {} as Prisma.PlaybackHistoryWhereInput;
@@ -442,6 +442,11 @@ export default async function LogsPage({
                 <div className="space-y-4">
                     <Card className="border-0 shadow-sm bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-800">
                         <CardContent className="space-y-4">
+                            <ServerFilter
+                                servers={selectableServerOptions}
+                                enabled={multiServerEnabled}
+                                showOutsideDashboard
+                            />
                             <div className="flex items-start gap-2 flex-wrap">
                                 <div className="flex-1 w-full relative z-10">
                                     <LogFilters 

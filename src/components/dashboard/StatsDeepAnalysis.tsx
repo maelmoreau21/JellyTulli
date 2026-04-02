@@ -6,12 +6,15 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import MediaSearchModal from '@/components/MediaSearchModal';
+import { useSearchParams } from "next/navigation";
 
 type StatItem = { name: string; count: number };
 
 export default function StatsDeepAnalysis() {
     const t = useTranslations('deepInsights');
     const tc = useTranslations('common');
+    const searchParams = useSearchParams();
+    const serversParam = searchParams.get("servers") || "";
 
     const [data, setData] = useState<{ topDirectors: StatItem[]; topActors: StatItem[]; topStudios: StatItem[] }>({ topDirectors: [], topActors: [], topStudios: [] });
     const [loading, setLoading] = useState(true);
@@ -24,7 +27,10 @@ export default function StatsDeepAnalysis() {
         let mounted = true;
         const fetchData = async () => {
             try {
-                const res = await fetch("/api/stats/deep");
+                const endpoint = serversParam
+                    ? `/api/stats/deep?servers=${encodeURIComponent(serversParam)}`
+                    : "/api/stats/deep";
+                const res = await fetch(endpoint);
                 if (res.ok) {
                     const json = await res.json();
                     if (mounted && json) {
@@ -45,7 +51,7 @@ export default function StatsDeepAnalysis() {
         };
         fetchData();
         return () => { mounted = false; };
-    }, []);
+    }, [serversParam]);
 
     if (loading) {
         return (

@@ -43,6 +43,13 @@ export function LogFilters({ initialQuery, initialSort, initialHideZapped, initi
         : [];
     const [selectedServers, setSelectedServers] = useState<string[]>(initialServerIds);
     const allServersSelected = selectedServers.length === 0;
+    const exportParams = new URLSearchParams(searchParams.toString());
+    if (multiServerEnabled && selectedServers.length > 0) {
+        exportParams.set("servers", selectedServers.join(","));
+    } else {
+        exportParams.delete("servers");
+    }
+    const exportQuery = exportParams.toString();
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -159,7 +166,7 @@ export function LogFilters({ initialQuery, initialSort, initialHideZapped, initi
                             {tc('search')}
                         </button>
                         
-                        <a href={`/api/logs/export?${searchParams.toString()}`} className="flex items-center justify-center gap-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium px-4 py-2 rounded-md hover:bg-emerald-500/20 transition-colors h-10 md:h-9 whitespace-nowrap">
+                        <a href={`/api/logs/export?${exportQuery}`} className="flex items-center justify-center gap-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium px-4 py-2 rounded-md hover:bg-emerald-500/20 transition-colors h-10 md:h-9 whitespace-nowrap">
                             <Download className="w-4 h-4" />
                             <span className="md:hidden lg:inline">{tc('export')}</span>
                         </a>

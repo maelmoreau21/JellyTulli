@@ -17,7 +17,9 @@ import {
     Sparkles,
     Menu,
     X,
-    HeartPulse
+    HeartPulse,
+    GitCompareArrows,
+    Stethoscope
 } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 import { SearchBar } from "./SearchBar";
@@ -31,6 +33,8 @@ const adminNavigationKeys = [
     { key: 'library', href: '/media', icon: Film },
     { key: 'logs', href: '/logs', icon: ScrollText },
     { key: 'logHealth', href: '/admin/log-health', icon: HeartPulse },
+    { label: 'Server Compare', href: '/admin/server-compare', icon: GitCompareArrows },
+    { label: 'Plugin Health', href: '/admin/plugin-health', icon: Stethoscope },
     { key: 'users', href: '/users', icon: Users },
     { key: 'cleanup', href: '/admin/cleanup', icon: Eraser },
     { key: 'settings', href: '/settings', icon: Settings },

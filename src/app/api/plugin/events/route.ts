@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash, timingSafeEqual } from "node:crypto";
 import prisma from "@/lib/prisma";
 import redis from "@/lib/redis";
 import { getGeoLocation } from "@/lib/geoip";
@@ -7,6 +8,9 @@ import { compactJellyfinId, normalizeJellyfinId } from "@/lib/jellyfinId";
 import { cleanupOrphanedSessions } from "@/lib/cleanup";
 import { normalizeResolution, clampDuration } from '@/lib/utils';
 import { markMonitorPoll, appendHealthEvent } from "@/lib/systemHealth";
+import { consumePluginEventRateLimit } from "@/lib/pluginEventRateLimit";
+import { writeAdminAuditLog } from "@/lib/adminAudit";
+import { getPluginKeySnapshot, isPreviousPluginKeyValid } from "@/lib/pluginKeyManager";
 import {
     buildLegacyStreamRedisKey,
     buildStreamRedisKey,
@@ -18,10 +22,23 @@ type JellyfinPerson = { type?: string; Type?: string; name?: string; Name?: stri
 type Studio = { name?: string; Name?: string };
 
 const CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Api-Key",
 };
+
+const ALLOWED_PLUGIN_EVENTS = new Set([
+    "Heartbeat",
+    "PlaybackStart",
+    "PlaybackProgress",
+    "PlaybackStop",
+    "LibraryChanged",
+]);
+const CURRENT_PLUGIN_EVENT_SCHEMA_VERSION = 2;
+const MIN_SUPPORTED_PLUGIN_EVENT_SCHEMA_VERSION = CURRENT_PLUGIN_EVENT_SCHEMA_VERSION;
+const parsedMaxPluginEventBytes = Number(process.env.PLUGIN_EVENT_MAX_BYTES);
+const MAX_PLUGIN_EVENT_BYTES = Number.isFinite(parsedMaxPluginEventBytes)
+    ? parsedMaxPluginEventBytes
+    : 1024 * 1024;
 
 // When a new start event arrives but a session for the same user+media was
 // closed recently (within this window), prefer reopening that session
@@ -46,26 +63,86 @@ export async function GET() {
 // ────────────────────────────────────────────────────
 // Plugin Authentication — API key from GlobalSettings
 // ────────────────────────────────────────────────────
-async function verifyPluginAuth(req: Request): Promise<boolean> {
-    const settings = await prisma.globalSettings.findUnique({
-        where: { id: "global" },
-        select: { pluginApiKey: true },
-    });
-    const configuredKey = settings?.pluginApiKey?.trim();
-    if (!configuredKey) return false;
+interface PluginAuthResult {
+    authorized: boolean;
+    usedPreviousKey: boolean;
+    autoRotated: boolean;
+}
 
-    // Check Authorization header: "Bearer <apiKey>"
-    const authHeader = req.headers.get("authorization");
-    if (authHeader) {
-        const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-        if (token === configuredKey) return true;
+async function verifyPluginAuth(req: Request): Promise<PluginAuthResult> {
+    const { snapshot, autoRotated } = await getPluginKeySnapshot({
+        rotateIfExpired: true,
+        context: {
+            actorUsername: "system:plugin-ingest",
+            ipAddress: getClientIp(req),
+        },
+    });
+
+    const configuredKey = snapshot.currentKey?.trim() || null;
+
+    const bearerToken = extractBearerToken(req.headers.get("authorization"));
+    if (safeApiKeyEquals(bearerToken, configuredKey)) {
+        return { authorized: true, usedPreviousKey: false, autoRotated };
     }
 
-    // Check X-Api-Key header
-    const apiKeyHeader = req.headers.get("x-api-key");
-    if (apiKeyHeader?.trim() === configuredKey) return true;
+    if (safeApiKeyEquals(req.headers.get("x-api-key"), configuredKey)) {
+        return { authorized: true, usedPreviousKey: false, autoRotated };
+    }
 
-    return false;
+    if (!isPreviousPluginKeyValid(snapshot) || !snapshot.previousKey) {
+        return { authorized: false, usedPreviousKey: false, autoRotated };
+    }
+
+    if (safeApiKeyEquals(bearerToken, snapshot.previousKey)) {
+        return { authorized: true, usedPreviousKey: true, autoRotated };
+    }
+
+    if (safeApiKeyEquals(req.headers.get("x-api-key"), snapshot.previousKey)) {
+        return { authorized: true, usedPreviousKey: true, autoRotated };
+    }
+
+    return { authorized: false, usedPreviousKey: false, autoRotated };
+}
+
+function extractBearerToken(headerValue: string | null): string | null {
+    if (!headerValue) return null;
+    const match = headerValue.match(/^Bearer\s+(.+)$/i);
+    if (!match) return null;
+    const token = match[1].trim();
+    return token.length > 0 ? token : null;
+}
+
+function safeApiKeyEquals(candidateRaw: string | null, expected: string | null): boolean {
+    if (!candidateRaw) return false;
+    const candidate = candidateRaw.trim();
+    if (!candidate || !expected) return false;
+
+    const candidateBuffer = Buffer.from(candidate);
+    const expectedBuffer = Buffer.from(expected);
+    if (candidateBuffer.length !== expectedBuffer.length) return false;
+
+    try {
+        return timingSafeEqual(candidateBuffer, expectedBuffer);
+    } catch {
+        return false;
+    }
+}
+
+function getClientIp(req: Request): string {
+    const forwardedFor = req.headers.get("x-forwarded-for");
+    if (forwardedFor) {
+        const first = forwardedFor.split(",")[0]?.trim();
+        if (first) return cleanIp(first);
+    }
+
+    return cleanIp(req.headers.get("x-real-ip") || "unknown");
+}
+
+function getPluginEventRateLimitIdentifier(req: Request): string {
+    const token = extractBearerToken(req.headers.get("authorization")) || req.headers.get("x-api-key") || "no-key";
+    const tokenHash = createHash("sha256").update(token).digest("hex").slice(0, 16);
+    const ip = getClientIp(req);
+    return `${ip}:${tokenHash}`;
 }
 
 function cleanIp(ip: string | null | undefined): string {
@@ -79,6 +156,50 @@ function cleanIp(ip: string | null | undefined): string {
 function computeProgressPercent(positionTicks: number, runTimeTicks: number | null): number {
     if (!runTimeTicks || runTimeTicks <= 0) return 0;
     return Math.min(100, Math.max(0, Math.round((positionTicks / runTimeTicks) * 100)));
+}
+
+interface PluginSchemaVersionResult {
+    version: number;
+    raw: unknown;
+    explicit: boolean;
+    valid: boolean;
+}
+
+function parsePositiveInteger(raw: unknown): number | null {
+    if (typeof raw === "number" && Number.isInteger(raw) && raw > 0) {
+        return raw;
+    }
+
+    if (typeof raw === "string") {
+        const value = raw.trim();
+        if (/^\d+$/.test(value)) {
+            const parsed = Number(value);
+            if (Number.isInteger(parsed) && parsed > 0) {
+                return parsed;
+            }
+        }
+    }
+
+    return null;
+}
+
+function resolvePluginSchemaVersion(payload: Record<string, any>): PluginSchemaVersionResult {
+    const raw =
+        payload.eventSchemaVersion ??
+        payload.EventSchemaVersion ??
+        payload.schemaVersion ??
+        payload.SchemaVersion;
+
+    if (raw === undefined || raw === null) {
+        return { version: -1, raw: null, explicit: false, valid: false };
+    }
+
+    const parsed = parsePositiveInteger(raw);
+    if (parsed === null) {
+        return { version: -1, raw, explicit: true, valid: false };
+    }
+
+    return { version: parsed, raw, explicit: true, valid: true };
 }
 
 async function upsertCanonicalUser(serverId: string, rawJellyfinUserId: unknown, rawUsername: unknown, bumpLastActive: boolean = false) {
@@ -370,16 +491,181 @@ function corsJson(body: unknown, init?: { status?: number }) {
 // POST /api/plugin/events — Receive events from the Jellyfin Plugin
 // ────────────────────────────────────────────────────
 export async function POST(req: Request) {
-    if (!(await verifyPluginAuth(req))) {
+    const requesterIp = getClientIp(req);
+    const contentType = (req.headers.get("content-type") || "").toLowerCase();
+    if (!contentType.includes("application/json")) {
+        await writeAdminAuditLog({
+            action: "plugin.events.invalid_content_type",
+            actorUsername: "plugin-client",
+            target: "/api/plugin/events",
+            ipAddress: requesterIp,
+            details: { contentType: req.headers.get("content-type") || null },
+        });
+        return corsJson({ error: "Unsupported content type. Expected application/json." }, { status: 415 });
+    }
+
+    const contentLengthHeader = req.headers.get("content-length");
+    if (contentLengthHeader) {
+        const contentLength = Number(contentLengthHeader);
+        if (Number.isFinite(contentLength) && contentLength > MAX_PLUGIN_EVENT_BYTES) {
+            await writeAdminAuditLog({
+                action: "plugin.events.payload_too_large",
+                actorUsername: "plugin-client",
+                target: "/api/plugin/events",
+                ipAddress: requesterIp,
+                details: {
+                    contentLength,
+                    maxBytes: MAX_PLUGIN_EVENT_BYTES,
+                },
+            });
+            return corsJson({ error: "Payload too large." }, { status: 413 });
+        }
+    }
+
+    const authResult = await verifyPluginAuth(req);
+    if (!authResult.authorized) {
+        await writeAdminAuditLog({
+            action: "plugin.events.unauthorized",
+            actorUsername: "plugin-client",
+            target: "/api/plugin/events",
+            ipAddress: requesterIp,
+            details: {
+                autoRotated: authResult.autoRotated,
+                hasBearer: Boolean(extractBearerToken(req.headers.get("authorization"))),
+                hasApiKeyHeader: Boolean(req.headers.get("x-api-key")),
+            },
+        });
         return corsJson({ error: "Unauthorized — invalid or missing API key." }, { status: 401 });
     }
 
+    if (authResult.usedPreviousKey) {
+        await writeAdminAuditLog({
+            action: "plugin.key.previous_key_used",
+            actorUsername: "plugin-client",
+            target: "/api/plugin/events",
+            ipAddress: requesterIp,
+            details: {
+                autoRotated: authResult.autoRotated,
+            },
+        });
+    }
+
+    const rateLimitIdentifier = getPluginEventRateLimitIdentifier(req);
+    const rateLimit = await consumePluginEventRateLimit(rateLimitIdentifier);
+    if (!rateLimit.allowed) {
+        await writeAdminAuditLog({
+            action: "plugin.events.rate_limited",
+            actorUsername: "plugin-client",
+            target: "/api/plugin/events",
+            ipAddress: requesterIp,
+            details: {
+                retryAfterSeconds: rateLimit.retryAfterSeconds ?? null,
+            },
+        });
+        return corsJson(
+            { error: "Too many plugin events. Please retry later.", retryAfterSeconds: rateLimit.retryAfterSeconds },
+            { status: 429 }
+        );
+    }
+
+    let payload: Record<string, any>;
     try {
-        const payload = await req.json();
-        const event = payload.event || payload.Event;
+        const parsedPayload = await req.json();
+        if (!parsedPayload || typeof parsedPayload !== "object" || Array.isArray(parsedPayload)) {
+            await writeAdminAuditLog({
+                action: "plugin.events.invalid_payload",
+                actorUsername: "plugin-client",
+                target: "/api/plugin/events",
+                ipAddress: requesterIp,
+                details: { reason: "payload_not_object" },
+            });
+            return corsJson({ error: "Invalid JSON payload." }, { status: 400 });
+        }
+        payload = parsedPayload as Record<string, any>;
+    } catch {
+        await writeAdminAuditLog({
+            action: "plugin.events.invalid_payload",
+            actorUsername: "plugin-client",
+            target: "/api/plugin/events",
+            ipAddress: requesterIp,
+            details: { reason: "json_parse_failed" },
+        });
+        return corsJson({ error: "Invalid JSON payload." }, { status: 400 });
+    }
+
+    try {
+        const eventRaw = payload.event || payload.Event;
+        const event = typeof eventRaw === "string" ? eventRaw.trim() : "";
+        const schemaVersionResult = resolvePluginSchemaVersion(payload);
 
         if (!event) {
             return corsJson({ error: "Missing 'event' field." }, { status: 400 });
+        }
+
+        if (!ALLOWED_PLUGIN_EVENTS.has(event)) {
+            return corsJson({ error: `Unknown event: ${event}` }, { status: 400 });
+        }
+
+        if (!schemaVersionResult.valid) {
+            const schemaVersionReason = schemaVersionResult.explicit
+                ? "schema_version_not_positive_integer"
+                : "schema_version_required";
+            const schemaVersionError = schemaVersionResult.explicit
+                ? "Invalid eventSchemaVersion. Expected a positive integer."
+                : `Missing eventSchemaVersion. Required version is ${CURRENT_PLUGIN_EVENT_SCHEMA_VERSION}.`;
+
+            await writeAdminAuditLog({
+                action: "plugin.events.invalid_schema_version",
+                actorUsername: "plugin-client",
+                target: "/api/plugin/events",
+                ipAddress: requesterIp,
+                details: {
+                    event,
+                    schemaVersion: schemaVersionResult.raw,
+                    reason: schemaVersionReason,
+                    minSupported: MIN_SUPPORTED_PLUGIN_EVENT_SCHEMA_VERSION,
+                    maxSupported: CURRENT_PLUGIN_EVENT_SCHEMA_VERSION,
+                },
+            });
+
+            return corsJson(
+                {
+                    error: schemaVersionError,
+                    minSupported: MIN_SUPPORTED_PLUGIN_EVENT_SCHEMA_VERSION,
+                    maxSupported: CURRENT_PLUGIN_EVENT_SCHEMA_VERSION,
+                },
+                { status: 400 },
+            );
+        }
+
+        const eventSchemaVersion = schemaVersionResult.version;
+        if (
+            eventSchemaVersion < MIN_SUPPORTED_PLUGIN_EVENT_SCHEMA_VERSION ||
+            eventSchemaVersion > CURRENT_PLUGIN_EVENT_SCHEMA_VERSION
+        ) {
+            await writeAdminAuditLog({
+                action: "plugin.events.unsupported_schema_version",
+                actorUsername: "plugin-client",
+                target: "/api/plugin/events",
+                ipAddress: requesterIp,
+                details: {
+                    event,
+                    schemaVersion: eventSchemaVersion,
+                    explicit: schemaVersionResult.explicit,
+                    minSupported: MIN_SUPPORTED_PLUGIN_EVENT_SCHEMA_VERSION,
+                    maxSupported: CURRENT_PLUGIN_EVENT_SCHEMA_VERSION,
+                },
+            });
+
+            return corsJson(
+                {
+                    error: "Unsupported eventSchemaVersion.",
+                    schemaVersion: eventSchemaVersion,
+                    minSupported: MIN_SUPPORTED_PLUGIN_EVENT_SCHEMA_VERSION,
+                    maxSupported: CURRENT_PLUGIN_EVENT_SCHEMA_VERSION,
+                },
+                { status: 400 },
+            );
         }
 
         const sourceServer = await upsertServerRecord(extractServerIdentityFromPayload(payload));
@@ -801,24 +1087,29 @@ export async function POST(req: Request) {
                         }
                     }
                     if (shouldSend) {
-                        const fallbackPort = process.env.PORT || "3000";
-                        const appUrl = process.env.NEXTAUTH_URL || `http://localhost:${fallbackPort}`;
-                        const posterUrl = `${appUrl}/api/jellyfin/image?itemId=${jellyfinMediaId}&type=Primary`;
+                        const appUrl = process.env.NEXTAUTH_URL || null;
+                        const posterUrl = appUrl
+                            ? `${appUrl}/api/jellyfin/image?itemId=${jellyfinMediaId}&type=Primary`
+                            : null;
+                        const embed: Record<string, unknown> = {
+                            title: `\uD83C\uDFAC Now Playing: ${title}`,
+                            color: 10181046,
+                            fields: [
+                                { name: "\uD83D\uDC64 User", value: username, inline: true },
+                                { name: "\uD83D\uDCF1 Device", value: `${clientName} (${deviceName})`, inline: true },
+                                { name: "\uD83C\uDF0D Location", value: geoData.country !== "Unknown" ? `${geoData.city}, ${geoData.country}` : "Unknown", inline: true },
+                            ],
+                            timestamp: new Date().toISOString(),
+                        };
+                        if (posterUrl) {
+                            embed.thumbnail = { url: posterUrl };
+                        }
+
                         await fetch(settings.discordWebhookUrl, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
-                                embeds: [{
-                                    title: `\uD83C\uDFAC Now Playing: ${title}`,
-                                    color: 10181046,
-                                    fields: [
-                                        { name: "\uD83D\uDC64 User", value: username, inline: true },
-                                        { name: "\uD83D\uDCF1 Device", value: `${clientName} (${deviceName})`, inline: true },
-                                        { name: "\uD83C\uDF0D Location", value: geoData.country !== "Unknown" ? `${geoData.city}, ${geoData.country}` : "Unknown", inline: true },
-                                    ],
-                                    thumbnail: { url: posterUrl },
-                                    timestamp: new Date().toISOString(),
-                                }],
+                                embeds: [embed],
                             }),
                         });
                     }

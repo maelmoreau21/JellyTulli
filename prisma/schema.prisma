@@ -205,11 +205,33 @@ model GlobalSettings {
   wrappedEndDay         Int      @default(31)    // Day (1-31) when current year Wrapped stops being available
   // Plugin connection system
   pluginApiKey          String?  // API key for Jellyfin plugin authentication
+  pluginPreviousApiKey  String?  // Previous API key accepted during grace period after rotation
+  pluginPreviousApiKeyExpiresAt DateTime? // Expiration timestamp for the previous plugin key
+  pluginKeyCreatedAt    DateTime? // Creation date of the currently active plugin key
+  pluginKeyExpiresAt    DateTime? // Expiration date of the currently active plugin key
+  pluginKeyRotationDays Int      @default(90) // Rotation interval for plugin API keys
+  pluginAutoRotateEnabled Boolean @default(false) // Enable automatic rotation when key expires
+  pluginKeyRotationGraceHours Int @default(24) // Grace window where previous key remains valid
   pluginLastSeen        DateTime? // Last heartbeat from the plugin
   pluginVersion         String?  // Plugin version reported via heartbeat
   pluginServerName      String?  // Jellyfin server name reported via heartbeat
   resolutionThresholds  Json?    // Configurable boundaries for resolution detection (minWidth, minHeight, etc.)
   updatedAt             DateTime @updatedAt
+}
+
+model AdminAuditLog {
+  id            String   @id @default(uuid())
+  action        String
+  actorUserId   String?
+  actorUsername String?
+  target        String?
+  ipAddress     String?
+  details       Json?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action, createdAt])
+  @@index([actorUserId, createdAt])
 }
 
 model SystemHealthState {
