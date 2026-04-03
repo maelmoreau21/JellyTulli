@@ -5,7 +5,8 @@ RUN apk add --no-cache libc6-compat openssl
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN apk add --no-cache python3 build-base && \
+    npm ci --prefer-offline --no-audit --progress=false
 
 # 2. Rebuild the source code only when needed
 FROM base AS builder
