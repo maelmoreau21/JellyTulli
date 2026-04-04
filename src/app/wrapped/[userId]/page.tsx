@@ -2,7 +2,7 @@ import prisma from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import { ZAPPING_CONDITION } from "@/lib/statsUtils";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/authOptions";
 import WrappedClient from "./WrappedClient";
 
 export const dynamic = "force-dynamic";

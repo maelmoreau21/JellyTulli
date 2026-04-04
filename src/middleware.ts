@@ -63,7 +63,14 @@ export default withAuth(
     {
         secret: getResolvedAuthSecret().value,
         callbacks: {
-            authorized: ({ token }) => !!token,
+            authorized: ({ token, req }) => {
+                // Let API routes return JSON auth errors from their own handlers
+                // instead of forcing an HTML redirect to /login.
+                if (req.nextUrl.pathname.startsWith("/api/")) {
+                    return true;
+                }
+                return !!token;
+            },
         },
         pages: {
             signIn: "/login",

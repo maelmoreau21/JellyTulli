@@ -8,6 +8,7 @@ import { normalizeResolution } from '@/lib/utils';
 import { ServerFilter } from '@/components/dashboard/ServerFilter';
 import { cookies } from 'next/headers';
 import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIdsAsync } from '@/lib/serverScope';
+import { buildSelectableServerOptions } from '@/lib/selectableServers';
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default async function AnalysisPage({ searchParams }: { searchParams?: Pr
     const [settings, serverRows] = await Promise.all([
         prisma.globalSettings.findUnique({ where: { id: 'global' } }),
         prisma.server.findMany({
-            select: { id: true, name: true, isActive: true },
+            select: { id: true, name: true, isActive: true, url: true, jellyfinServerId: true },
             orderBy: { name: 'asc' },
         }),
     ]);
@@ -33,11 +34,7 @@ export default async function AnalysisPage({ searchParams }: { searchParams?: Pr
     const excludedClause = buildExcludedMediaClause(excludedLibraries);
 
     const jellytrackMode = (process.env.JELLYTRACK_MODE || 'single').toLowerCase();
-    const activeServerRows = serverRows.filter((server) => server.isActive);
-    const selectableServerOptions = (activeServerRows.length > 0 ? activeServerRows : serverRows).map((server) => ({
-        id: server.id,
-        name: server.name,
-    }));
+    const selectableServerOptions = buildSelectableServerOptions(serverRows);
     const multiServerEnabled = jellytrackMode === 'multi' && selectableServerOptions.length > 1;
     const cookieStore = await cookies();
     const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;

@@ -2,9 +2,50 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin, isAuthError } from "@/lib/auth";
 import { fetchJellyfinSystemInfo, getConfiguredJellyfinServers, maskSecret } from "@/lib/jellyfinServers";
+import { getPluginKeySnapshot } from "@/lib/pluginKeyManager";
+import { deriveScopedPluginApiKey } from "@/lib/pluginServerKey";
 import { getMasterServerIdentityFromEnv } from "@/lib/serverRegistry";
 
 export const dynamic = "force-dynamic";
+
+type ConnectionState = "online" | "offline" | "no_api_key";
+
+async function probeConnection(url: string, apiKey: string | null): Promise<{ state: ConnectionState; message: string }> {
+  const normalizedUrl = normalizeUrl(url);
+  if (!normalizedUrl) {
+    return { state: "offline", message: "URL serveur manquante." };
+  }
+
+  const normalizedApiKey = normalizeSecret(apiKey);
+  if (!normalizedApiKey) {
+    return { state: "no_api_key", message: "Clé API manquante." };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(`${normalizedUrl}/System/Info`, {
+      method: "GET",
+      headers: { "X-Emby-Token": normalizedApiKey },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    if (res.ok) {
+      return { state: "online", message: "Connexion OK" };
+    }
+
+    if (res.status === 401 || res.status === 403) {
+      return { state: "offline", message: "Clé API invalide." };
+    }
+
+    return { state: "offline", message: `Serveur indisponible (HTTP ${res.status}).` };
+  } catch {
+    return { state: "offline", message: "Serveur injoignable." };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 function normalizeUrl(value: unknown): string {
   return String(value || "").trim().replace(/\/+$/, "");
@@ -29,18 +70,64 @@ export async function GET() {
   if (isAuthError(auth)) return auth;
 
   const servers = await getConfiguredJellyfinServers();
-  return NextResponse.json(
-    {
-      servers: servers.map((server) => ({
+  const primaryEnvApiKey = normalizeSecret(process.env.JELLYFIN_API_KEY);
+  const jellytrackMode = String(process.env.JELLYTRACK_MODE || "single").trim().toLowerCase();
+  const isMultiMode = jellytrackMode === "multi";
+
+  const { snapshot } = await getPluginKeySnapshot({
+    rotateIfExpired: true,
+    context: {
+      actorUserId: auth.linkedUserDbIds[0] ?? null,
+      actorUsername: auth.username || null,
+      ipAddress: null,
+    },
+  });
+  const pluginKeyReady = Boolean(snapshot.currentKey);
+  const pluginRuntime = await prisma.globalSettings.findUnique({
+    where: { id: "global" },
+    select: {
+      pluginLastSeen: true,
+      pluginServerName: true,
+    },
+  });
+  const pluginConnected = pluginRuntime?.pluginLastSeen
+    ? Date.now() - new Date(pluginRuntime.pluginLastSeen).getTime() < 120_000
+    : false;
+
+  const serversWithConnection = await Promise.all(
+    servers.map(async (server) => {
+      const serverApiKey = normalizeSecret(server.apiKey);
+      const effectiveApiKey = server.isPrimary ? (primaryEnvApiKey || serverApiKey) : serverApiKey;
+      const connection = await probeConnection(server.url, effectiveApiKey);
+      const pluginScopedKey = deriveScopedPluginApiKey(snapshot.currentKey, server.jellyfinServerId);
+
+      return {
         id: server.id,
         jellyfinServerId: server.jellyfinServerId,
         name: server.name,
         url: server.url,
         isPrimary: server.isPrimary,
-        hasApiKey: !!server.apiKey,
-        apiKeyMasked: maskSecret(server.apiKey),
+        hasApiKey: !!effectiveApiKey,
+        apiKeyMasked: maskSecret(effectiveApiKey),
         allowAuthFallback: server.allowAuthFallback,
-      })),
+        hasPluginKey: !!pluginScopedKey,
+        pluginKeyMasked: maskSecret(pluginScopedKey),
+        connectionState: connection.state,
+        connectionMessage: connection.message,
+      };
+    })
+  );
+
+  return NextResponse.json(
+    {
+      servers: serversWithConnection,
+      jellytrackMode,
+      isMultiMode,
+      pluginKeyReady,
+      pluginEndpointPath: "/api/plugin/events",
+      pluginConnected,
+      pluginServerName: pluginRuntime?.pluginServerName || null,
+      pluginLastSeen: pluginRuntime?.pluginLastSeen || null,
     },
     { status: 200 }
   );
@@ -128,6 +215,15 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Serveur introuvable." }, { status: 404 });
   }
 
+  const nextName =
+    body.name === undefined
+      ? existing.name
+      : String(body.name || "").trim();
+
+  if (!nextName) {
+    return NextResponse.json({ error: "Nom du serveur requis." }, { status: 400 });
+  }
+
   const nextAllowFallback =
     body.allowAuthFallback === undefined
       ? existing.allowAuthFallback
@@ -139,6 +235,7 @@ export async function PATCH(req: NextRequest) {
   const updated = await prismaAny.server.update({
     where: { id },
     data: {
+      name: nextName,
       allowAuthFallback:
         existing.jellyfinServerId === master.jellyfinServerId ? false : Boolean(nextAllowFallback),
       isActive: Boolean(nextIsActive),

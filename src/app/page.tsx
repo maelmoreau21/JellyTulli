@@ -11,7 +11,7 @@ import { GranularAnalysis } from "@/components/dashboard/GranularAnalysis";
 import { NetworkAnalysis } from "@/components/dashboard/NetworkAnalysis";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/authOptions";
 import { redirect } from "next/navigation";
 import { getTranslations } from 'next-intl/server';
 import { cookies } from "next/headers";
@@ -53,6 +53,7 @@ import { PredictionsPanel } from "@/components/dashboard/PredictionsPanel";
 import { ServerFilter } from "@/components/dashboard/ServerFilter";
 import { buildLegacyStreamRedisKey, buildStreamRedisKey } from "@/lib/serverRegistry";
 import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIdsAsync } from "@/lib/serverScope";
+import { buildSelectableServerOptions } from "@/lib/selectableServers";
 
 
 type LiveStream = {
@@ -678,7 +679,7 @@ export default async function DashboardPage(props: {
   const [settings, serverRows] = await Promise.all([
     prisma.globalSettings.findUnique({ where: { id: "global" } }),
     prisma.server.findMany({
-      select: { id: true, name: true, isActive: true },
+      select: { id: true, name: true, isActive: true, url: true, jellyfinServerId: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -692,11 +693,7 @@ export default async function DashboardPage(props: {
   const excludedTypesArr = excludeTypes ? excludeTypes.split(",") : [];
 
   const jellytrackMode = (process.env.JELLYTRACK_MODE || "single").toLowerCase();
-  const activeServerRows = serverRows.filter((server) => server.isActive);
-  const selectableServerOptions = (activeServerRows.length > 0 ? activeServerRows : serverRows).map((server) => ({
-    id: server.id,
-    name: server.name,
-  }));
+  const selectableServerOptions = buildSelectableServerOptions(serverRows);
 
   const multiServerEnabled = jellytrackMode === "multi" && selectableServerOptions.length > 1;
   const cookieStore = await cookies();

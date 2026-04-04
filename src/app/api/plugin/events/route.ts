@@ -11,6 +11,7 @@ import { markMonitorPoll, appendHealthEvent } from "@/lib/systemHealth";
 import { consumePluginEventRateLimit } from "@/lib/pluginEventRateLimit";
 import { writeAdminAuditLog } from "@/lib/adminAudit";
 import { getPluginKeySnapshot, isPreviousPluginKeyValid } from "@/lib/pluginKeyManager";
+import { verifyScopedPluginApiKey } from "@/lib/pluginServerKey";
 import {
     buildLegacyStreamRedisKey,
     buildStreamRedisKey,
@@ -67,6 +68,7 @@ interface PluginAuthResult {
     authorized: boolean;
     usedPreviousKey: boolean;
     autoRotated: boolean;
+    scopeServerId: string | null;
 }
 
 async function verifyPluginAuth(req: Request): Promise<PluginAuthResult> {
@@ -81,27 +83,69 @@ async function verifyPluginAuth(req: Request): Promise<PluginAuthResult> {
     const configuredKey = snapshot.currentKey?.trim() || null;
 
     const bearerToken = extractBearerToken(req.headers.get("authorization"));
+    const apiKeyHeader = req.headers.get("x-api-key");
+
     if (safeApiKeyEquals(bearerToken, configuredKey)) {
-        return { authorized: true, usedPreviousKey: false, autoRotated };
+        return { authorized: true, usedPreviousKey: false, autoRotated, scopeServerId: null };
     }
 
-    if (safeApiKeyEquals(req.headers.get("x-api-key"), configuredKey)) {
-        return { authorized: true, usedPreviousKey: false, autoRotated };
+    if (safeApiKeyEquals(apiKeyHeader, configuredKey)) {
+        return { authorized: true, usedPreviousKey: false, autoRotated, scopeServerId: null };
+    }
+
+    const scopedBearerCurrent = verifyScopedPluginApiKey(bearerToken, configuredKey);
+    if (scopedBearerCurrent.valid) {
+        return {
+            authorized: true,
+            usedPreviousKey: false,
+            autoRotated,
+            scopeServerId: scopedBearerCurrent.jellyfinServerId,
+        };
+    }
+
+    const scopedHeaderCurrent = verifyScopedPluginApiKey(apiKeyHeader, configuredKey);
+    if (scopedHeaderCurrent.valid) {
+        return {
+            authorized: true,
+            usedPreviousKey: false,
+            autoRotated,
+            scopeServerId: scopedHeaderCurrent.jellyfinServerId,
+        };
     }
 
     if (!isPreviousPluginKeyValid(snapshot) || !snapshot.previousKey) {
-        return { authorized: false, usedPreviousKey: false, autoRotated };
+        return { authorized: false, usedPreviousKey: false, autoRotated, scopeServerId: null };
     }
 
     if (safeApiKeyEquals(bearerToken, snapshot.previousKey)) {
-        return { authorized: true, usedPreviousKey: true, autoRotated };
+        return { authorized: true, usedPreviousKey: true, autoRotated, scopeServerId: null };
     }
 
-    if (safeApiKeyEquals(req.headers.get("x-api-key"), snapshot.previousKey)) {
-        return { authorized: true, usedPreviousKey: true, autoRotated };
+    if (safeApiKeyEquals(apiKeyHeader, snapshot.previousKey)) {
+        return { authorized: true, usedPreviousKey: true, autoRotated, scopeServerId: null };
     }
 
-    return { authorized: false, usedPreviousKey: false, autoRotated };
+    const scopedBearerPrevious = verifyScopedPluginApiKey(bearerToken, snapshot.previousKey);
+    if (scopedBearerPrevious.valid) {
+        return {
+            authorized: true,
+            usedPreviousKey: true,
+            autoRotated,
+            scopeServerId: scopedBearerPrevious.jellyfinServerId,
+        };
+    }
+
+    const scopedHeaderPrevious = verifyScopedPluginApiKey(apiKeyHeader, snapshot.previousKey);
+    if (scopedHeaderPrevious.valid) {
+        return {
+            authorized: true,
+            usedPreviousKey: true,
+            autoRotated,
+            scopeServerId: scopedHeaderPrevious.jellyfinServerId,
+        };
+    }
+
+    return { authorized: false, usedPreviousKey: false, autoRotated, scopeServerId: null };
 }
 
 function extractBearerToken(headerValue: string | null): string | null {
@@ -683,7 +727,30 @@ export async function POST(req: Request) {
             );
         }
 
-        const sourceServer = await upsertServerRecord(extractServerIdentityFromPayload(payload));
+        const sourceServerIdentity = extractServerIdentityFromPayload(payload);
+        if (authResult.scopeServerId && authResult.scopeServerId !== sourceServerIdentity.jellyfinServerId) {
+            await writeAdminAuditLog({
+                action: "plugin.events.scoped_key_server_mismatch",
+                actorUsername: "plugin-client",
+                target: "/api/plugin/events",
+                ipAddress: requesterIp,
+                details: {
+                    tokenServerId: authResult.scopeServerId,
+                    payloadServerId: sourceServerIdentity.jellyfinServerId,
+                    event,
+                },
+            });
+            return corsJson(
+                {
+                    error: "Forbidden — scoped plugin key does not match payload server.",
+                    tokenServerId: authResult.scopeServerId,
+                    payloadServerId: sourceServerIdentity.jellyfinServerId,
+                },
+                { status: 403 },
+            );
+        }
+
+        const sourceServer = await upsertServerRecord(sourceServerIdentity);
 
         // Keep connection status fresh even if the plugin sends few heartbeats.
         if (event !== "Heartbeat" && event !== "PlaybackProgress") {

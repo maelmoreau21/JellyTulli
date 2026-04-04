@@ -7,7 +7,7 @@ import UserRecentMedia from "./UserRecentMedia";
 import UserStatsCharts from "./UserStatsCharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/authOptions";
 import { getTranslations } from 'next-intl/server';
 import { ensureMasterServer } from "@/lib/serverRegistry";
 import { resolveLinkedAccounts } from "@/lib/auth";
@@ -107,7 +107,7 @@ export default async function UserDetailPage({ params, searchParams }: UserPageP
                     {showWrappedButton && (
                         <a
                             href={`/wrapped/${jellyfinUserId}`}
-                            className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white transition-all bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full hover:scale-105 hover:shadow-lg hover:shadow-purple-500/25"
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white transition-all bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full border border-border/40 shadow-sm hover:scale-105 hover:shadow-lg hover:shadow-purple-500/25"
                         >
                             🎁 {t('viewWrapped')}
                         </a>

@@ -9,6 +9,7 @@ import { ServerFilter } from "@/components/dashboard/ServerFilter";
 import { requireAdmin, isAuthError } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIdsAsync } from "@/lib/serverScope";
+import { buildSelectableServerOptions } from "@/lib/selectableServers";
 
 export const dynamic = "force-dynamic";
 
@@ -65,9 +66,11 @@ type LibraryStatsEntry = {
     rawNames: Set<string>;
 };
 
-export default async function CollectionsPage({ searchParams }: { searchParams?: CollectionsSearchParams }) {
+export default async function CollectionsPage({ searchParams }: { searchParams?: Promise<CollectionsSearchParams> }) {
     const auth = await requireAdmin();
     if (isAuthError(auth)) return auth;
+
+    const resolvedSearchParams = (searchParams ? await searchParams : {}) as CollectionsSearchParams;
 
     const t = await getTranslations('media');
     const tc = await getTranslations('common');
@@ -75,7 +78,7 @@ export default async function CollectionsPage({ searchParams }: { searchParams?:
     const [settings, serverRows, sanitizedLibraries] = await Promise.all([
         prisma.globalSettings.findUnique({ where: { id: "global" } }),
         prisma.server.findMany({
-            select: { id: true, name: true, isActive: true },
+            select: { id: true, name: true, isActive: true, url: true, jellyfinServerId: true },
             orderBy: { name: "asc" },
         }),
         getSanitizedLibraryNames(),
@@ -84,14 +87,10 @@ export default async function CollectionsPage({ searchParams }: { searchParams?:
     const excludedLibraries = settings?.excludedLibraries || [];
 
     const jellytrackMode = (process.env.JELLYTRACK_MODE || "single").toLowerCase();
-    const activeServerRows = serverRows.filter((server) => server.isActive);
-    const selectableServerOptions = (activeServerRows.length > 0 ? activeServerRows : serverRows).map((server) => ({
-        id: server.id,
-        name: server.name,
-    }));
+    const selectableServerOptions = buildSelectableServerOptions(serverRows);
     const multiServerEnabled = jellytrackMode === "multi" && selectableServerOptions.length > 1;
 
-    const serversParam = readFirstSearchParam(searchParams?.servers);
+    const serversParam = readFirstSearchParam(resolvedSearchParams.servers);
     const cookieStore = await cookies();
     const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;
     const { selectedServerIds } = await resolveSelectedServerIdsAsync({
@@ -423,7 +422,7 @@ export default async function CollectionsPage({ searchParams }: { searchParams?:
         return true;
     });
 
-    const debugEnabled = readFirstSearchParam(searchParams?.debugCollections) === '1' || process.env.DEBUG_COLLECTIONS === '1';
+    const debugEnabled = readFirstSearchParam(resolvedSearchParams.debugCollections) === '1' || process.env.DEBUG_COLLECTIONS === '1';
     const debugOutput = debugEnabled ? Array.from(libraryStatsMap.entries()).map(([key, stats]) => ({
         key,
         displayName: stats.displayName,

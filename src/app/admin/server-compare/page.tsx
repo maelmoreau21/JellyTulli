@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ServerFilter } from "@/components/dashboard/ServerFilter";
+import { getTranslations } from 'next-intl/server';
 import { cookies } from "next/headers";
 import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIdsAsync } from "@/lib/serverScope";
+import { buildSelectableServerOptions } from "@/lib/selectableServers";
 import { Activity, ArrowUpRight, Gauge, Server, Zap } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -56,23 +58,20 @@ export default async function ServerComparePage({
 }) {
     const auth = await requireAdmin();
     if (isAuthError(auth)) return auth;
+    const t = await getTranslations('dashboard');
 
     const params = (await searchParams) || {};
 
     const [serverRows, cookieStore] = await Promise.all([
         prisma.server.findMany({
-            select: { id: true, name: true, isActive: true, updatedAt: true },
+            select: { id: true, name: true, isActive: true, updatedAt: true, url: true, jellyfinServerId: true },
             orderBy: { name: "asc" },
         }),
         cookies(),
     ]);
 
     const jellytrackMode = (process.env.JELLYTRACK_MODE || "single").toLowerCase();
-    const activeServerRows = serverRows.filter((server) => server.isActive);
-    const selectableServerOptions = (activeServerRows.length > 0 ? activeServerRows : serverRows).map((server) => ({
-        id: server.id,
-        name: server.name,
-    }));
+    const selectableServerOptions = buildSelectableServerOptions(serverRows);
     const multiServerEnabled = jellytrackMode === "multi" && selectableServerOptions.length > 1;
 
     const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;
@@ -82,6 +81,21 @@ export default async function ServerComparePage({
         requestedServersParam: params.servers,
         cookieServersParam: persistedScopeCookie,
     });
+
+    if (!multiServerEnabled) {
+        return (
+            <div className="flex-col md:flex">
+                <div className="flex-1 space-y-6 p-4 md:p-8 pt-4 md:pt-6 max-w-[1400px] mx-auto w-full">
+                    <Card className="app-surface border-border/60">
+                        <CardHeader>
+                            <CardTitle>{t('multiServerComparator.title')}</CardTitle>
+                            <CardDescription>{t('multiServerComparator.disabled')}</CardDescription>
+                        </CardHeader>
+                    </Card>
+                </div>
+            </div>
+        );
+    }
 
     const selectedServerScope = selectedServerIds.length > 0 ? { in: selectedServerIds } : undefined;
     const nowMs = Date.now();
@@ -218,10 +232,10 @@ export default async function ServerComparePage({
                 <header className="space-y-2">
                     <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
                         <Server className="w-7 h-7 text-primary" />
-                        Multi-server Comparator
+                        {t('multiServerComparator.title')}
                     </h1>
                     <p className="text-sm text-muted-foreground max-w-3xl">
-                        Compare current load, transcoding pressure and heartbeat freshness across Jellyfin servers.
+                        {t('multiServerComparator.desc')}
                     </p>
                 </header>
 

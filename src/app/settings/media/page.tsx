@@ -16,12 +16,22 @@ type LibraryScope = {
     libraryName: string;
 };
 
+type ServerDiagnostic = {
+    id: string;
+    name: string;
+    url: string;
+    isPrimary: boolean;
+    connectionState: "online" | "offline" | "no_api_key";
+    connectionMessage: string;
+};
+
 function normalizeLibraryName(value: string | null | undefined): string {
     return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 export default function SettingsMediaPage() {
     const t = useTranslations("settings");
+    const tc = useTranslations("common");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -30,16 +40,43 @@ export default function SettingsMediaPage() {
     const [orphanScopedExclusions, setOrphanScopedExclusions] = useState<string[]>([]);
     const [legacyGlobalExclusions, setLegacyGlobalExclusions] = useState<string[]>([]);
     const [availableLibraryScopes, setAvailableLibraryScopes] = useState<LibraryScope[]>([]);
+    const [serverDiagnostics, setServerDiagnostics] = useState<ServerDiagnostic[]>([]);
 
     useEffect(() => {
         let mounted = true;
         (async () => {
             try {
-                const res = await fetch("/api/settings");
-                if (!res.ok) throw new Error("Failed");
-                const data = await res.json();
+                const [settingsRes, serverRes] = await Promise.all([
+                    fetch("/api/settings"),
+                    fetch("/api/settings/jellyfin-servers", { cache: "no-store" }),
+                ]);
+
+                if (!settingsRes.ok) throw new Error("Failed");
+
+                const data = await settingsRes.json();
                 if (!mounted) return;
                 setResolutionThresholds(data.resolutionThresholds || null);
+
+                if (serverRes.ok) {
+                    const serverData = await serverRes.json().catch(() => ({}));
+                    const servers = Array.isArray(serverData.servers) ? serverData.servers : [];
+                    const diagnostics = servers
+                        .filter((entry: any) => entry && typeof entry === "object")
+                        .map((entry: any) => ({
+                            id: String(entry.id || ""),
+                            name: String(entry.name || "Serveur"),
+                            url: String(entry.url || ""),
+                            isPrimary: Boolean(entry.isPrimary),
+                            connectionState:
+                                entry.connectionState === "online" || entry.connectionState === "no_api_key"
+                                    ? entry.connectionState
+                                    : "offline",
+                            connectionMessage: String(entry.connectionMessage || ""),
+                        }))
+                        .filter((entry: ServerDiagnostic) => entry.id);
+
+                    setServerDiagnostics(diagnostics);
+                }
 
                 const apiScopesRaw = Array.isArray(data.availableLibraryScopes)
                     ? data.availableLibraryScopes
@@ -149,6 +186,14 @@ export default function SettingsMediaPage() {
         return grouped;
     }, [availableLibraryScopes]);
 
+    const libraryCountByServerId = useMemo(() => {
+        const counts = new Map<string, number>();
+        groupedByServer.forEach((group) => {
+            counts.set(group.id, group.libraries.length);
+        });
+        return counts;
+    }, [groupedByServer]);
+
     const toggleLibraryScope = (scopeKey: string) => {
         setExcludedLibraryScopes((prev) =>
             prev.includes(scopeKey) ? prev.filter((value) => value !== scopeKey) : [...prev, scopeKey]
@@ -193,7 +238,7 @@ export default function SettingsMediaPage() {
         }
     };
 
-    if (loading) return <div className="p-8 max-w-[900px] mx-auto">{t("loading") || "Loading..."}</div>;
+    if (loading) return <div className="p-8 max-w-[900px] mx-auto">{tc("loading") || "Loading..."}</div>;
 
     return (
         <div className="p-4 md:p-8 max-w-[1200px] mx-auto space-y-4">
@@ -236,8 +281,60 @@ export default function SettingsMediaPage() {
                             Décochez une bibliothèque serveur par serveur. Deux bibliothèques portant le même nom sur des serveurs différents sont gérées séparément.
                         </p>
 
+                        {serverDiagnostics.length > 0 && (
+                            <div className="space-y-2">
+                                <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">État des serveurs Jellyfin</p>
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                    {serverDiagnostics.map((server) => {
+                                        const libraryCount = libraryCountByServerId.get(server.id) || 0;
+                                        return (
+                                            <div
+                                                key={server.id}
+                                                className="rounded-lg border border-zinc-200/70 dark:border-zinc-800/70 bg-zinc-50/70 dark:bg-zinc-900/40 p-3 space-y-2"
+                                            >
+                                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                                    <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                                        {server.name}
+                                                    </div>
+                                                    <span
+                                                        className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${
+                                                            server.connectionState === "online"
+                                                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                                                                : server.connectionState === "no_api_key"
+                                                                    ? "border-amber-500/30 bg-amber-500/10 text-amber-500"
+                                                                    : "border-red-500/30 bg-red-500/10 text-red-500"
+                                                        }`}
+                                                    >
+                                                        {server.connectionState === "online"
+                                                            ? "Connecté"
+                                                            : server.connectionState === "no_api_key"
+                                                                ? "Clé API manquante"
+                                                                : "Hors ligne / clé invalide"}
+                                                    </span>
+                                                </div>
+                                                <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono break-all">
+                                                    {server.url || "URL manquante"}
+                                                </div>
+                                                <div className="text-xs text-zinc-600 dark:text-zinc-300">
+                                                    {libraryCount > 0
+                                                        ? `${libraryCount} bibliothèques détectées`
+                                                        : "Aucune bibliothèque détectée pour ce serveur"}
+                                                    {server.isPrimary ? " • serveur principal" : " • serveur secondaire"}
+                                                </div>
+                                                {server.connectionMessage && (
+                                                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400">{server.connectionMessage}</div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
                         {groupedByServer.length === 0 ? (
-                            <p className="text-sm text-zinc-400 italic">{t("noLibrariesFound") || "Aucune bibliothèque trouvée. Lancez une synchronisation d'abord."}</p>
+                            <p className="text-sm text-zinc-400 italic">
+                                {t("noLibrariesFound") || "Aucune bibliothèque trouvée."} Vérifiez l'URL et la clé API Jellyfin de chaque serveur, puis rechargez la page.
+                            </p>
                         ) : (
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                                 {groupedByServer.map((serverGroup) => (

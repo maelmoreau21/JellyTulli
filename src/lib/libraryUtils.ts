@@ -97,11 +97,39 @@ function normalizeLibraryNameIdentity(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+async function fetchServerVirtualFolderNames(baseUrl: string, apiKey: string): Promise<string[]> {
+  const normalizedUrl = String(baseUrl || '').trim().replace(/\/+$/, '');
+  const normalizedApiKey = String(apiKey || '').trim();
+  if (!normalizedUrl || !normalizedApiKey) return [];
+
+  try {
+    const response = await fetch(`${normalizedUrl}/Library/VirtualFolders`, {
+      headers: { "X-Emby-Token": normalizedApiKey },
+      cache: "no-store",
+    });
+    if (!response.ok) return [];
+
+    const foldersRaw = await response.json() as unknown;
+    if (!Array.isArray(foldersRaw)) return [];
+
+    return foldersRaw
+      .filter((folder): folder is Record<string, unknown> => typeof folder === 'object' && folder !== null)
+      .filter((folder) => String(folder['CollectionType'] || '').trim().toLowerCase() !== 'boxsets')
+      .map((folder) => String(folder['Name'] || '').trim())
+      .filter((name) => name.length > 0);
+  } catch {
+    return [];
+  }
+}
+
 export async function getServerLibraryScopes(): Promise<ServerLibraryScope[]> {
   const prismaAny = prisma as any;
   if (!prismaAny?.media || typeof prismaAny.media.findMany !== 'function') {
     return [];
   }
+
+  const configuredServers = await getConfiguredJellyfinServers().catch(() => []);
+  const primaryEnvApiKey = String(process.env.JELLYFIN_API_KEY || '').trim();
 
   const [serverRows, mediaRows] = await Promise.all([
     prismaAny?.server && typeof prismaAny.server.findMany === 'function'
@@ -126,29 +154,73 @@ export async function getServerLibraryScopes(): Promise<ServerLibraryScope[]> {
     ])
   );
 
-  const ghostSet = new Set(GHOST_LIBRARY_NAMES.map((name) => normalizeLibraryNameIdentity(name)));
+  for (const server of configuredServers) {
+    serverMap.set(server.id, {
+      name: String(server.name || server.id || 'Unknown server'),
+      url: String(server.url || '').trim() || null,
+    });
+  }
+
   const seen = new Set<string>();
   const scoped: ServerLibraryScope[] = [];
 
-  for (const row of mediaRows as Array<{ serverId: string; libraryName: string | null }>) {
-    const serverId = String(row.serverId || '').trim();
-    const libraryName = String(row.libraryName || '').trim();
-    if (!serverId || !libraryName) continue;
-
-    if (ghostSet.has(normalizeLibraryNameIdentity(libraryName))) continue;
+  const registerScope = (input: {
+    serverId: string;
+    libraryName: string;
+    serverName?: string | null;
+    serverUrl?: string | null;
+  }) => {
+    const serverId = String(input.serverId || '').trim();
+    const libraryName = String(input.libraryName || '').trim();
+    if (!serverId || !libraryName) return;
 
     const key = makeScopedLibraryExclusion(serverId, libraryName);
-    if (!key || seen.has(key)) continue;
+    if (!key || seen.has(key)) return;
 
     const serverMeta = serverMap.get(serverId);
     scoped.push({
       key,
       serverId,
-      serverName: serverMeta?.name || serverId,
-      serverUrl: serverMeta?.url || null,
+      serverName: String(input.serverName || serverMeta?.name || serverId),
+      serverUrl: input.serverUrl !== undefined ? (input.serverUrl || null) : (serverMeta?.url || null),
       libraryName,
     });
     seen.add(key);
+  };
+
+  const liveLibraryResults = await Promise.all(
+    configuredServers.map(async (server) => {
+      const baseUrl = String(server.url || '').trim().replace(/\/+$/, '');
+      const apiKey = server.isPrimary
+        ? (primaryEnvApiKey || String(server.apiKey || '').trim())
+        : String(server.apiKey || '').trim();
+
+      const names = await fetchServerVirtualFolderNames(baseUrl, apiKey);
+      return {
+        serverId: server.id,
+        serverName: server.name,
+        serverUrl: baseUrl || null,
+        names,
+      };
+    })
+  );
+
+  for (const entry of liveLibraryResults) {
+    for (const libraryName of entry.names) {
+      registerScope({
+        serverId: entry.serverId,
+        serverName: entry.serverName,
+        serverUrl: entry.serverUrl,
+        libraryName,
+      });
+    }
+  }
+
+  for (const row of mediaRows as Array<{ serverId: string; libraryName: string | null }>) {
+    registerScope({
+      serverId: row.serverId,
+      libraryName: String(row.libraryName || ''),
+    });
   }
 
   scoped.sort((left, right) => {

@@ -2,6 +2,7 @@ import { Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogFilters } from "./LogFilters";
 import { ColumnToggle } from "./ColumnToggle";
+import { FiltersCollapse } from "./FiltersCollapse";
 import { SavedFilters } from "@/components/SavedFilters";
 import LogsListClient from "./LogsListClient";
 import { ServerFilter } from "@/components/dashboard/ServerFilter";
@@ -13,10 +14,11 @@ import { ZAPPING_CONDITION } from "@/lib/statsUtils";
 
 import Link from "next/link";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/authOptions";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIdsAsync } from "@/lib/serverScope";
+import { buildSelectableServerOptions } from "@/lib/selectableServers";
 
 export const dynamic = "force-dynamic"; // Bypass statis rendering for real-time logs
 
@@ -169,15 +171,11 @@ export default async function LogsPage({
     const dayParam = params.day || "";
 
     const serverRows = await prisma.server.findMany({
-        select: { id: true, name: true, isActive: true },
+        select: { id: true, name: true, isActive: true, url: true, jellyfinServerId: true },
         orderBy: { name: "asc" },
     });
     const jellytrackMode = (process.env.JELLYTRACK_MODE || "single").toLowerCase();
-    const activeServerRows = serverRows.filter((server) => server.isActive);
-    const selectableServerOptions = (activeServerRows.length > 0 ? activeServerRows : serverRows).map((server) => ({
-        id: server.id,
-        name: server.name,
-    }));
+    const selectableServerOptions = buildSelectableServerOptions(serverRows);
     const multiServerEnabled = jellytrackMode === "multi" && selectableServerOptions.length > 1;
     const cookieStore = await cookies();
     const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;
@@ -447,33 +445,35 @@ export default async function LogsPage({
                 <div className="space-y-4">
                     <Card className="border-0 shadow-sm bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-800">
                         <CardContent className="space-y-4">
-                            <ServerFilter
-                                servers={selectableServerOptions}
-                                enabled={multiServerEnabled}
-                                showOutsideDashboard
-                            />
-                            <div className="flex items-start gap-2 flex-wrap">
-                                <div className="flex-1 w-full relative z-10">
-                                    <LogFilters 
-                                        initialQuery={query} 
-                                        initialSort={sort} 
-                                        initialHideZapped={hideZapped}
-                                        initialType={typeFilter}
-                                        initialClient={clientParams}
-                                        initialAudio={audioParams}
-                                        initialSubtitle={subtitleParams}
-                                        initialDateFrom={dateFromParam}
-                                        initialDateTo={dateToParam}
-                                        initialServers={serversParam}
-                                        serverOptions={selectableServerOptions}
-                                        multiServerEnabled={multiServerEnabled}
-                                    />
+                            <FiltersCollapse storageKey="logs.filtersOpen" defaultOpen={true}>
+                                <ServerFilter
+                                    servers={selectableServerOptions}
+                                    enabled={multiServerEnabled}
+                                    showOutsideDashboard
+                                />
+                                <div className="flex items-start gap-2 flex-wrap">
+                                    <div className="flex-1 w-full relative z-10">
+                                        <LogFilters 
+                                            initialQuery={query} 
+                                            initialSort={sort} 
+                                            initialHideZapped={hideZapped}
+                                            initialType={typeFilter}
+                                            initialClient={clientParams}
+                                            initialAudio={audioParams}
+                                            initialSubtitle={subtitleParams}
+                                            initialDateFrom={dateFromParam}
+                                            initialDateTo={dateToParam}
+                                            initialServers={serversParam}
+                                            serverOptions={selectableServerOptions}
+                                            multiServerEnabled={multiServerEnabled}
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <SavedFilters />
+                                        <ColumnToggle visibleColumns={visibleColumns} />
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <SavedFilters />
-                                    <ColumnToggle visibleColumns={visibleColumns} />
-                                </div>
-                            </div>
+                            </FiltersCollapse>
                         </CardContent>
                     </Card>
 

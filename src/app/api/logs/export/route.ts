@@ -19,6 +19,8 @@ export async function GET(request: Request) {
     const clientStr = searchParams.get("client") || "";
     const audioStr = searchParams.get("audio") || "";
     const subStr = searchParams.get("subtitle") || "";
+    const resolutionStr = searchParams.get("resolution") || "";
+    const playMethodStr = searchParams.get("playMethod") || "";
     const dateFrom = searchParams.get("dateFrom") || "";
     const dateTo = searchParams.get("dateTo") || "";
     const serversParam = searchParams.get("servers") || "";
@@ -61,6 +63,8 @@ export async function GET(request: Request) {
     if (clientStr) conditions.push({ clientName: { contains: clientStr, mode: "insensitive" } });
     if (audioStr) conditions.push({ OR: [{audioCodec: { contains: audioStr, mode: "insensitive" }}, {audioLanguage: { contains: audioStr, mode: "insensitive" }}] });
     if (subStr) conditions.push({ OR: [{subtitleCodec: { contains: subStr, mode: "insensitive" }}, {subtitleLanguage: { contains: subStr, mode: "insensitive" }}] });
+    if (resolutionStr) conditions.push({ media: { resolution: { contains: resolutionStr, mode: "insensitive" } } });
+    if (playMethodStr) conditions.push({ playMethod: { equals: playMethodStr, mode: "insensitive" } });
 
     if (dateFrom || dateTo) {
         const dateFilter: { gte?: Date; lte?: Date } = {};

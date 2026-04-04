@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getTranslations } from 'next-intl/server';
 import { getCompletionMetrics } from "@/lib/mediaPolicy";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/authOptions";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";

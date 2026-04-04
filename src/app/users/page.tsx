@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ChevronLeft, ChevronRight, Clock, Monitor } from "lucide-react";
 import { getTranslations, getLocale } from 'next-intl/server';
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/authOptions";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";

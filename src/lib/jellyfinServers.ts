@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { ensureMasterServer, getMasterServerIdentityFromEnv } from "@/lib/serverRegistry";
+import { buildSelectableServerOptions } from "@/lib/selectableServers";
 
 export interface JellyfinServerConnection {
   id: string;
@@ -15,6 +16,13 @@ export interface JellyfinAuthResponse {
   userId: string;
   username: string;
   isAdmin: boolean;
+}
+
+export type JellyfinAuthAttemptStatus = "success" | "invalid_credentials" | "unreachable" | "error";
+
+export interface JellyfinAuthAttemptResult {
+  status: JellyfinAuthAttemptStatus;
+  user: JellyfinAuthResponse | null;
 }
 
 function normalizeUrl(value: string | null | undefined): string {
@@ -79,8 +87,22 @@ export async function getConfiguredJellyfinServers(): Promise<JellyfinServerConn
     });
   }
 
-  list.sort((left, right) => getServerSortRank(left).localeCompare(getServerSortRank(right)));
-  return list;
+  const visibleServerIds = new Set(
+    buildSelectableServerOptions(
+      list.map((server) => ({
+        id: server.id,
+        name: server.name,
+        isActive: true,
+        url: server.url,
+        jellyfinServerId: server.jellyfinServerId,
+      }))
+    ).map((server) => server.id)
+  );
+
+  const filteredList = list.filter((server) => visibleServerIds.has(server.id));
+
+  filteredList.sort((left, right) => getServerSortRank(left).localeCompare(getServerSortRank(right)));
+  return filteredList;
 }
 
 export async function authenticateAgainstJellyfin(input: {
@@ -89,8 +111,18 @@ export async function authenticateAgainstJellyfin(input: {
   password: string;
   timeoutMs?: number;
 }): Promise<JellyfinAuthResponse | null> {
+  const attempt = await authenticateAgainstJellyfinDetailed(input);
+  return attempt.status === "success" ? attempt.user : null;
+}
+
+export async function authenticateAgainstJellyfinDetailed(input: {
+  url: string;
+  username: string;
+  password: string;
+  timeoutMs?: number;
+}): Promise<JellyfinAuthAttemptResult> {
   const baseUrl = normalizeUrl(input.url);
-  if (!baseUrl) return null;
+  if (!baseUrl) return { status: "error", user: null };
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Math.max(1500, input.timeoutMs ?? 7000));
@@ -110,21 +142,33 @@ export async function authenticateAgainstJellyfin(input: {
       cache: "no-store",
     });
 
-    if (!response.ok) return null;
+    if (response.status === 401 || response.status === 403) {
+      return { status: "invalid_credentials", user: null };
+    }
+
+    if (!response.ok) {
+      if (response.status >= 500) {
+        return { status: "unreachable", user: null };
+      }
+      return { status: "error", user: null };
+    }
 
     const data = await response.json();
     const userNode = (data?.User || {}) as Record<string, unknown>;
     const userId = String(userNode.Id || "").trim();
     const username = String(userNode.Name || input.username || "").trim();
 
-    if (!userId || !username) return null;
+    if (!userId || !username) return { status: "error", user: null };
 
     const policy = (userNode.Policy || {}) as Record<string, unknown>;
     const isAdmin = policy.IsAdministrator === true;
 
-    return { userId, username, isAdmin };
+    return {
+      status: "success",
+      user: { userId, username, isAdmin },
+    };
   } catch {
-    return null;
+    return { status: "unreachable", user: null };
   } finally {
     clearTimeout(timeout);
   }

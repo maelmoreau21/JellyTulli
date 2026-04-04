@@ -56,7 +56,7 @@ export default async function UserActivity({ userId, userIds = [], userDbIds = [
         <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm mt-6">
             <CardHeader className="pb-2">
                 <CardTitle>{t('activity30d')}</CardTitle>
-                <CardDescription>{t('activity30dDesc')}</CardDescription>
+                <CardDescription className="whitespace-normal">{t('activity30dDesc')}</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="h-[250px] w-full">
