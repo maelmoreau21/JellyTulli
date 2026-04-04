@@ -404,7 +404,11 @@
   "liveStreams": {
     "description": "Currently {count} active stream(s).",
     "noStreams": "No streams currently playing.",
-    "title": "Live"
+    "title": "Live",
+    "timelineView": "Timeline View",
+    "cardsView": "Cards View",
+    "transcodeAbbr": "TC",
+    "directPlayAbbr": "DP"
   },
   "login": {
     "loadingForm": "Loading form...",

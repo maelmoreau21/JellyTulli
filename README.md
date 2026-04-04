@@ -28,7 +28,7 @@ JellyTrack collecte et analyse les événements Jellyfin (playback start/progres
 
 ## Stack
 
-- Front/Back : Next.js 15 (App Router, Server Components)
+- Front/Back : Next.js 16 (App Router, Server Components)
 - Données : PostgreSQL + Prisma
 - Temps réel : Redis
 - UI : TailwindCSS + shadcn/ui + Recharts
@@ -51,7 +51,9 @@ git clone https://github.com/maelmoreau21/JellyTrack.git
 cd JellyTrack
 ```
 
-1. Adapter `docker-compose.yml` / variables d'environnement (voir section Variables ci‑dessous).
+1. Ouvrir le fichier `.env` (fourni dans le dépôt comme exemple public) et remplacer les valeurs `CHANGE_ME_*`.
+
+1. Vérifier les points essentiels de `docker-compose.yml` (`APP_PORT`, URL Jellyfin, secrets).
 
 1. Lancer la stack :
 
@@ -60,6 +62,13 @@ docker compose up -d
 ```
 
 1. Ouvrir l'interface : `http://<host>:<APP_PORT>` (par défaut 3000) — se connecter avec `ADMIN_PASSWORD`.
+
+## Fichier `.env` (versionné volontairement)
+
+- Le dépôt contient un `.env` **d'exemple** pour simplifier l'onboarding Docker.
+- Les valeurs sont volontairement non sensibles (`CHANGE_ME_*`) : remplacez-les avant toute mise en production.
+- Pour un déploiement réel, vous pouvez utiliser des variables d'environnement injectées par votre orchestrateur (Portainer, Swarm, Kubernetes, etc.).
+- Si vous devez conserver des secrets locaux, utilisez un autre fichier non versionné et chargez-le dans votre environnement de déploiement.
 
 ## Plugin Jellyfin — installation (RECOMMANDÉE)
 

@@ -64,49 +64,49 @@ export function SystemHealthWidgets({ initialSnapshot }: { initialSnapshot: Snap
     }, []);
 
     const monitorTone = snapshot.status.monitor.status === 'error'
-        ? 'text-red-300 bg-red-500/10 border-red-500/20'
-        : 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20';
+        ? 'app-chip border-red-500/35 bg-red-500/10 text-red-500 dark:text-red-300'
+        : 'app-chip-success';
 
     return (
         <div className="space-y-4">
-            <div className="dashboard-banner flex flex-wrap items-center gap-2 rounded-2xl px-4 py-3 md:gap-3">
-                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] ${monitorTone}`}>
+            <div className="app-surface flex flex-wrap items-center gap-2 rounded-lg px-3 py-3 md:gap-3">
+                <div className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold ${monitorTone}`}>
                     <Activity className="h-3.5 w-3.5" />
                     {t('monitor')} {snapshot.status.monitor.status === 'error' ? t('monitorStatusError') : t('monitorStatusActive')}
                 </div>
-                <div className="dashboard-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-muted-foreground">
+                <div className="app-chip inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs text-muted-foreground">
                     <Clock3 className="h-3.5 w-3.5 text-primary" />
                     {t('lastPoll')}: {formatRelative(snapshot.status.monitor.lastPollAt as string | null)}
                 </div>
-                <div className="dashboard-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-muted-foreground">
+                <div className="app-chip inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs text-muted-foreground">
                     <RefreshCw className="h-3.5 w-3.5 text-amber-500" />
                     {t('lastSync')}: {formatRelative(snapshot.status.sync.lastSuccessAt as string | null)}
                 </div>
-                <div className="dashboard-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-muted-foreground">
+                <div className="app-chip inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs text-muted-foreground">
                     <DatabaseBackup className="h-3.5 w-3.5 text-emerald-500" />
                     {t('lastBackup')}: {formatRelative(snapshot.status.backup.lastSuccessAt as string | null)}
                 </div>
-                <Link href="/admin/health" className="ml-auto inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/20 transition-all">
+                <Link href="/admin/health" className="ml-auto inline-flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15">
                     <HeartPulse className="h-3.5 w-3.5" />
                     {t('logHealth')}
                 </Link>
             </div>
 
-            <Card className="app-surface-soft border-border shadow-md">
+            <Card className="app-surface border-border">
                 <CardContent className="grid gap-4 p-5 md:grid-cols-4">
-                    <div className="rounded-2xl border border-border/50 bg-zinc-500/5 dark:bg-zinc-400/5 p-4">
+                    <div className="app-surface-soft rounded-lg border border-border p-4">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> {t('activeStreams')}</div>
                         <div className="mt-2 text-3xl font-bold">{snapshot.counts.activeStreams}</div>
                     </div>
-                    <div className="rounded-2xl border border-border/50 bg-zinc-500/5 dark:bg-zinc-400/5 p-4">
+                    <div className="app-surface-soft rounded-lg border border-border p-4">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground"><ShieldAlert className="h-4 w-4 text-amber-500" /> {t('openPlaybackOrphans')}</div>
                         <div className="mt-2 text-3xl font-bold">{snapshot.counts.openPlaybackOrphans}</div>
                     </div>
-                    <div className="rounded-2xl border border-border/50 bg-zinc-500/5 dark:bg-zinc-400/5 p-4">
+                    <div className="app-surface-soft rounded-lg border border-border p-4">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground"><AlertTriangle className="h-4 w-4 text-rose-500" /> {t('dbWithoutRedis')}</div>
                         <div className="mt-2 text-3xl font-bold">{snapshot.counts.dbStreamsWithoutRedis}</div>
                     </div>
-                    <div className="rounded-2xl border border-border/50 bg-zinc-500/5 dark:bg-zinc-400/5 p-4">
+                    <div className="app-surface-soft rounded-lg border border-border p-4">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground"><HeartPulse className="h-4 w-4 text-primary" /> {t('excludedLibraries')}</div>
                         <div className="mt-2 text-3xl font-bold">{snapshot.excludedLibraries.length}</div>
                     </div>

@@ -27,24 +27,6 @@ interface ActivityByHourChartProps {
     data: ActivityHourData[];
 }
 
-/* Custom active bar shape with glow effect */
-type GlowBarProps = {
-    fill?: string;
-    x?: number;
-    y?: number;
-    width?: number;
-    height?: number;
-};
-
-function GlowBar({ fill, x, y, width, height }: GlowBarProps) {
-    return (
-        <g>
-            <rect x={x} y={y} width={width} height={height} rx={4} ry={4}
-                  fill={fill} filter="url(#barGlow)" fillOpacity={1} />
-        </g>
-    );
-}
-
 export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
     const t = useTranslations('charts');
     const router = useRouter();
@@ -71,7 +53,7 @@ export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
         border: root?.getPropertyValue('--chart-tooltip-border')?.trim() || '1px solid rgba(103, 232, 249, 0.18)',
         borderRadius: root?.getPropertyValue('--chart-tooltip-radius')?.trim() || '18px',
         boxShadow: root?.getPropertyValue('--chart-tooltip-box-shadow')?.trim() || '0 20px 60px rgba(0, 0, 0, 0.35)',
-        backdropFilter: root?.getPropertyValue('--chart-tooltip-backdrop')?.trim() || 'blur(18px)'
+        backdropFilter: root?.getPropertyValue('--chart-tooltip-backdrop')?.trim() || 'none'
     };
     const chartLabelStyle = { color: root?.getPropertyValue('--chart-label-color')?.trim() || '#94a3b8' };
     const chartItemStyle = { color: root?.getPropertyValue('--chart-item-color')?.trim() || '#e5eefb' };
@@ -107,19 +89,6 @@ export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
                         }}
                     style={{ cursor: "pointer" }}
                 >
-                    <defs>
-                        <linearGradient id="activityByHourGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.95} />
-                            <stop offset="100%" stopColor="#a855f7" stopOpacity={0.72} />
-                        </linearGradient>
-                        <filter id="barGlow" x="-20%" y="-20%" width="140%" height="140%">
-                            <feGaussianBlur stdDeviation="4" result="blur" />
-                            <feMerge>
-                                <feMergeNode in="blur" />
-                                <feMergeNode in="SourceGraphic" />
-                            </feMerge>
-                        </filter>
-                    </defs>
                     <CartesianGrid strokeDasharray="3 7" vertical={false} stroke={chartGridColor} />
                     <XAxis
                         dataKey="hour"
@@ -142,7 +111,7 @@ export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
                         itemStyle={chartItemStyle}
                         cursor={{ fill: 'rgba(56, 189, 248, 0.06)', radius: 4 }}
                         formatter={(value: any) => [`${value ?? 0} ${t('sessions')}`, t('activity')]}
-                        animationDuration={200}
+                        animationDuration={0}
                     />
                     {/* Average reference line (only when meaningful) */}
                     {showAvg && (
@@ -157,9 +126,8 @@ export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
                     <Bar
                         dataKey="count"
                         radius={[4, 4, 0, 0]}
-                        animationDuration={800}
-                        animationEasing="ease-out"
-                        activeBar={<GlowBar />}
+                        animationDuration={0}
+                        animationEasing="linear"
                     >
                         {data.map((entry, index) => {
                             const entryCount = Number(entry.count ?? 0);
@@ -172,10 +140,9 @@ export function ActivityByHourChart({ data }: ActivityByHourChartProps) {
                                             ? "#22d3ee"
                                             : isMax
                                                 ? "#f97316"
-                                                : "url(#activityByHourGradient)"
+                                                : "#38bdf8"
                                     }
                                     fillOpacity={selectedHour && selectedHour !== entry.hour ? 0.3 : 1}
-                                    className="transition-all duration-200"
                                     style={{ cursor: "pointer" }}
                                 />
                             );

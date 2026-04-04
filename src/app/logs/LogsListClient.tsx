@@ -286,9 +286,9 @@ export default function LogsListClient({ serverLogs, visibleColumns, initialColu
             </TableRow>
           ) : (
             flattened.map((item, idx) => item.type === 'party' ? (
-              <TableRow key={`party-${idx}`} className="bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 border-l-4 border-l-violet-500 shadow-sm">
-                <TableCell colSpan={columns.length} className="p-3 font-semibold text-violet-700 dark:text-violet-300 flex items-center gap-2">
-                  <span className="text-lg">✨</span> Watch Party — {item.mediaTitle}
+              <TableRow key={`party-${idx}`} className="border-l-4 border-l-violet-500 bg-violet-500/10">
+                <TableCell colSpan={columns.length} className="flex items-center gap-2 p-3 font-semibold text-violet-700 dark:text-violet-300">
+                  Watch party: {item.mediaTitle}
                 </TableCell>
               </TableRow>
               ) : (

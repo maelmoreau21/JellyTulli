@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin, isAuthError } from "@/lib/auth";
-import { resolveSelectedServerIds } from "@/lib/serverScope";
+import { resolveSelectedServerIdsAsync } from "@/lib/serverScope";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
         const activeServerRows = serverRows.filter((server) => server.isActive);
         const selectableServerIds = (activeServerRows.length > 0 ? activeServerRows : serverRows).map((server) => server.id);
         const multiServerEnabled = jellytrackMode === "multi" && selectableServerIds.length > 1;
-        const { selectedServerIds } = resolveSelectedServerIds({
+        const { selectedServerIds } = await resolveSelectedServerIdsAsync({
             multiServerEnabled,
             selectableServerIds,
             requestedServersParam,

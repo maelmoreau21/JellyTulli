@@ -2,43 +2,45 @@ services:
   JellyTrack:
     image: ghcr.io/maelmoreau21/JellyTrack:latest
     container_name: JellyTrack_app
+    env_file:
+      - .env
     ports:
       - "${APP_PORT:-3000}:${PORT:-3000}"
     environment:
-      # ─── Identifiants PostgreSQL (doivent correspondre au service postgres ci-dessous) ───
-      POSTGRES_USER: JellyTrack
-      POSTGRES_PASSWORD: 'JellyTrack_password'
-      POSTGRES_IP: postgres                        # Nom du service Docker, ou IP (ex: 127.0.0.1 en mode host)
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: JellyTrack
-      # Aliases DB_* (prioritaires si définis) pour mode host/réseau custom
+      # Database (entrypoint supports DB_* overrides first, then POSTGRES_*)
+      POSTGRES_USER: ${POSTGRES_USER:-JellyTrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-JellyTrack_password}
+      POSTGRES_IP: ${POSTGRES_IP:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-JellyTrack}
       DB_HOST: ${DB_HOST:-}
       DB_PORT: ${DB_PORT:-}
       DB_USER: ${DB_USER:-}
       DB_PASSWORD: ${DB_PASSWORD:-}
       DB_NAME: ${DB_NAME:-}
-      # ─── Redis ───
-      REDIS_URL: redis://redis:6379
-      # ─── JellyTrack mode ───
-      # single: interface multi-serveur masquee
-      # multi: active les filtres/statistiques par serveur (si >= 2 serveurs)
+
+      # Core app
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       JELLYTRACK_MODE: ${JELLYTRACK_MODE:-single}
-      # ─── Port de JellyTrack (changer aussi dans ports: ci-dessus) ───
       PORT: ${PORT:-3000}
-      # ─── Jellyfin ───
-      JELLYFIN_URL: http://jellyfin:8096           # IP réelle du serveur Jellyfin (pas localhost en Docker)
-      JELLYFIN_API_KEY: your-jellyfin-api-key
-      # Identité du serveur maître (utilisée en mode single ou fallback)
+      APP_VERSION: ${APP_VERSION:-dev}
+
+      # Jellyfin source
+      JELLYFIN_URL: ${JELLYFIN_URL:-http://jellyfin:8096}
+      JELLYFIN_API_KEY: ${JELLYFIN_API_KEY:-CHANGE_ME_JELLYFIN_API_KEY}
       JELLYFIN_SERVER_ID: ${JELLYFIN_SERVER_ID:-master}
       JELLYFIN_SERVER_NAME: ${JELLYFIN_SERVER_NAME:-Master Jellyfin}
-      # ─── Authentification ───
-      ADMIN_PASSWORD: supersecretadmin             # ← À changer !
-      NEXTAUTH_SECRET: your-generated-random-secret # ← À changer ! (openssl rand -base64 32)
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000} # ← Pour HTTPS: https://your-domain.com
-      # ─── Divers ───
-      PUID: 1000
-      PGID: 1000
-      BACKUP_DIR: /data/backups
+
+      # Security
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-CHANGE_ME_ADMIN_PASSWORD}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-CHANGE_ME_NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      JELLYFIN_WEBHOOK_SECRET: ${JELLYFIN_WEBHOOK_SECRET:-CHANGE_ME_WEBHOOK_SECRET}
+
+      # Runtime user and backup location
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      BACKUP_DIR: ${BACKUP_DIR:-/data/backups}
     volumes:
       - JellyTrack_backups:/data/backups
     depends_on:
@@ -49,51 +51,20 @@ services:
     networks:
       - JellyTrack_net
     restart: unless-stopped
-    # ─── HTTPS via Reverse Proxy (Traefik) ───────────────────────────────────
-    # Pour activer HTTPS avec Traefik :
-    # 1. Décommentez les labels ci-dessous
-    # 2. Ajoutez un réseau Traefik (ex: traefik_proxy)
-    # 3. Supprimez ou commentez la section "ports:" ci-dessus
-    # 4. Changez NEXTAUTH_URL pour https://your-domain.com
-    #
-    # labels:
-    #   - "traefik.enable=true"
-    #   - "traefik.http.routers.JellyTrack.rule=Host(`JellyTrack.your-domain.com`)"
-    #   - "traefik.http.routers.JellyTrack.entrypoints=websecure"
-    #   - "traefik.http.routers.JellyTrack.tls.certresolver=letsencrypt"
-    #   - "traefik.http.services.JellyTrack.loadbalancer.server.port=3000"
-    #
-    # Alternative : NGINX reverse proxy (dans un fichier séparé) :
-    #   server {
-    #     listen 443 ssl;
-    #     server_name JellyTrack.your-domain.com;
-    #     ssl_certificate /path/to/cert.pem;
-    #     ssl_certificate_key /path/to/key.pem;
-    #     location / {
-    #       proxy_pass http://JellyTrack:3000;
-    #       proxy_set_header Host $host;
-    #       proxy_set_header X-Real-IP $remote_addr;
-    #       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    #       proxy_set_header X-Forwarded-Proto $scheme;
-    #       proxy_http_version 1.1;
-    #       proxy_set_header Upgrade $http_upgrade;
-    #       proxy_set_header Connection "upgrade";
-    #     }
-    #   }
 
   postgres:
     image: postgres:18-alpine
     container_name: JellyTrack_postgres
     environment:
-      POSTGRES_USER: JellyTrack
-      POSTGRES_PASSWORD: JellyTrack_password
-      POSTGRES_DB: JellyTrack
+      POSTGRES_USER: ${POSTGRES_USER:-JellyTrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-JellyTrack_password}
+      POSTGRES_DB: ${POSTGRES_DB:-JellyTrack}
     volumes:
-      - JellyTrack_pgdata:/var/lib/postgresql
+      - JellyTrack_pgdata:/var/lib/postgresql/data
     networks:
       - JellyTrack_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U JellyTrack"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-JellyTrack} -d ${POSTGRES_DB:-JellyTrack}"]
       interval: 10s
       timeout: 5s
       retries: 5

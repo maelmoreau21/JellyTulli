@@ -16,11 +16,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIds } from "@/lib/serverScope";
+import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIdsAsync } from "@/lib/serverScope";
 
 export const dynamic = "force-dynamic"; // Bypass statis rendering for real-time logs
 
-const LOGS_PER_PAGE = 100;
+const LOGS_PER_PAGE = 50;
+const MAX_TELEMETRY_EVENTS_PER_LOG = 200;
 
 // Column utilities — defined server-side to avoid client/server boundary issues
 // Restore separate `client` and `ip` columns while keeping client-side features.
@@ -180,7 +181,7 @@ export default async function LogsPage({
     const multiServerEnabled = jellytrackMode === "multi" && selectableServerOptions.length > 1;
     const cookieStore = await cookies();
     const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;
-    const { selectedServerIds, selectedServerIdsParam: serversParam } = resolveSelectedServerIds({
+    const { selectedServerIds, selectedServerIdsParam: serversParam } = await resolveSelectedServerIdsAsync({
         multiServerEnabled,
         selectableServerIds: selectableServerOptions.map((server) => server.id),
         requestedServersParam: params.servers,
@@ -274,7 +275,11 @@ export default async function LogsPage({
         include: {
             user: { select: { id: true, username: true, jellyfinUserId: true } },
             media: { select: { id: true, jellyfinMediaId: true, title: true, type: true, parentId: true, artist: true, resolution: true } },
-            telemetryEvents: { select: { eventType: true, positionMs: true, createdAt: true } },
+            telemetryEvents: {
+                select: { eventType: true, positionMs: true, createdAt: true },
+                orderBy: { createdAt: 'desc' },
+                take: MAX_TELEMETRY_EVENTS_PER_LOG,
+            },
         },
         orderBy: orderBy,
         skip: (safePage - 1) * LOGS_PER_PAGE,

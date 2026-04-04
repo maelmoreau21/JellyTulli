@@ -1,14 +1,19 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Sora } from 'next/font/google'
 import './globals.css'
 import { Sidebar } from '@/components/Sidebar'
 import { AuthProvider } from '@/components/AuthProvider'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { RouteBodyClass } from '@/components/RouteBodyClass'
 import prisma from '@/lib/prisma'
 
-const inter = Inter({ subsets: ['latin'] })
+const sora = Sora({
+  subsets: ['latin'],
+  variable: '--font-sora',
+  weight: ['400', '500', '600', '700'],
+})
 
 export const metadata: Metadata = {
   title: 'JellyTrack Dashboard',
@@ -42,7 +47,8 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <body className={`antialiased min-h-screen overflow-x-hidden ${inter.className} selection:bg-primary selection:text-primary-foreground flex text-zinc-900 dark:text-zinc-50`}>
+      <body className={`${sora.variable} ${sora.className} antialiased min-h-screen overflow-x-hidden selection:bg-primary selection:text-primary-foreground flex`}>
+        <RouteBodyClass />
         <ThemeProvider>
           <NextIntlClientProvider messages={messages}>
             <AuthProvider>

@@ -52,7 +52,7 @@ import { MediaFilter } from "@/components/dashboard/MediaFilter";
 import { PredictionsPanel } from "@/components/dashboard/PredictionsPanel";
 import { ServerFilter } from "@/components/dashboard/ServerFilter";
 import { buildLegacyStreamRedisKey, buildStreamRedisKey } from "@/lib/serverRegistry";
-import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIds } from "@/lib/serverScope";
+import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIdsAsync } from "@/lib/serverScope";
 
 
 type LiveStream = {
@@ -90,7 +90,7 @@ type History = {
   clientName?: string | null;
   playMethod?: string | null;
   userId?: string | null;
-  media?: { type?: string | null; title?: string | null; durationMs?: bigint | null; collectionType?: string | null } | null;
+  media?: { type?: string | null; durationMs?: bigint | null } | null;
 };
 
 type TrendEntry = {
@@ -275,7 +275,7 @@ const getDashboardMetrics = unstable_cache(
           clientName: true,
           playMethod: true,
           userId: true,
-          media: { select: { type: true, title: true, durationMs: true, collectionType: true } },
+          media: { select: { type: true, durationMs: true } },
         },
         orderBy: { startedAt: "asc" },
       }) as Promise<History[]>,
@@ -535,15 +535,21 @@ const getDashboardMetrics = unstable_cache(
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    const todayHistories = await prisma.playbackHistory.findMany({
-      where: { ...playbackBaseWhere, startedAt: { gte: todayStart } },
-      select: { durationWatched: true, userId: true },
-    });
-    const todayPlays = todayHistories.length;
-    const todayHours = parseFloat(
-      (todayHistories.reduce((sum: number, h) => sum + (h.durationWatched || 0), 0) / 3600).toFixed(1)
-    );
-    const todayActiveUsers = new Set(todayHistories.map((h) => h.userId).filter(Boolean)).size;
+    const [todayPlays, todayHoursAgg, todayActiveUsersAgg] = await Promise.all([
+      prisma.playbackHistory.count({
+        where: { ...playbackBaseWhere, startedAt: { gte: todayStart } },
+      }),
+      prisma.playbackHistory.aggregate({
+        _sum: { durationWatched: true },
+        where: { ...playbackBaseWhere, startedAt: { gte: todayStart } },
+      }),
+      prisma.playbackHistory.groupBy({
+        by: ["userId"],
+        where: { ...playbackBaseWhere, startedAt: { gte: todayStart }, userId: { not: null } },
+      }),
+    ]);
+    const todayHours = parseFloat((((todayHoursAgg._sum.durationWatched as number | null) || 0) / 3600).toFixed(1));
+    const todayActiveUsers = todayActiveUsersAgg.length;
 
     return {
       totalUsers,
@@ -695,7 +701,7 @@ export default async function DashboardPage(props: {
   const multiServerEnabled = jellytrackMode === "multi" && selectableServerOptions.length > 1;
   const cookieStore = await cookies();
   const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;
-  const { selectedServerIds } = resolveSelectedServerIds({
+  const { selectedServerIds } = await resolveSelectedServerIdsAsync({
     multiServerEnabled,
     selectableServerIds: selectableServerOptions.map((server) => server.id),
     requestedServersParam: serversParam,

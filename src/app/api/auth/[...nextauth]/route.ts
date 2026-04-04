@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { checkLoginRateLimit, recordFailedLogin, resetLoginRateLimit } from "@/lib/rateLimit";
 import { getResolvedAuthSecret } from "@/lib/authSecret";
 import { headers, cookies } from "next/headers";
+import { authenticateAgainstJellyfin, getConfiguredJellyfinServers } from "@/lib/jellyfinServers";
 
 const authSecret = getResolvedAuthSecret();
 
@@ -32,42 +33,80 @@ export const authOptions: NextAuthOptions = {
                     throw new Error(apiTSync(locale, 'tooManyAttempts', { minutes: Math.ceil((retryAfterSeconds || 900) / 60) }));
                 }
 
-                // Master-server auth model: credentials are always validated
-                // against the primary Jellyfin instance configured in env.
-                const jellyfinUrl = process.env.JELLYFIN_URL;
-                if (!jellyfinUrl) {
+                const primaryUrl = String(process.env.JELLYFIN_URL || "").trim().replace(/\/+$/, "");
+                const primaryName = String(process.env.JELLYFIN_SERVER_NAME || "").trim() || "Primary Jellyfin";
+
+                const configuredServers = await getConfiguredJellyfinServers().catch(() => []);
+
+                const candidates: Array<{ url: string; name: string; isPrimary: boolean }> = [];
+                const seenUrls = new Set<string>();
+
+                const pushCandidate = (candidate: { url: string; name: string; isPrimary: boolean }) => {
+                    const normalizedUrl = String(candidate.url || "").trim().replace(/\/+$/, "");
+                    if (!normalizedUrl || seenUrls.has(normalizedUrl)) return;
+                    candidates.push({ ...candidate, url: normalizedUrl });
+                    seenUrls.add(normalizedUrl);
+                };
+
+                if (primaryUrl) {
+                    pushCandidate({ url: primaryUrl, name: primaryName, isPrimary: true });
+                }
+
+                for (const server of configuredServers) {
+                    if (!server.allowAuthFallback || server.isPrimary) continue;
+                    pushCandidate({
+                        url: server.url,
+                        name: server.name,
+                        isPrimary: false,
+                    });
+                }
+
+                if (candidates.length === 0) {
                     throw new Error(apiTSync(locale, 'jellyfinUrlMissing'));
                 }
 
                 try {
-                    const res = await fetch(`${jellyfinUrl}/Users/AuthenticateByName`, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `MediaBrowser Client="JellyTrack", Device="Server", DeviceId="JellyTrack-1", Version="1.0.0"`
-                        },
-                        body: JSON.stringify({
-                            Username: credentials.username,
-                            Pw: credentials.password
-                        })
-                    });
+                    let authenticatedUser: {
+                        userId: string;
+                        username: string;
+                        isAdmin: boolean;
+                    } | null = null;
+                    let authenticatedOn: { url: string; name: string; isPrimary: boolean } | null = null;
 
-                    if (!res.ok) {
+                    for (const candidate of candidates) {
+                        const result = await authenticateAgainstJellyfin({
+                            url: candidate.url,
+                            username: credentials.username,
+                            password: credentials.password,
+                            timeoutMs: 7000,
+                        });
+
+                        if (!result) continue;
+                        authenticatedUser = result;
+                        authenticatedOn = candidate;
+                        break;
+                    }
+
+                    if (!authenticatedUser || !authenticatedOn) {
                         await recordFailedLogin(clientIp);
                         throw new Error(apiTSync(locale, 'badCredentials'));
                     }
 
-                    const data = await res.json();
-                    const isAdmin = !!data.User?.Policy?.IsAdministrator;
+                    if (!authenticatedOn.isPrimary) {
+                        console.warn(`[Auth] Primary Jellyfin unreachable or rejected credentials. Fallback server used: ${authenticatedOn.name} (${authenticatedOn.url})`);
+                    }
 
                     // Successful login — reset rate limit counter
                     await resetLoginRateLimit(clientIp);
 
                     return {
-                        id: data.User.Id,
-                        name: data.User.Name,
-                        isAdmin,
-                        jellyfinUserId: data.User.Id,
+                        id: authenticatedUser.userId,
+                        name: authenticatedUser.username,
+                        isAdmin: authenticatedUser.isAdmin,
+                        jellyfinUserId: authenticatedUser.userId,
+                        authServerName: authenticatedOn.name,
+                        authServerUrl: authenticatedOn.url,
+                        authServerIsPrimary: authenticatedOn.isPrimary,
                     };
                 } catch (error: unknown) {
                     const e = error as Error;
@@ -86,6 +125,9 @@ export const authOptions: NextAuthOptions = {
             if (user) {
                 token.isAdmin = user.isAdmin ?? false;
                 token.jellyfinUserId = user.jellyfinUserId ?? user.id;
+                token.authServerName = user.authServerName ?? "";
+                token.authServerUrl = user.authServerUrl ?? "";
+                token.authServerIsPrimary = user.authServerIsPrimary ?? true;
             }
             return token;
         },
@@ -94,6 +136,9 @@ export const authOptions: NextAuthOptions = {
             if (session.user) {
                 session.user.isAdmin = token.isAdmin ?? false;
                 session.user.jellyfinUserId = token.jellyfinUserId ?? "";
+                session.user.authServerName = String(token.authServerName || "");
+                session.user.authServerUrl = String(token.authServerUrl || "");
+                session.user.authServerIsPrimary = token.authServerIsPrimary !== false;
             }
             return session;
         },

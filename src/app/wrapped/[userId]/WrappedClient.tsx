@@ -422,7 +422,7 @@ export default function WrappedClient({ data }: { data: WrappedData }) {
     const current = slides[currentSlide];
 
     return (
-        <div className={`fixed inset-0 z-50 flex flex-col text-white transition-colors duration-700 ease-in-out ${current.bgColor}`}>
+        <div className={`wrapped-effects fixed inset-0 z-50 flex flex-col text-white transition-colors duration-700 ease-in-out ${current.bgColor}`}>
             <style jsx global>{`
                 @keyframes progress {
                     from { width: 0%; }

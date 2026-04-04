@@ -220,9 +220,9 @@ export default function PluginHealthCenterClient({ embedded = false }: { embedde
 
     const connectionBadge = useMemo(() => {
         if (!snapshot?.plugin.connected) {
-            return <Badge className="bg-red-500/15 text-red-400 border-red-500/30">{t("offline")}</Badge>;
+            return <Badge className="app-chip border-red-500/35 text-red-600 dark:text-red-300">{t("offline")}</Badge>;
         }
-        return <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30">{t("online")}</Badge>;
+        return <Badge className="app-chip-success">{t("online")}</Badge>;
     }, [snapshot?.plugin.connected, t]);
 
     const pluginMetricsNote = useMemo(() => {
@@ -298,21 +298,23 @@ export default function PluginHealthCenterClient({ embedded = false }: { embedde
     const heartbeatSeries = snapshot?.heartbeat.intervalSeries24h || [];
 
     return (
-        <div className={embedded ? "space-y-6" : "flex-col md:flex"}>
-            <div className={embedded ? "space-y-6" : "flex-1 space-y-6 p-4 md:p-8 pt-4 md:pt-6 max-w-[1400px] mx-auto w-full"}>
+        <div className={embedded ? "space-y-4" : "flex-col md:flex"}>
+            <div className={embedded ? "space-y-4" : "mx-auto w-full max-w-[1400px] flex-1 space-y-6 p-4 pt-4 md:p-8 md:pt-6"}>
                 <header className="flex flex-col gap-3">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                            <HeartPulse className="w-7 h-7 text-primary" />
-                            {t("title")}
-                        </h1>
-                        <p className="text-sm text-muted-foreground mt-2 max-w-3xl">
-                            {t("description")}
-                        </p>
-                    </div>
+                    {embedded ? null : (
+                        <div>
+                            <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
+                                <HeartPulse className="w-7 h-7 text-primary" />
+                                {t("title")}
+                            </h1>
+                            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                                {t("description")}
+                            </p>
+                        </div>
+                    )}
 
                     <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" onClick={() => void loadSnapshot()} disabled={loading}>
+                        <Button variant="outline" onClick={() => void loadSnapshot()} disabled={loading} size={embedded ? "sm" : "default"}>
                             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
                             {t("refresh")}
                         </Button>
@@ -320,6 +322,7 @@ export default function PluginHealthCenterClient({ embedded = false }: { embedde
                             variant="outline"
                             onClick={() => void runAction("test_connection")}
                             disabled={actionLoading !== null}
+                            size={embedded ? "sm" : "default"}
                         >
                             <ShieldCheck className="w-4 h-4" />
                             {actionLoading === "test_connection"
@@ -329,32 +332,35 @@ export default function PluginHealthCenterClient({ embedded = false }: { embedde
                         <Button
                             onClick={() => void runAction("force_heartbeat")}
                             disabled={actionLoading !== null}
+                            size={embedded ? "sm" : "default"}
                         >
                             <Send className="w-4 h-4" />
                             {actionLoading === "force_heartbeat"
                                 ? t("sending")
                                 : t("forceHeartbeat")}
                         </Button>
-                        <Button asChild variant="secondary">
-                            <a href="/api/admin/plugin/health?export=1">
-                                <Download className="w-4 h-4" />
-                                {t("exportDiagnosticJson")}
-                            </a>
-                        </Button>
+                        {!embedded && (
+                            <Button asChild variant="secondary">
+                                <a href="/api/admin/plugin/health?export=1">
+                                    <Download className="w-4 h-4" />
+                                    {t("exportDiagnosticJson")}
+                                </a>
+                            </Button>
+                        )}
                     </div>
                 </header>
 
                 {notice && (
-                    <div className={`rounded-md border px-3 py-2 text-sm ${notice.type === "success"
-                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
-                            : "border-red-500/40 bg-red-500/10 text-red-400"
+                    <div className={`app-field rounded-md border px-3 py-2 text-sm ${notice.type === "success"
+                            ? "border-emerald-500/35 text-emerald-600 dark:text-emerald-300"
+                            : "border-red-500/35 text-red-600 dark:text-red-300"
                         }`}>
                         {notice.text}
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                    <Card className="app-surface-soft border-border/60">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <Card className="app-surface border-border">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm text-muted-foreground">{t("connection")}</CardTitle>
                         </CardHeader>
@@ -374,7 +380,7 @@ export default function PluginHealthCenterClient({ embedded = false }: { embedde
                         </CardContent>
                     </Card>
 
-                    <Card className="app-surface-soft border-border/60">
+                    <Card className="app-surface border-border">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm text-muted-foreground">{t("heartbeatJitter")}</CardTitle>
                         </CardHeader>
@@ -404,7 +410,7 @@ export default function PluginHealthCenterClient({ embedded = false }: { embedde
                         </CardContent>
                     </Card>
 
-                    <Card className="app-surface-soft border-border/60">
+                    <Card className="app-surface border-border">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm text-muted-foreground">{t("ingestionReliability")}</CardTitle>
                         </CardHeader>
@@ -428,7 +434,7 @@ export default function PluginHealthCenterClient({ embedded = false }: { embedde
                         </CardContent>
                     </Card>
 
-                    <Card className="app-surface-soft border-border/60">
+                    <Card className="app-surface border-border">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm text-muted-foreground">{t("liveStreamHealth")}</CardTitle>
                         </CardHeader>
@@ -453,8 +459,9 @@ export default function PluginHealthCenterClient({ embedded = false }: { embedde
                     </Card>
                 </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                    <Card className="app-surface border-border/60 xl:col-span-2">
+                {!embedded && (
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+                        <Card className="app-surface border-border xl:col-span-2">
                         <CardHeader>
                             <CardTitle className="text-base flex items-center gap-2">
                                 <Activity className="w-4 h-4 text-primary" />
@@ -496,7 +503,7 @@ export default function PluginHealthCenterClient({ embedded = false }: { embedde
                         </CardContent>
                     </Card>
 
-                    <Card className="app-surface border-border/60">
+                        <Card className="app-surface border-border">
                         <CardHeader>
                             <CardTitle className="text-base">{t("alertThresholds")}</CardTitle>
                             <CardDescription>{t("alertThresholdsDesc")}</CardDescription>
@@ -553,11 +560,13 @@ export default function PluginHealthCenterClient({ embedded = false }: { embedde
                                 {t("resetThresholds")}
                             </Button>
                         </CardContent>
-                    </Card>
-                </div>
+                        </Card>
+                    </div>
+                )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <Card className="app-surface border-border/60 lg:col-span-2">
+                {!embedded && (
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                        <Card className="app-surface border-border lg:col-span-2">
                         <CardHeader>
                             <CardTitle className="text-base flex items-center gap-2">
                                 <AlertTriangle className="w-4 h-4 text-amber-400" />
@@ -596,7 +605,7 @@ export default function PluginHealthCenterClient({ embedded = false }: { embedde
                         </CardContent>
                     </Card>
 
-                    <Card className="app-surface border-border/60">
+                        <Card className="app-surface border-border">
                         <CardHeader>
                             <CardTitle className="text-base flex items-center gap-2">
                                 <Timer className="w-4 h-4 text-cyan-400" />
@@ -623,8 +632,9 @@ export default function PluginHealthCenterClient({ embedded = false }: { embedde
                                 {pluginMetricsNote}
                             </p>
                         </CardContent>
-                    </Card>
-                </div>
+                        </Card>
+                    </div>
+                )}
             </div>
         </div>
     );

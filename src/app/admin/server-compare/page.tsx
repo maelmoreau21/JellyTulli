@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ServerFilter } from "@/components/dashboard/ServerFilter";
 import { cookies } from "next/headers";
-import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIds } from "@/lib/serverScope";
+import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIdsAsync } from "@/lib/serverScope";
 import { Activity, ArrowUpRight, Gauge, Server, Zap } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -76,7 +76,7 @@ export default async function ServerComparePage({
     const multiServerEnabled = jellytrackMode === "multi" && selectableServerOptions.length > 1;
 
     const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;
-    const { selectedServerIds, selectedServerIdsParam: serversParam } = resolveSelectedServerIds({
+    const { selectedServerIds, selectedServerIdsParam: serversParam } = await resolveSelectedServerIdsAsync({
         multiServerEnabled,
         selectableServerIds: selectableServerOptions.map((server) => server.id),
         requestedServersParam: params.servers,

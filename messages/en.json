@@ -313,7 +313,13 @@
     "volumeHistoryDesc": "Temporal watch-hours trend by library.",
     "vsPrevPeriod": "vs {count} prev. period",
     "vsUsersOnPeriod": "vs {count} prev. period",
-    "watched": "watched"
+    "watched": "watched",
+    "aiRecommendations": "KI-Empfehlungen",
+    "basedOnProfile": "Based on your profile",
+    "metadataAudit": "Metadaten-Audit",
+    "metadataAuditDesc": "Meldet Medien mit fehlenden Daten.",
+    "worldMap": "Verbindungskarte",
+    "worldMapDesc": "Geografische Verteilung der Wiedergabesitzungen."
   },
   "deepInsights": {
     "deviceEcosystem": "Device Ecosystem",

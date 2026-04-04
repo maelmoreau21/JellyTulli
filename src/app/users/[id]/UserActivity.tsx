@@ -3,24 +3,27 @@ import { UserActivityChart, ActivityData } from "@/components/charts/UserActivit
 import prisma from "@/lib/prisma";
 import { getTranslations } from 'next-intl/server';
 
-export default async function UserActivity({ userId, userIds = [] }: { userId: string; userIds?: string[] }) {
+export default async function UserActivity({ userId, userIds = [], userDbIds = [] }: { userId: string; userIds?: string[]; userDbIds?: string[] }) {
     const last30Days = new Date();
     last30Days.setDate(last30Days.getDate() - 29);
     last30Days.setHours(0, 0, 0, 0);
 
     const targetJellyfinIds = Array.from(new Set([userId, ...userIds].filter(Boolean)));
+    const resolvedUserDbIds = Array.from(new Set(userDbIds.filter(Boolean)));
 
-    const users = await prisma.user.findMany({
-        where: { jellyfinUserId: { in: targetJellyfinIds } },
-        orderBy: { createdAt: "asc" },
-        select: { id: true },
-    });
+    const userIdsToUse = resolvedUserDbIds.length > 0
+        ? resolvedUserDbIds
+        : (await prisma.user.findMany({
+            where: { jellyfinUserId: { in: targetJellyfinIds } },
+            orderBy: { createdAt: "asc" },
+            select: { id: true },
+        })).map((u) => u.id);
 
-    if (users.length === 0) return null;
+    if (userIdsToUse.length === 0) return null;
 
     const sessions = await prisma.playbackHistory.findMany({
         where: {
-            userId: { in: users.map((u) => u.id) },
+            userId: { in: userIdsToUse },
             startedAt: { gte: last30Days },
         },
         select: { startedAt: true, durationWatched: true },

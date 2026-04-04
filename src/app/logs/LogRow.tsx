@@ -373,7 +373,7 @@ export default function LogRow({ log, visibleColumns, onOpenDetails }: { log: Sa
                     <div className="text-xs text-zinc-400">{`Events: ${events.length}`}</div>
                   </div>
                   <div className="relative h-8 md:h-6 app-surface-soft rounded-full overflow-visible py-2">
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-40 pointer-events-none" />
+                    <div className="absolute inset-0 bg-zinc-200/40 dark:bg-zinc-800/40 pointer-events-none" />
 
                     {groupedEvents.length === 0 ? (
                       <div className="absolute inset-0 flex items-center justify-center text-zinc-400">{t('timeline.noEvents')}</div>

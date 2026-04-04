@@ -42,22 +42,16 @@ export default async function HealthPage() {
 
     return (
         <div className="flex-col md:flex">
-            <div className="flex-1 space-y-10 p-4 md:p-8 pt-4 md:pt-6 max-w-7xl mx-auto w-full">
-                <header className="flex flex-col gap-2">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400">
-                            <HeartPulse className="h-6 w-6" />
-                        </div>
+            <div className="mx-auto w-full max-w-7xl flex-1 space-y-8 p-4 pt-4 md:p-8 md:pt-6">
+                <header className="space-y-2">
+                    <div className="flex items-center gap-2">
+                        <HeartPulse className="h-6 w-6 text-primary" />
                         <h1 className="text-3xl font-bold tracking-tight">{isFr ? "Sante" : "Health"}</h1>
                     </div>
-                    <p className="text-muted-foreground max-w-3xl">
-                        {isFr
-                            ? "Vue unifiee de la sante du plugin et de la sante des logs."
-                            : "Unified view of plugin health and log health."}
-                    </p>
+                    {/* description removed per request */}
                 </header>
 
-                <section className="space-y-4">
+                <section className="space-y-3">
                     <div className="flex items-center gap-2">
                         <HeartPulse className="h-5 w-5 text-primary" />
                         <h2 className="text-xl font-semibold">{isFr ? "Sante du plugin" : "Plugin Health"}</h2>
@@ -65,7 +59,7 @@ export default async function HealthPage() {
                     <PluginHealthCenterClient embedded />
                 </section>
 
-                <section className="space-y-6">
+                <section className="space-y-5">
                     <div className="flex flex-col gap-1">
                         <h2 className="text-xl font-semibold flex items-center gap-2">
                             <Activity className="h-5 w-5 text-cyan-500" />
@@ -74,64 +68,64 @@ export default async function HealthPage() {
                         <p className="text-muted-foreground max-w-2xl">{t("logHealthDesc")}</p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
-                        <Card className="app-surface-soft border-border">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        <Card className="app-surface border-border">
                             <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                <CardTitle className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                                     <RadioTower className="h-4 w-4 text-cyan-500" />
                                     {t("monitor")}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{snapshot.status.monitor.status === "error" ? t("monitorStatusError") : t("monitorStatusOk")}</div>
-                                <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
+                                <div className="text-xl font-semibold">{snapshot.status.monitor.status === "error" ? t("monitorStatusError") : t("monitorStatusOk")}</div>
+                                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                                     <Clock3 className="h-3 w-3" />
                                     {t("lastPoll")}: {formatDate(snapshot.status.monitor.lastPollAt)}
                                 </p>
                             </CardContent>
                         </Card>
 
-                        <Card className="app-surface-soft border-zinc-200/60 dark:border-zinc-800/50 shadow-sm">
+                        <Card className="app-surface border-border">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                                     <ShieldAlert className="h-4 w-4 text-orange-500" />
                                     {t("openPlaybackOrphans")}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{snapshot.counts.openPlaybackOrphans}</div>
-                                <p className="text-xs text-muted-foreground mt-1.5">{t("playbackHistoryNote")}</p>
+                                <div className="text-xl font-semibold">{snapshot.counts.openPlaybackOrphans}</div>
+                                <p className="mt-1.5 text-xs text-muted-foreground">{t("playbackHistoryNote")}</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="app-surface-soft border-zinc-200/60 dark:border-zinc-800/50 shadow-sm">
+                        <Card className="app-surface border-border">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                                     <AlertTriangle className="h-4 w-4 text-red-500" />
                                     {t("dbWithoutRedis")}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{snapshot.counts.dbStreamsWithoutRedis}</div>
-                                <p className="text-xs text-muted-foreground mt-1.5">{t("dbWithoutRedisDesc")}</p>
+                                <div className="text-xl font-semibold">{snapshot.counts.dbStreamsWithoutRedis}</div>
+                                <p className="mt-1.5 text-xs text-muted-foreground">{t("dbWithoutRedisDesc")}</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="app-surface-soft border-zinc-200/60 dark:border-zinc-800/50 shadow-sm">
+                        <Card className="app-surface border-border">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                                <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                                     <Activity className="h-4 w-4 text-emerald-500" />
                                     {t("redisOrphan")}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{snapshot.counts.redisOrphans}</div>
-                                <p className="text-xs text-muted-foreground mt-1.5">{t("redisOrphanDesc")}</p>
+                                <div className="text-xl font-semibold">{snapshot.counts.redisOrphans}</div>
+                                <p className="mt-1.5 text-xs text-muted-foreground">{t("redisOrphanDesc")}</p>
                             </CardContent>
                         </Card>
                     </div>
 
-                    <Card className="app-surface border-zinc-200/60 dark:border-zinc-800/50 shadow-md">
+                    <Card className="app-surface border-border">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-xl">
                                 <Activity className="h-5 w-5 text-cyan-500" />
@@ -144,8 +138,8 @@ export default async function HealthPage() {
                         </CardContent>
                     </Card>
 
-                    <div className="grid gap-6 lg:grid-cols-3">
-                        <Card className="app-surface border-zinc-200/60 dark:border-zinc-800/50 lg:col-span-1">
+                    <div className="grid gap-4 lg:grid-cols-3">
+                        <Card className="app-surface border-border lg:col-span-1">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     <ShieldAlert className="h-5 w-5 text-orange-400" />
@@ -155,16 +149,16 @@ export default async function HealthPage() {
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 {snapshot.orphanPlaybacks.length === 0 && (
-                                    <div className="py-8 text-center text-sm text-muted-foreground italic app-surface-soft rounded-xl border border-dashed border-border/50">
+                                    <div className="app-surface-soft rounded-lg border border-dashed border-border py-8 text-center text-sm italic text-muted-foreground">
                                         {t("noOrphanPlaybacks")}
                                     </div>
                                 )}
-                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="max-h-[400px] space-y-2 overflow-y-auto pr-1">
                                     {snapshot.orphanPlaybacks.map((entry: OrphanPlayback) => (
-                                        <div key={entry.id} className="rounded-xl border border-border/50 app-surface-soft/40 p-3 hover:shadow-sm transition-shadow">
+                                        <div key={entry.id} className="app-surface-soft rounded-lg border border-border p-3">
                                             <div className="font-semibold text-foreground truncate">{entry.mediaTitle}</div>
-                                            <div className="mt-1 text-xs text-muted-foreground font-medium">{entry.username} · {entry.library}</div>
-                                            <div className="mt-2 text-xs text-muted-foreground/80 flex items-center gap-1.5">
+                                            <div className="mt-1 text-xs font-medium text-muted-foreground">{entry.username} · {entry.library}</div>
+                                            <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                                                 <History className="h-3 w-3" />
                                                 {formatDate(entry.startedAt)} · {Math.floor((entry.durationWatched ?? 0) / 60)} min
                                             </div>
@@ -174,7 +168,7 @@ export default async function HealthPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="app-surface border-zinc-200/60 dark:border-zinc-800/50 lg:col-span-1">
+                        <Card className="app-surface border-border lg:col-span-1">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     <History className="h-5 w-5 text-cyan-400" />
@@ -184,20 +178,20 @@ export default async function HealthPage() {
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 {snapshot.recentEvents.length === 0 && (
-                                    <div className="py-8 text-center text-sm text-muted-foreground italic app-surface-soft rounded-xl border border-dashed border-border/50">
+                                    <div className="app-surface-soft rounded-lg border border-dashed border-border py-8 text-center text-sm italic text-muted-foreground">
                                         {t("noRecentEvents")}
                                     </div>
                                 )}
-                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="max-h-[400px] space-y-2 overflow-y-auto pr-1">
                                     {snapshot.recentEvents.map((event: HealthEvent) => (
-                                        <div key={event.id} className="rounded-xl border border-border/50 app-surface-soft/40 p-3 hover:shadow-sm transition-shadow">
+                                        <div key={event.id} className="app-surface-soft rounded-lg border border-border p-3">
                                             <div className="flex items-start gap-3 text-sm font-medium text-foreground">
                                                 {String(event.kind || "").includes("error")
                                                     ? <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5" />
                                                     : <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5" />}
                                                 <div className="flex-1 leading-relaxed">{event.message}</div>
                                             </div>
-                                            <div className="mt-2 text-[10px] text-muted-foreground/80 font-mono text-right">{formatDate(event.createdAt)}</div>
+                                            <div className="mt-2 text-right text-[10px] font-mono text-muted-foreground">{formatDate(event.createdAt)}</div>
                                         </div>
                                     ))}
                                 </div>
@@ -205,7 +199,7 @@ export default async function HealthPage() {
                         </Card>
 
                         <div className="space-y-6">
-                            <Card className="app-surface border-zinc-200/60 dark:border-zinc-800/50 shadow-sm">
+                            <Card className="app-surface border-border">
                                 <CardHeader>
                                     <CardTitle className="text-lg flex items-center gap-2">
                                         <Library className="h-5 w-5 text-zinc-400" />
@@ -221,14 +215,14 @@ export default async function HealthPage() {
                                 </CardContent>
                             </Card>
 
-                            <Card className="app-surface border-zinc-200/60 dark:border-zinc-800/50 shadow-sm overflow-hidden">
-                                <CardHeader className="app-surface-soft border-b border-zinc-200/50 dark:border-zinc-800/50">
+                            <Card className="app-surface overflow-hidden border-border">
+                                <CardHeader className="app-surface-soft border-b border-border">
                                     <CardTitle className="text-lg">{t("processingStatusTitle")}</CardTitle>
                                     <CardDescription>{t("processingStatusDesc")}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="p-0">
-                                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
-                                        <div className="p-4 hover:bg-zinc-500/5 dark:hover:bg-white/5 transition-colors">
+                                    <div className="divide-y divide-border">
+                                        <div className="p-4">
                                             <div className="flex items-center justify-between mb-1">
                                                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><RadioTower className="h-4 w-4 text-cyan-500" /> {t("monitor")}</div>
                                                 <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t("lastSuccess")}</div>
@@ -236,15 +230,15 @@ export default async function HealthPage() {
                                             <div className="text-xs text-muted-foreground ml-6">{formatDate(snapshot.status.monitor.lastSuccessAt)}</div>
                                         </div>
 
-                                        <div className="p-4 hover:bg-zinc-500/5 dark:hover:bg-white/5 transition-colors">
+                                        <div className="p-4">
                                             <div className="flex items-center justify-between mb-1">
                                                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><RefreshCw className="h-4 w-4 text-amber-500" /> {t("sync")}</div>
                                                 <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t("lastSuccess")}</div>
                                             </div>
-                                            <div className="text-xs text-muted-foreground ml-6">{formatDate(snapshot.status.sync.lastSuccessAt)} ({snapshot.status.sync.mode || "-"})</div>
+                                            <div className="text-xs text-muted-foreground ml-6">{formatDate(snapshot.status.sync.lastSuccessAt)}{snapshot.status.sync.mode ? ` (${snapshot.status.sync.mode})` : ''}</div>
                                         </div>
 
-                                        <div className="p-4 hover:bg-zinc-500/5 dark:hover:bg-white/5 transition-colors">
+                                        <div className="p-4">
                                             <div className="flex items-center justify-between mb-1">
                                                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><Clock3 className="h-4 w-4 text-emerald-500" /> {t("backup")}</div>
                                                 <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t("lastSuccess")}</div>

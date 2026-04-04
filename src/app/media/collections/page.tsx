@@ -8,7 +8,7 @@ import { isZapped, ZAPPING_CONDITION } from '@/lib/statsUtils';
 import { ServerFilter } from "@/components/dashboard/ServerFilter";
 import { requireAdmin, isAuthError } from "@/lib/auth";
 import { cookies } from "next/headers";
-import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIds } from "@/lib/serverScope";
+import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIdsAsync } from "@/lib/serverScope";
 
 export const dynamic = "force-dynamic";
 
@@ -94,7 +94,7 @@ export default async function CollectionsPage({ searchParams }: { searchParams?:
     const serversParam = readFirstSearchParam(searchParams?.servers);
     const cookieStore = await cookies();
     const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;
-    const { selectedServerIds } = resolveSelectedServerIds({
+    const { selectedServerIds } = await resolveSelectedServerIdsAsync({
         multiServerEnabled,
         selectableServerIds: selectableServerOptions.map((server) => server.id),
         requestedServersParam: serversParam,

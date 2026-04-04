@@ -404,7 +404,11 @@
   "liveStreams": {
     "description": "Momenteel {count} actieve stream(s).",
     "noStreams": "Er worden momenteel geen streams afgespeeld.",
-    "title": "Live"
+    "title": "Live",
+    "timelineView": "Timeline View",
+    "cardsView": "Cards View",
+    "transcodeAbbr": "TC",
+    "directPlayAbbr": "DP"
   },
   "login": {
     "loadingForm": "Formulier laden...",
@@ -927,7 +931,7 @@
     "ofLabel": "van {label}",
     "pantheonSubtitle": "Je top 5 meest bekeken content",
     "pantheonTitle": "Het Pantheon",
-    "peakContent": "Om {bold}{bold} ben je het meest actief ({count} sessies).",
+    "peakContent": "Om {bold}{hour}{bold} ben je het meest actief ({count} sessies).",
     "peakLabel": "Actief om {hour}u",
     "peakSubtitle": "Wanneer de server voor jou opwarmt",
     "peakTitle": "Spitsuur",

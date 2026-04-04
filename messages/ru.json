@@ -404,7 +404,11 @@
   "liveStreams": {
     "description": "Сейчас активно {count} поток(ов).",
     "noStreams": "Нет активных потоков.",
-    "title": "Прямой эфир"
+    "title": "Прямой эфир",
+    "timelineView": "Timeline View",
+    "cardsView": "Cards View",
+    "transcodeAbbr": "TC",
+    "directPlayAbbr": "DP"
   },
   "login": {
     "loadingForm": "Загрузка...",
@@ -927,7 +931,7 @@
     "ofLabel": "из {label}",
     "pantheonSubtitle": "Ваши 5 самых просматриваемых элементов",
     "pantheonTitle": "Пантеон",
-    "peakContent": "В {bold}{bold} вы наиболее активны ({count} сессий).",
+    "peakContent": "В {bold}{hour}{bold} вы наиболее активны ({count} сессий).",
     "peakLabel": "Активен в {hour}",
     "peakSubtitle": "Когда ваш сервер греется сильнее всего",
     "peakTitle": "Час пик",

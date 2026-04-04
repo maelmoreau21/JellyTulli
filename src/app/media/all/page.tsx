@@ -4,14 +4,14 @@ import { FallbackImage } from '@/components/FallbackImage';
 import { getJellyfinImageUrl } from '@/lib/jellyfin';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Film, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import AllMediaControls from '@/components/media/AllMediaControls';
 import { normalizeResolution } from '@/lib/utils';
-import { isZapped, ZAPPING_CONDITION } from '@/lib/statsUtils';
+import { ZAPPING_CONDITION } from '@/lib/statsUtils';
 import { buildExcludedMediaClause } from '@/lib/mediaPolicy';
 import { ServerFilter } from '@/components/dashboard/ServerFilter';
 import { cookies } from 'next/headers';
-import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIds } from '@/lib/serverScope';
+import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIdsAsync } from '@/lib/serverScope';
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +62,7 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
     const multiServerEnabled = jellytrackMode === 'multi' && selectableServerOptions.length > 1;
     const cookieStore = await cookies();
     const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;
-    const { selectedServerIds, selectedServerIdsParam: serversParam } = resolveSelectedServerIds({
+    const { selectedServerIds, selectedServerIdsParam: serversParam } = await resolveSelectedServerIdsAsync({
         multiServerEnabled,
         selectableServerIds: selectableServerOptions.map((server) => server.id),
         requestedServersParam: searchParams?.servers,
@@ -107,7 +107,14 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
 
     let parentItems = await prisma.media.findMany({
         where: mediaWhere,
-        include: { playbackHistory: { select: { durationWatched: true, playMethod: true } } },
+        select: {
+            id: true,
+            jellyfinMediaId: true,
+            title: true,
+            type: true,
+            parentId: true,
+            resolution: true,
+        },
     });
 
     // Optional: filter by normalized resolution (client links from analysis page use `resolution`)
@@ -116,60 +123,156 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
         parentItems = parentItems.filter((m) => normalizeResolution(m.resolution) === resolutionFilter);
     }
 
-    const seriesIdList = parentItems.filter((m) => m.type === 'Series').map((m) => String(m.jellyfinMediaId));
+    const movieItems = parentItems.filter((m) => m.type === 'Movie');
+    const seriesItems = parentItems.filter((m) => m.type === 'Series');
+    const albumItems = parentItems.filter((m) => m.type === 'MusicAlbum');
+
+    const toBigInt = (value: unknown): bigint => {
+        if (typeof value === 'bigint') return value;
+        const asNumber = Number(value ?? 0);
+        if (!Number.isFinite(asNumber)) return BigInt(0);
+        return BigInt(Math.floor(asNumber));
+    };
+
+    const movieStats = new Map<string, { plays: number; dur: number; dp: number }>();
+    if (movieItems.length > 0) {
+        const movieDbIds = movieItems.map((m) => m.id);
+        const [movieAgg, movieDirectPlayAgg] = await Promise.all([
+            prisma.playbackHistory.groupBy({
+                by: ['mediaId'],
+                where: { mediaId: { in: movieDbIds }, ...ZAPPING_CONDITION },
+                _count: { _all: true },
+                _sum: { durationWatched: true },
+            }),
+            prisma.playbackHistory.groupBy({
+                by: ['mediaId'],
+                where: { mediaId: { in: movieDbIds }, playMethod: 'DirectPlay', ...ZAPPING_CONDITION },
+                _count: { _all: true },
+            }),
+        ]);
+
+        const movieDirectPlayMap = new Map(movieDirectPlayAgg.map((row) => [row.mediaId, row._count._all ?? 0]));
+        for (const row of movieAgg) {
+            movieStats.set(row.mediaId, {
+                plays: row._count._all ?? 0,
+                dur: row._sum.durationWatched ?? 0,
+                dp: movieDirectPlayMap.get(row.mediaId) ?? 0,
+            });
+        }
+    }
+
     const seriesChildStats = new Map<string, { plays: number; dur: number; dp: number; childCount: number }>();
-    if (seriesIdList.length > 0) {
-        const seasons = await prisma.media.findMany({ where: { type: 'Season', parentId: { in: seriesIdList } }, select: { jellyfinMediaId: true, parentId: true } });
+    if (seriesItems.length > 0) {
+        const seriesJellyfinIds = seriesItems.map((m) => String(m.jellyfinMediaId));
+        const seasons = await prisma.media.findMany({
+            where: { type: 'Season', parentId: { in: seriesJellyfinIds } },
+            select: { jellyfinMediaId: true, parentId: true },
+        });
         const seasonToSeries = new Map(seasons.map((s) => [s.jellyfinMediaId, s.parentId ?? '']));
-        const seasonIdList = seasons.map((s) => s.jellyfinMediaId);
-        if (seasonIdList.length > 0) {
-            const episodes = await prisma.media.findMany({ where: { type: 'Episode', parentId: { in: seasonIdList } }, include: { playbackHistory: { select: { durationWatched: true, playMethod: true } } } });
-            for (const ep of episodes) {
-                const sid = seasonToSeries.get(ep.parentId!);
-                if (!sid) continue;
-                const filteredHistory = (ep.playbackHistory || []).filter((h) => !isZapped(h));
-                if (filteredHistory.length === 0) continue;
-                const s = seriesChildStats.get(sid) || { plays: 0, dur: 0, dp: 0, childCount: 0 };
-                s.childCount++;
-                s.plays += filteredHistory.length;
-                s.dur += filteredHistory.reduce((a: number, h: any) => a + (h.durationWatched || 0), 0);
-                s.dp += filteredHistory.filter((h: any) => h.playMethod === 'DirectPlay').length;
-                seriesChildStats.set(sid, s);
+        const seasonIds = seasons.map((s) => s.jellyfinMediaId);
+
+        if (seasonIds.length > 0) {
+            const episodes = await prisma.media.findMany({
+                where: { type: 'Episode', parentId: { in: seasonIds } },
+                select: { id: true, parentId: true },
+            });
+            const episodeIds = episodes.map((e) => e.id);
+            const episodeById = new Map(episodes.map((e) => [e.id, e]));
+
+            if (episodeIds.length > 0) {
+                const [episodeAgg, episodeDirectPlayAgg] = await Promise.all([
+                    prisma.playbackHistory.groupBy({
+                        by: ['mediaId'],
+                        where: { mediaId: { in: episodeIds }, ...ZAPPING_CONDITION },
+                        _count: { _all: true },
+                        _sum: { durationWatched: true },
+                    }),
+                    prisma.playbackHistory.groupBy({
+                        by: ['mediaId'],
+                        where: { mediaId: { in: episodeIds }, playMethod: 'DirectPlay', ...ZAPPING_CONDITION },
+                        _count: { _all: true },
+                    }),
+                ]);
+
+                const episodeDirectPlayMap = new Map(episodeDirectPlayAgg.map((row) => [row.mediaId, row._count._all ?? 0]));
+
+                for (const row of episodeAgg) {
+                    const episode = episodeById.get(row.mediaId);
+                    const seriesJellyfinId = episode?.parentId ? seasonToSeries.get(episode.parentId) : null;
+                    if (!seriesJellyfinId) continue;
+
+                    const stats = seriesChildStats.get(seriesJellyfinId) || { plays: 0, dur: 0, dp: 0, childCount: 0 };
+                    stats.childCount += 1;
+                    stats.plays += row._count._all ?? 0;
+                    stats.dur += row._sum.durationWatched ?? 0;
+                    stats.dp += episodeDirectPlayMap.get(row.mediaId) ?? 0;
+                    seriesChildStats.set(seriesJellyfinId, stats);
+                }
             }
         }
     }
 
-    const albumIdList = parentItems.filter((m) => m.type === 'MusicAlbum').map((m) => String(m.jellyfinMediaId));
     const albumChildStats = new Map<string, { plays: number; dur: number; dp: number; childCount: number; sizeBytes: bigint; totalTrackDurationMs: bigint }>();
-    if (albumIdList.length > 0) {
-        const tracks = await prisma.media.findMany({ where: { type: 'Audio', parentId: { in: albumIdList } }, select: { parentId: true, size: true, durationMs: true, playbackHistory: { select: { durationWatched: true, playMethod: true } } } });
-        for (const track of tracks as any) {
-            if (!track.parentId) continue;
-            const filteredHistory = (track.playbackHistory || []).filter((h: any) => !isZapped(h));
-            if (filteredHistory.length === 0) continue;
-            const existing = albumChildStats.get(track.parentId);
-            const s = existing || { plays: 0, dur: 0, dp: 0, childCount: 0, sizeBytes: BigInt(0), totalTrackDurationMs: BigInt(0) };
-            s.childCount++;
-            const rawSize = (track.size ?? 0);
-            const sizeBig = typeof rawSize === 'bigint' ? rawSize : BigInt(Math.floor(Number(rawSize)));
-            s.sizeBytes = (s.sizeBytes || BigInt(0)) + sizeBig;
-            const rawDurMs = (track.durationMs ?? 0);
-            const durBig = typeof rawDurMs === 'bigint' ? rawDurMs : BigInt(Math.floor(Number(rawDurMs)));
-            s.totalTrackDurationMs = (s.totalTrackDurationMs || BigInt(0)) + durBig;
-            s.plays += filteredHistory.length;
-            s.dur += filteredHistory.reduce((a: number, h: any) => a + (h.durationWatched || 0), 0);
-            s.dp += filteredHistory.filter((h: any) => h.playMethod === 'DirectPlay').length;
-            albumChildStats.set(track.parentId, s);
+    if (albumItems.length > 0) {
+        const albumJellyfinIds = albumItems.map((m) => String(m.jellyfinMediaId));
+        const tracks = await prisma.media.findMany({
+            where: { type: 'Audio', parentId: { in: albumJellyfinIds } },
+            select: { id: true, parentId: true, size: true, durationMs: true },
+        });
+
+        const trackIds = tracks.map((track) => track.id);
+        const trackById = new Map(tracks.map((track) => [track.id, track]));
+
+        if (trackIds.length > 0) {
+            const [trackAgg, trackDirectPlayAgg] = await Promise.all([
+                prisma.playbackHistory.groupBy({
+                    by: ['mediaId'],
+                    where: { mediaId: { in: trackIds }, ...ZAPPING_CONDITION },
+                    _count: { _all: true },
+                    _sum: { durationWatched: true },
+                }),
+                prisma.playbackHistory.groupBy({
+                    by: ['mediaId'],
+                    where: { mediaId: { in: trackIds }, playMethod: 'DirectPlay', ...ZAPPING_CONDITION },
+                    _count: { _all: true },
+                }),
+            ]);
+
+            const trackDirectPlayMap = new Map(trackDirectPlayAgg.map((row) => [row.mediaId, row._count._all ?? 0]));
+
+            for (const row of trackAgg) {
+                const track = trackById.get(row.mediaId);
+                if (!track?.parentId) continue;
+
+                const stats = albumChildStats.get(track.parentId) || {
+                    plays: 0,
+                    dur: 0,
+                    dp: 0,
+                    childCount: 0,
+                    sizeBytes: BigInt(0),
+                    totalTrackDurationMs: BigInt(0),
+                };
+
+                stats.childCount += 1;
+                stats.sizeBytes += toBigInt(track.size);
+                stats.totalTrackDurationMs += toBigInt(track.durationMs);
+                stats.plays += row._count._all ?? 0;
+                stats.dur += row._sum.durationWatched ?? 0;
+                stats.dp += trackDirectPlayMap.get(row.mediaId) ?? 0;
+                albumChildStats.set(track.parentId, stats);
+            }
         }
     }
 
     const processedMedia = parentItems.map((media) => {
         let plays = 0, durationSeconds = 0, dpCount = 0, childCount = 0;
         if (media.type === 'Movie') {
-            const filteredHistory = (media.playbackHistory || []).filter((h) => !isZapped(h));
-            plays = filteredHistory.length;
-            durationSeconds = filteredHistory.reduce((a, h) => a + (h.durationWatched || 0), 0);
-            dpCount = filteredHistory.filter((h) => h.playMethod === 'DirectPlay').length;
+            const stats = movieStats.get(media.id);
+            if (stats) {
+                plays = stats.plays;
+                durationSeconds = stats.dur;
+                dpCount = stats.dp;
+            }
         } else if (media.type === 'Series') {
             const stats = seriesChildStats.get(media.jellyfinMediaId);
             if (stats) { plays = stats.plays; durationSeconds = stats.dur; dpCount = stats.dp; childCount = stats.childCount; }

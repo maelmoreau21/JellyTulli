@@ -5,22 +5,25 @@ import { CompletionRatioChart, CompletionData } from "@/components/charts/Comple
 import { ActivityByHourChart, ActivityHourData } from "@/components/charts/ActivityByHourChart";
 import { getTranslations } from 'next-intl/server';
 
-export default async function UserStatsCharts({ userId, userIds = [] }: { userId: string; userIds?: string[] }) {
+export default async function UserStatsCharts({ userId, userIds = [], userDbIds = [] }: { userId: string; userIds?: string[]; userDbIds?: string[] }) {
     const t = await getTranslations('userProfile');
     const td = await getTranslations('dashboard');
 
     const targetJellyfinIds = Array.from(new Set([userId, ...userIds].filter(Boolean)));
+    const resolvedUserDbIds = Array.from(new Set(userDbIds.filter(Boolean)));
 
-    const users = await prisma.user.findMany({
-        where: { jellyfinUserId: { in: targetJellyfinIds } },
-        orderBy: { createdAt: "asc" },
-        select: { id: true },
-    });
+    const userIdsToUse = resolvedUserDbIds.length > 0
+        ? resolvedUserDbIds
+        : (await prisma.user.findMany({
+            where: { jellyfinUserId: { in: targetJellyfinIds } },
+            orderBy: { createdAt: "asc" },
+            select: { id: true },
+        })).map((u) => u.id);
 
-    if (users.length === 0) return null;
+    if (userIdsToUse.length === 0) return null;
 
     const histories = await prisma.playbackHistory.findMany({
-        where: { userId: { in: users.map((u) => u.id) } },
+        where: { userId: { in: userIdsToUse } },
         select: {
             startedAt: true,
             durationWatched: true,

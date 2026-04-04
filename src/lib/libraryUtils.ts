@@ -1,5 +1,6 @@
 import prisma from "./prisma";
 import { makeScopedLibraryExclusion, normalizeLibraryKey } from "./mediaPolicy";
+import { getConfiguredJellyfinServers } from "@/lib/jellyfinServers";
 
 /**
  * Common list of 'ghost' library names created by sync fallbacks
@@ -24,30 +25,39 @@ export type ServerLibraryScope = {
  * and the local Database, filtering out ghost names and pseudo-libraries.
  */
 export async function getSanitizedLibraryNames() {
-  const jellyfinUrl = process.env.JELLYFIN_URL;
-  const jellyfinApiKey = process.env.JELLYFIN_API_KEY;
-
   let jellyfinNames: string[] = [];
 
-  // 1. Fetch from Jellyfin
-  if (jellyfinUrl && jellyfinApiKey) {
+  // 1. Fetch from all configured Jellyfin servers
+  const configuredServers = await getConfiguredJellyfinServers().catch(() => []);
+  const primaryEnvApiKey = String(process.env.JELLYFIN_API_KEY || '').trim();
+
+  for (const server of configuredServers) {
+    const baseUrl = String(server.url || '').trim().replace(/\/+$/, '');
+    const apiKey = server.isPrimary
+      ? (primaryEnvApiKey || String(server.apiKey || '').trim())
+      : String(server.apiKey || '').trim();
+
+    if (!baseUrl || !apiKey) continue;
+
     try {
-      const response = await fetch(`${jellyfinUrl}/Library/VirtualFolders`, {
-        headers: { "X-Emby-Token": jellyfinApiKey },
+      const response = await fetch(`${baseUrl}/Library/VirtualFolders`, {
+        headers: { "X-Emby-Token": apiKey },
         cache: "no-store",
       });
-      if (response.ok) {
-        const foldersRaw = await response.json() as unknown;
-        if (Array.isArray(foldersRaw)) {
-          jellyfinNames = foldersRaw
-            .filter((f): f is Record<string, unknown> => typeof f === 'object' && f !== null)
-            .filter(f => (f['CollectionType'] as string | undefined) !== 'boxsets')
-            .map(f => String(f['Name'] ?? '').trim())
-            .filter((n): n is string => n.length > 0);
-        }
-      }
+      if (!response.ok) continue;
+
+      const foldersRaw = await response.json() as unknown;
+      if (!Array.isArray(foldersRaw)) continue;
+
+      const currentNames = foldersRaw
+        .filter((f): f is Record<string, unknown> => typeof f === 'object' && f !== null)
+        .filter(f => (f['CollectionType'] as string | undefined) !== 'boxsets')
+        .map(f => String(f['Name'] ?? '').trim())
+        .filter((n): n is string => n.length > 0);
+
+      jellyfinNames.push(...currentNames);
     } catch (e) {
-      console.error("[LibraryUtils] Failed to fetch Jellyfin VirtualFolders:", e);
+      console.error(`[LibraryUtils] Failed to fetch VirtualFolders from ${server.name}:`, e);
     }
   }
 

@@ -64,6 +64,13 @@ export default async function UserDetailPage({ params, searchParams }: UserPageP
         ? linkedAccounts.linkedJellyfinUserIds
         : [jellyfinUserId];
 
+    const linkedUsers = await prisma.user.findMany({
+        where: { jellyfinUserId: { in: linkedUserIds } },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+    });
+    const linkedUserDbIds = linkedUsers.map((u) => u.id);
+
     const settings = await prisma.globalSettings.findUnique({ where: { id: "global" } }) as any;
     let showWrappedButton = true;
     if (!isAdmin) {
@@ -108,20 +115,20 @@ export default async function UserDetailPage({ params, searchParams }: UserPageP
                 </div>
 
                 <Suspense fallback={<Skeleton className="w-full h-[250px] rounded-xl bg-zinc-900/50" />}>
-                    <UserInfo userId={jellyfinUserId} userIds={linkedUserIds} />
+                    <UserInfo userId={jellyfinUserId} userIds={linkedUserIds} userDbIds={linkedUserDbIds} />
                 </Suspense>
 
                 <Suspense fallback={<Skeleton className="w-full h-[300px] rounded-xl bg-zinc-900/50 mt-6" />}>
-                    <UserActivity userId={jellyfinUserId} userIds={linkedUserIds} />
+                    <UserActivity userId={jellyfinUserId} userIds={linkedUserIds} userDbIds={linkedUserDbIds} />
                 </Suspense>
 
                 <Suspense fallback={<Skeleton className="w-full h-[320px] rounded-xl bg-zinc-900/50 mt-6" />}>
-                    <UserStatsCharts userId={jellyfinUserId} userIds={linkedUserIds} />
+                    <UserStatsCharts userId={jellyfinUserId} userIds={linkedUserIds} userDbIds={linkedUserDbIds} />
                 </Suspense>
 
 
                 <Suspense fallback={<Skeleton className="w-full h-[500px] rounded-xl bg-zinc-900/50 mt-6" />}>
-                    <UserRecentMedia userId={jellyfinUserId} userIds={linkedUserIds} page={currentHistoryPage} />
+                    <UserRecentMedia userId={jellyfinUserId} userIds={linkedUserIds} userDbIds={linkedUserDbIds} page={currentHistoryPage} />
                 </Suspense>
             </div>
         </div>

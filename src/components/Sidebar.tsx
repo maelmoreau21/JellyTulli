@@ -18,7 +18,8 @@ import {
     Menu,
     X,
     HeartPulse,
-    GitCompareArrows
+    GitCompareArrows,
+    AlertTriangle
 } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 import { SearchBar } from "./SearchBar";
@@ -58,6 +59,8 @@ export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {
 
     const isAdmin = session?.user?.isAdmin === true;
     const jellyfinUserId = (session?.user as any)?.jellyfinUserId as string | undefined;
+    const authServerName = (session?.user as any)?.authServerName as string | undefined;
+    const authServerIsPrimary = (session?.user as any)?.authServerIsPrimary !== false;
 
     // Build navigation based on role
     const navigation = isAdmin
@@ -70,9 +73,9 @@ export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {
 
     const sidebarContent = (
         <>
-            <div className="flex h-16 shrink-0 items-center px-6 border-b border-sidebar-border bg-sidebar/50 backdrop-blur-xl">
-                <Link href={isAdmin ? "/" : `/users/${jellyfinUserId || ''}`} className="text-xl font-bold tracking-tight text-sidebar-foreground flex items-center gap-2 hover:opacity-80 transition-opacity">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-primary/10 ring-1 ring-sidebar-border">
+            <div className="flex h-16 shrink-0 items-center border-b border-sidebar-border bg-sidebar px-5">
+                <Link href={isAdmin ? "/" : `/users/${jellyfinUserId || ''}`} className="flex items-center gap-2 text-lg font-semibold tracking-tight text-sidebar-foreground transition-opacity hover:opacity-90">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent">
                         <PlayCircle className="w-5 h-5 text-sidebar-primary" />
                     </div>
                     <span>JellyTrack</span>
@@ -80,7 +83,7 @@ export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {
                 {/* Close button — mobile only */}
                 <button
                     onClick={() => setMobileOpen(false)}
-                    className="ml-auto md:hidden p-1 text-zinc-400 hover:text-zinc-200"
+                    className="ml-auto p-1 text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground md:hidden"
                     aria-label="Close menu"
                 >
                     <X className="w-5 h-5" />
@@ -91,6 +94,19 @@ export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {
                 <div className="mb-4">
                     <SearchBar />
                 </div>
+
+                {!authServerIsPrimary && authServerName && (
+                    <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                        <div className="flex items-center gap-2 font-semibold text-amber-300">
+                            <AlertTriangle className="h-4 w-4" />
+                            Serveur de secours actif
+                        </div>
+                        <p className="mt-1 text-amber-100/90">
+                            Connecté sur {authServerName}. Le serveur principal est indisponible.
+                        </p>
+                    </div>
+                )}
+
                 <nav className="flex-1 space-y-1.5">
                     {navigation.map((item) => {
                         const isActive = pathname === item.href || (pathname?.startsWith(item.href) && item.href !== '/');
@@ -98,9 +114,9 @@ export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`group flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${isActive
-                                    ? "bg-sidebar-primary/10 text-sidebar-primary ring-1 ring-sidebar-primary/20"
-                                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                                className={`group flex items-center rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium transition-colors ${isActive
+                                    ? "border-sidebar-primary/40 bg-sidebar-primary/15 text-sidebar-primary"
+                                    : "text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                                     }`}
                             >
                                 <item.icon
@@ -115,7 +131,7 @@ export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {
                 </nav>
             </div>
 
-            <div className="border-t border-sidebar-border p-4 space-y-3 bg-sidebar/30">
+            <div className="border-t border-sidebar-border bg-sidebar p-4 space-y-3">
                 <LanguageSwitcher />
                 <ThemeToggle />
                 <LogoutButton className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent" />
@@ -131,10 +147,10 @@ export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {
     return (
         <>
             {/* Mobile header bar */}
-            <div className="fixed top-0 left-0 right-0 z-40 flex md:hidden items-center h-14 px-4 border-b border-sidebar-border bg-sidebar/95 backdrop-blur-xl">
+            <div className="fixed top-0 left-0 right-0 z-40 flex h-14 items-center border-b border-sidebar-border bg-sidebar px-4 md:hidden">
                 <button
                     onClick={() => setMobileOpen(true)}
-                    className="p-1.5 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-colors"
+                    className="p-1.5 text-sidebar-foreground/70 transition-colors hover:text-sidebar-foreground"
                     aria-label="Open menu"
                 >
                     <Menu className="w-6 h-6" />
@@ -156,7 +172,7 @@ export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {
             {/* Sidebar — desktop: always visible, mobile: slide-over */}
             <div
                 className={`
-                    fixed top-0 left-0 z-50 h-screen w-[86vw] max-w-72 md:w-64 flex flex-col border-r border-sidebar-border bg-sidebar/95 backdrop-blur-xl shadow-2xl md:shadow-none
+                    fixed top-0 left-0 z-50 flex h-screen w-[86vw] max-w-72 flex-col border-r border-sidebar-border bg-sidebar shadow-xl md:w-64 md:shadow-none
                     transition-transform duration-200 ease-in-out
                     md:sticky md:translate-x-0
                     ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}

@@ -7,7 +7,7 @@ import { normalizeLibraryKey } from '@/lib/mediaPolicy';
 import { normalizeResolution } from '@/lib/utils';
 import { ServerFilter } from '@/components/dashboard/ServerFilter';
 import { cookies } from 'next/headers';
-import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIds } from '@/lib/serverScope';
+import { GLOBAL_SERVER_SCOPE_COOKIE, resolveSelectedServerIdsAsync } from '@/lib/serverScope';
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +41,7 @@ export default async function AnalysisPage({ searchParams }: { searchParams?: Pr
     const multiServerEnabled = jellytrackMode === 'multi' && selectableServerOptions.length > 1;
     const cookieStore = await cookies();
     const persistedScopeCookie = cookieStore.get(GLOBAL_SERVER_SCOPE_COOKIE)?.value ?? null;
-    const { selectedServerIds, selectedServerIdsParam: serversParam } = resolveSelectedServerIds({
+    const { selectedServerIds, selectedServerIdsParam: serversParam } = await resolveSelectedServerIdsAsync({
         multiServerEnabled,
         selectableServerIds: selectableServerOptions.map((server) => server.id),
         requestedServersParam: resolvedSearchParams.servers,

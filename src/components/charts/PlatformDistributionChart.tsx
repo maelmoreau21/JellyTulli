@@ -50,7 +50,7 @@ type PlatformActiveShapeProps = {
                 outerRadius={outerRadius + 8}
                 startAngle={startAngle} endAngle={endAngle}
                 fill={fill}
-                style={{ filter: "drop-shadow(0 0 8px rgba(56, 189, 248, 0.4))", transition: "all 200ms ease" }}
+                style={{ transition: "none" }}
             />
             <text x={cx} y={cy - 8} textAnchor="middle" fill="#e5eefb" fontSize={13} fontWeight={600}>
                 {payload.name}
@@ -128,9 +128,9 @@ export function PlatformDistributionChart({ data }: PlatformDistributionChartPro
                         paddingAngle={5}
                         dataKey="value"
                         stroke="none"
-                        animationDuration={1000}
+                        animationDuration={0}
                         animationBegin={0}
-                        animationEasing="ease-out"
+                        animationEasing="linear"
                         activeShape={renderActiveShape as any}
                         onMouseEnter={(d: { value?: number; name?: string }, index: number) => setActiveIndex(index)}
                         onMouseLeave={() => setActiveIndex(-1)}
@@ -153,7 +153,7 @@ export function PlatformDistributionChart({ data }: PlatformDistributionChartPro
                         itemStyle={chartItemStyle}
                         cursor={{ fill: 'rgba(56, 189, 248, 0.06)', radius: 4 }}
                         formatter={(value: any) => [`${value ?? 0} ${t('sessions')}`, t('activity')]}
-                        animationDuration={200}
+                        animationDuration={0}
                     />
                     <Legend
                         verticalAlign="bottom"

@@ -1,7 +1,8 @@
 ---
 description: "Instructions et mémoire pour agents IA — chargez pour travailler sur le projet JellyTrack"
 paths:
-  . - "src/**/*.ts"
+	- "."
+	- "src/**/*.ts"
 ---
 
 # JellyTrack — Instructions & mémoire pour agents IA
@@ -9,6 +10,8 @@ paths:
 IMPORTANT (pour agents IA) — lire entièrement ce document avant de proposer des modifications :
 - Ne pas « halluciner » modèles de données, répertoires ou clés i18n. Toujours vérifier `prisma/schema.prisma`, `messages/*.json` et les fichiers existants sous `src/`.
 - Respectez strictement les conventions et l'architecture décrites ci‑dessous.
+- Mode d'installation principal de l'application : Docker (`docker-compose.yml` + image GHCR).
+- Le fichier `.env` est versionné comme exemple public : conserver des placeholders sûrs (`CHANGE_ME_*`), jamais de secrets réels.
 
 ## 1. Stack technique (résumé)
 - Framework : `Next.js` (App Router, `src/app/`) — version utilisée : `16.x` (Next 16+ dans `package.json`).
@@ -19,6 +22,11 @@ IMPORTANT (pour agents IA) — lire entièrement ce document avant de proposer d
 - Icônes : `lucide-react`.
 - Graphiques : `recharts` (wrappés dans `src/components/charts/*`).
 - i18n : `next-intl` — fichiers de traduction sous `messages/*.json` (namespaces : `common`, `dashboard`, `media`, `logs`, ...).
+
+## 1.bis Installation & exploitation (actuel)
+- Parcours recommandé utilisateur : `docker compose up -d` depuis la racine `JellyTrack/`.
+- Le plugin Jellyfin est recommandé via dépôt Jellyfin (`manifest.json` du dépôt `JellyTrack.Plugin`).
+- Le mode applicatif est piloté par `JELLYTRACK_MODE` (`single` par défaut, `multi` pour vues multi-serveur).
 
 ## 2. Diagramme de flux des données
 ```
@@ -34,6 +42,7 @@ IMPORTANT (pour agents IA) — lire entièrement ce document avant de proposer d
 - `src/lib/*` : utilitaires et wrappers (ex. `prisma.ts`, `jellyfin.ts`, `auth.ts`, `utils.ts`).
 - `prisma/` : `schema.prisma` + migrations historiées.
 - `messages/` : traductions JSON par locale (ex. `en.json`, `fr.json`).
+- Ne pas versionner de fichiers temporaires d'audit local, de rapports ad-hoc ou d'artefacts de build dans le dépôt app.
 
 Toujours réutiliser les composants existants sous `src/components/ui/` pour garantir une UX cohérente.
 
@@ -140,9 +149,17 @@ Vous devez RELIRE `prisma/schema.prisma` avant toute proposition qui touche aux 
 ## 8. Variables d'environnement importantes
 - `DATABASE_URL` (Prisma)
 - `JELLYFIN_URL`, `JELLYFIN_API_KEY` (utilisés pour métadonnées Jellyfin dans `src/app/logs/page.tsx`)
+- `JELLYTRACK_MODE`, `JELLYFIN_SERVER_ID`, `JELLYFIN_SERVER_NAME` (mode single/multi-serveur)
+- `JELLYFIN_WEBHOOK_SECRET`, `NEXTAUTH_SECRET`, `ADMIN_PASSWORD` (sécurité)
 - Autres : consulter `.env` et `src/lib/*` pour usages spécifiques.
 
+Règle `.env` :
+- `.env` est commité comme exemple public ; garder des valeurs de démonstration sûres.
+- Ne jamais y écrire de vrais secrets (production/dev réel).
+
 ## 9. Scripts utiles (depuis la racine du projet)
+- `docker compose up -d` — méthode principale de lancement
+- `docker compose pull && docker compose up -d` — mise à jour de l'instance Docker
 - `npm run dev` — lancement en dev
 - `npm run build` — build de production (obligatoire avant finaliser une modification)
 - `npm run start` — démarrer la version buildée

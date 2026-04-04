@@ -27,17 +27,6 @@ interface MonthlyWatchTimeChartProps {
     monthNames: string[];
 }
 
-type GlowBarProps = { fill?: string; x?: number; y?: number; width?: number; height?: number };
-
-function GlowBar({ fill, x, y, width, height }: GlowBarProps) {
-    return (
-        <g>
-            <rect x={x} y={y} width={width} height={height} rx={4} ry={4}
-                  fill={fill} filter="url(#monthGlow)" fillOpacity={1} />
-        </g>
-    );
-}
-
 export function MonthlyWatchTimeChart({ data, monthNames }: MonthlyWatchTimeChartProps) {
     const t = useTranslations('charts');
     const router = useRouter();
@@ -123,19 +112,6 @@ export function MonthlyWatchTimeChart({ data, monthNames }: MonthlyWatchTimeChar
 
             <ResponsiveContainer width="100%" height={260} minHeight={260}>
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                        <linearGradient id="monthlyWatchGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.95} />
-                            <stop offset="100%" stopColor="#a855f7" stopOpacity={0.7} />
-                        </linearGradient>
-                        <filter id="monthGlow" x="-20%" y="-20%" width="140%" height="140%">
-                            <feGaussianBlur stdDeviation="4" result="blur" />
-                            <feMerge>
-                                <feMergeNode in="blur" />
-                                <feMergeNode in="SourceGraphic" />
-                            </feMerge>
-                        </filter>
-                    </defs>
                     <CartesianGrid strokeDasharray="3 7" vertical={false} stroke={chartGridColor} />
                     <XAxis
                         dataKey="month"
@@ -158,20 +134,19 @@ export function MonthlyWatchTimeChart({ data, monthNames }: MonthlyWatchTimeChar
                         labelStyle={chartLabelStyle}
                         itemStyle={chartItemStyle}
                         cursor={{ fill: 'rgba(56, 189, 248, 0.06)', radius: 4 }}
-                        animationDuration={200}
+                        animationDuration={0}
                     />
                     <Bar
                         dataKey="hours"
                         radius={[4, 4, 0, 0]}
-                        animationDuration={800}
-                        animationEasing="ease-out"
-                        activeBar={<GlowBar />}
+                        animationDuration={0}
+                        animationEasing="linear"
                         onClick={handleBarClick}
                     >
                         {chartData.map((entry, index) => (
                             <Cell
                                 key={`cell-${index}`}
-                                fill={entry.hours === maxHours && maxHours > 0 ? "#f97316" : "url(#monthlyWatchGradient)"}
+                                fill={entry.hours === maxHours && maxHours > 0 ? "#f97316" : "#38bdf8"}
                                 fillOpacity={maxHours > 0 ? 0.6 + (entry.hours / maxHours) * 0.4 : 0.3}
                                 style={{ cursor: "pointer" }}
                             />

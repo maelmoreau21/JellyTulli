@@ -5,11 +5,16 @@ import { getTranslations } from 'next-intl/server';
 import { getCompletionMetrics, isZapped } from "@/lib/mediaPolicy";
 // No more library rules
 
-export default async function UserInfo({ userId, userIds = [] }: { userId: string; userIds?: string[] }) {
+export default async function UserInfo({ userId, userIds = [], userDbIds = [] }: { userId: string; userIds?: string[]; userDbIds?: string[] }) {
     const targetJellyfinIds = Array.from(new Set([userId, ...userIds].filter(Boolean)));
+    const resolvedUserDbIds = Array.from(new Set(userDbIds.filter(Boolean)));
+
+    const whereClause = resolvedUserDbIds.length > 0
+        ? { id: { in: resolvedUserDbIds } }
+        : { jellyfinUserId: { in: targetJellyfinIds } };
 
     const users = await prisma.user.findMany({
-        where: { jellyfinUserId: { in: targetJellyfinIds } },
+        where: whereClause,
         orderBy: { createdAt: "asc" },
         select: { username: true, jellyfinUserId: true, lastActive: true, playbackHistory: {
                 select: {
@@ -21,7 +26,6 @@ export default async function UserInfo({ userId, userIds = [] }: { userId: strin
                         select: { genres: true, type: true, durationMs: true, title: true, jellyfinMediaId: true }
                     }
                 },
-                orderBy: { startedAt: 'asc' },
             }
         }
     });
@@ -63,7 +67,7 @@ export default async function UserInfo({ userId, userIds = [] }: { userId: strin
         if (s.deviceName) deviceCounts.set(s.deviceName, (deviceCounts.get(s.deviceName) || 0) + 1);
 
         const date = new Date(session.startedAt);
-        if (!firstWatched) firstWatched = date;
+        if (!firstWatched || date < firstWatched) firstWatched = date;
 
         // Day of week / hour tracking
         dayOfWeekCounts.set(date.getDay(), (dayOfWeekCounts.get(date.getDay()) || 0) + 1);

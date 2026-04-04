@@ -12,8 +12,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sora), "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -53,110 +53,99 @@
 }
 
 :root {
-  --radius: 0.95rem;
-  /* Glass Satin Theme: High-contrast, depth-focused palette with Glassmorphism */
-  --background: oklch(0.85 0.05 230); /* Slightly lighter base to increase contrast with deep cards */
-  --foreground: oklch(0.10 0.05 230);
-  --card: oklch(1 0 0 / 92%); /* More opaque cards for better definition */
-  --card-foreground: oklch(0.12 0.05 230);
-  --popover: oklch(0.99 0.005 230);
-  --popover-foreground: oklch(0.15 0.05 230);
-  --primary: oklch(0.55 0.12 250);
-  --primary-foreground: oklch(0.99 0.005 250);
-  --secondary: oklch(0.82 0.05 160); /* Soft Mint for depth */
-  --secondary-foreground: oklch(0.18 0.05 160);
-  --muted: oklch(0.80 0.04 230 / 55%);
-  --muted-foreground: oklch(0.30 0.05 230);
-  --accent: oklch(0.82 0.07 330); /* Rose Satin for highlights */
-  --accent-foreground: oklch(0.20 0.06 330);
-  --destructive: oklch(0.6 0.15 25);
-  --border: oklch(0.65 0.12 250 / 0.15); /* Stronger, more colorful border for definition */
-  --input: oklch(0.98 0.01 230 / 60%);
-  --ring: oklch(0.55 0.10 250);
-  --chart-1: oklch(0.55 0.12 250);
-  --chart-2: oklch(0.78 0.08 165);
-  --chart-3: oklch(0.80 0.10 330);
-  --chart-4: oklch(0.82 0.08 85);
-  --chart-5: oklch(0.78 0.06 210);
-  /* Chart UI variables (Glass Satin mode) */
-  --chart-axis-color: oklch(0.35 0.05 230 / 70%);
-  --chart-grid-color: oklch(0.15 0.05 230 / 12%);
-  --chart-tooltip-bg: oklch(0.99 0.005 230 / 92%);
-  --chart-tooltip-border: 1px solid oklch(0.55 0.12 250 / 25%);
-  --chart-tooltip-radius: 18px;
-  --chart-tooltip-box-shadow: 0 15px 45px oklch(0.1 0.05 230 / 10%);
-  --chart-tooltip-backdrop: blur(20px);
-  --chart-label-color: oklch(0.30 0.05 230);
-  --chart-item-color: oklch(0.12 0.05 230);
-  --sidebar: oklch(0.98 0.005 220 / 85%);
-  --sidebar-foreground: oklch(0.12 0.05 230);
-  --sidebar-primary: oklch(0.55 0.12 250);
+  --radius: 0.75rem;
+  --background: oklch(0.985 0.005 240);
+  --foreground: oklch(0.25 0.03 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.24 0.03 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.24 0.03 250);
+  --primary: oklch(0.56 0.12 200);
+  --primary-foreground: oklch(0.98 0.01 240);
+  --secondary: oklch(0.95 0.01 240);
+  --secondary-foreground: oklch(0.3 0.03 250);
+  --muted: oklch(0.96 0.01 240);
+  --muted-foreground: oklch(0.5 0.02 250);
+  --accent: oklch(0.93 0.02 195);
+  --accent-foreground: oklch(0.3 0.03 250);
+  --destructive: oklch(0.62 0.2 27);
+  --border: oklch(0.86 0.01 240);
+  --input: oklch(0.99 0 0);
+  --ring: oklch(0.58 0.12 200);
+  --chart-1: oklch(0.56 0.12 200);
+  --chart-2: oklch(0.62 0.1 165);
+  --chart-3: oklch(0.67 0.11 75);
+  --chart-4: oklch(0.62 0.11 265);
+  --chart-5: oklch(0.62 0.09 20);
+  --chart-axis-color: oklch(0.44 0.02 248);
+  --chart-grid-color: oklch(0.3 0.01 245 / 0.16);
+  --chart-tooltip-bg: oklch(1 0 0 / 0.96);
+  --chart-tooltip-border: 1px solid oklch(0.82 0.01 240);
+  --chart-tooltip-radius: 12px;
+  --chart-tooltip-box-shadow: 0 4px 12px rgba(2, 6, 23, 0.08);
+  --chart-tooltip-backdrop: none;
+  --chart-label-color: oklch(0.48 0.02 248);
+  --chart-item-color: oklch(0.26 0.03 250);
+  --sidebar: oklch(0.975 0.004 240);
+  --sidebar-foreground: oklch(0.28 0.03 250);
+  --sidebar-primary: oklch(0.56 0.12 200);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.99 0.005 230 / 60%);
-  --sidebar-accent-foreground: oklch(0.15 0.05 230);
-  --sidebar-border: oklch(0 0 0 / 6%);
-  --sidebar-ring: oklch(0.55 0.12 250);
+  --sidebar-accent: oklch(0.93 0.016 200);
+  --sidebar-accent-foreground: oklch(0.3 0.03 250);
+  --sidebar-border: oklch(0.88 0.01 240);
+  --sidebar-ring: oklch(0.58 0.12 200);
 }
 
 .dark {
-  --background: oklch(0.12 0.02 260); /* Deeper midnight background (not pure black/gray) */
-  --foreground: oklch(0.98 0.01 260);
-  --card: oklch(0.16 0.03 260); /* Slightly lighter midnight for cards */
-  --card-foreground: oklch(0.98 0.01 260);
-  --popover: oklch(0.14 0.03 260); /* Popovers must be dark! */
-  --popover-foreground: oklch(0.98 0.01 260);
-  --primary: oklch(0.76 0.14 205);
-  --primary-foreground: oklch(0.12 0.03 260);
-  --secondary: oklch(0.18 0.03 260);
-  --secondary-foreground: oklch(0.98 0.01 260);
-  --muted: oklch(0.18 0.03 260);
-  --muted-foreground: oklch(0.65 0.02 260);
-  --accent: oklch(0.22 0.04 260);
-  --accent-foreground: oklch(0.98 0.01 260);
-  --destructive: oklch(0.70 0.19 22.2);
-  --border: oklch(0.98 0.01 260 / 12%);
-  --input: oklch(0.98 0.01 260 / 15%);
-  --ring: oklch(0.72 0.12 205);
-  --chart-1: oklch(0.74 0.15 205);
-  --chart-2: oklch(0.78 0.17 75);
-  --chart-3: oklch(0.67 0.19 28);
-  --chart-4: oklch(0.7 0.18 155);
-  --chart-5: oklch(0.73 0.13 250);
+  --background: oklch(0.13 0.02 255);
+  --foreground: oklch(0.96 0.01 250);
+  --card: oklch(0.17 0.025 255);
+  --card-foreground: oklch(0.95 0.01 250);
+  --popover: oklch(0.17 0.025 255);
+  --popover-foreground: oklch(0.95 0.01 250);
+  --primary: oklch(0.74 0.12 198);
+  --primary-foreground: oklch(0.15 0.02 255);
+  --secondary: oklch(0.2 0.018 252);
+  --secondary-foreground: oklch(0.92 0.01 250);
+  --muted: oklch(0.2 0.015 252);
+  --muted-foreground: oklch(0.72 0.015 248);
+  --accent: oklch(0.26 0.03 200);
+  --accent-foreground: oklch(0.95 0.01 250);
+  --destructive: oklch(0.7 0.18 24);
+  --border: oklch(0.3 0.01 248);
+  --input: oklch(0.2 0.015 252);
+  --ring: oklch(0.74 0.12 198);
+  --chart-1: oklch(0.74 0.12 198);
+  --chart-2: oklch(0.72 0.11 158);
+  --chart-3: oklch(0.75 0.12 80);
+  --chart-4: oklch(0.73 0.12 265);
+  --chart-5: oklch(0.71 0.12 26);
   --chart-axis-color: #94a3b8;
-  --chart-grid-color: rgba(148, 163, 184, 0.12);
-  --chart-tooltip-bg: oklch(0.14 0.03 260 / 96%); /* Very dark semi-transparent bg for tooltips */
-  --chart-tooltip-border: 1px solid oklch(1 0 0 / 15%);
-  --chart-tooltip-radius: 18px;
-  --chart-tooltip-box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-  --chart-tooltip-backdrop: blur(20px);
+  --chart-grid-color: rgba(148, 163, 184, 0.14);
+  --chart-tooltip-bg: rgba(10, 16, 30, 0.96);
+  --chart-tooltip-border: 1px solid rgba(148, 163, 184, 0.22);
+  --chart-tooltip-radius: 12px;
+  --chart-tooltip-box-shadow: 0 6px 16px rgba(2, 6, 23, 0.28);
+  --chart-tooltip-backdrop: none;
   --chart-label-color: #94a3b8;
-  --chart-item-color: #e5eefb;
-  --sidebar: oklch(0.14 0.02 260);
-  --sidebar-foreground: oklch(0.98 0.01 260);
-  --sidebar-primary: oklch(0.76 0.14 205);
-  --sidebar-primary-foreground: oklch(0.12 0.03 260);
-  --sidebar-accent: oklch(0.18 0.03 260);
-  --sidebar-accent-foreground: oklch(0.98 0.01 260);
-  --sidebar-border: oklch(0.98 0.01 260 / 12%);
-  --sidebar-ring: oklch(0.72 0.12 205);
+  --chart-item-color: #e2e8f0;
+  --sidebar: oklch(0.16 0.02 254);
+  --sidebar-foreground: oklch(0.94 0.01 250);
+  --sidebar-primary: oklch(0.74 0.12 198);
+  --sidebar-primary-foreground: oklch(0.16 0.02 254);
+  --sidebar-accent: oklch(0.22 0.02 252);
+  --sidebar-accent-foreground: oklch(0.94 0.01 250);
+  --sidebar-border: oklch(0.3 0.01 248);
+  --sidebar-ring: oklch(0.74 0.12 198);
 }
 
 @layer base {
   html {
-    @apply scroll-smooth;
-  }
- 
-  .app-surface {
-    @apply bg-card text-card-foreground border-border relative;
-  }
- 
-  .app-surface-soft {
-    @apply bg-card/60 backdrop-blur-sm border-border relative;
+    scroll-behavior: auto;
   }
 
-  .dark .app-surface-soft {
-    @apply bg-zinc-950/40 border-zinc-800/50;
-    backdrop-filter: blur(12px);
+  .app-surface {
+    @apply bg-card text-card-foreground border border-border shadow-sm;
   }
 
   * {
@@ -166,31 +155,16 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-    background-attachment: fixed;
-  }
-
-  html:not(.dark) {
-    /* Multicolor Satin Blend: Subtler gradient to let cards stand out */
-    background: linear-gradient(135deg, oklch(0.88 0.04 220), oklch(0.85 0.05 320), oklch(0.88 0.04 160));
-    background-attachment: fixed;
+    font-family: var(--font-sora), "Segoe UI", system-ui, sans-serif;
+    background-attachment: scroll;
+    background-image: none;
   }
 
   html.dark body {
-    background-color: oklch(0.12 0.02 260);
-    background-image:
-      radial-gradient(circle at top left, rgba(8, 145, 178, 0.12), transparent 28%),
-      radial-gradient(circle at top right, rgba(245, 158, 11, 0.1), transparent 24%),
-        radial-gradient(circle at bottom center, rgba(34, 197, 94, 0.06), transparent 32%),
-        linear-gradient(180deg, rgba(9, 9, 11, 0.98), rgba(9, 11, 18, 1));
-    background-attachment: fixed;
-    color: oklch(0.98 0.01 260);
-  }
-
-  .dark input,
-  .dark select,
-  .dark textarea {
-    background-color: rgba(15, 23, 42, 0.72);
-    border-color: rgba(148, 163, 184, 0.28);
+    background-color: oklch(0.13 0.02 255);
+    background-image: none;
+    background-attachment: scroll;
+    color: oklch(0.96 0.01 250);
   }
 
   input,
@@ -198,306 +172,141 @@
   textarea {
     background-color: var(--input);
     border-color: var(--border);
-    @apply focus:ring-2 focus:ring-primary/20 transition-all;
+    @apply transition-colors focus:ring-2 focus:ring-primary/25;
   }
 
   [data-slot="card"] {
-    border-color: oklch(1 0 0 / 25%);
-    background-image:
-      linear-gradient(145deg, oklch(1 0 0 / 40%), oklch(1 0 0 / 5%));
-    box-shadow:
-      0 1px 1px oklch(0 0 0 / 4%),
-      0 4px 12px oklch(0 0 0 / 3%),
-      0 15px 35px oklch(0.2 0.05 230 / 10%);
-    backdrop-filter: blur(25px);
+    border-color: var(--border);
+    background-color: var(--card);
+    box-shadow: 0 1px 2px rgba(2, 6, 23, 0.06);
   }
 
   .dark [data-slot="card"] {
     border-color: rgba(148, 163, 184, 0.2);
-    background-image:
-      linear-gradient(180deg, rgba(148, 163, 184, 0.07), rgba(148, 163, 184, 0.015)),
-      radial-gradient(circle at top right, rgba(56, 189, 248, 0.1), transparent 38%);
+    background-color: var(--card);
+    box-shadow: 0 1px 2px rgba(2, 6, 23, 0.22);
   }
 }
 
 @layer components {
-    .app-surface {
-      border-color: oklch(1 0 0 / 30%);
-      background:
-        linear-gradient(135deg, oklch(1 0 0 / 45%), oklch(1 0 0 / 15%)),
-        var(--card);
-      box-shadow:
-        0 20px 50px oklch(0.2 0.05 230 / 12%),
-        inset 0 1px 0 oklch(1 0 0 / 35%);
-      backdrop-filter: blur(25px);
-    }
+  .app-surface {
+    border: 1px solid var(--border);
+    background: var(--card);
+    box-shadow: 0 1px 2px rgba(2, 6, 23, 0.06);
+  }
 
-    .dark .app-surface {
-      border-color: rgba(148, 163, 184, 0.22);
-      background:
-        linear-gradient(180deg, rgba(30, 41, 59, 0.46), rgba(15, 23, 42, 0.42)),
-        radial-gradient(circle at top right, rgba(56, 189, 248, 0.13), transparent 34%),
-        radial-gradient(circle at bottom left, rgba(249, 115, 22, 0.09), transparent 28%),
-        rgba(9, 12, 18, 0.88);
-      box-shadow:
-        0 16px 40px rgba(0, 0, 0, 0.25),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    }
+  .dark .app-surface {
+    border-color: rgba(148, 163, 184, 0.2);
+    background: var(--card);
+    box-shadow: 0 1px 2px rgba(2, 6, 23, 0.22);
+  }
 
-    .app-surface-soft {
-      border-color: oklch(0.65 0.12 250 / 0.1);
-      background: oklch(1 0 0 / 85%);
-      box-shadow: 
-        0 4px 12px oklch(0 0 0 / 3%),
-        inset 0 1px 0 oklch(1 0 0 / 40%);
-      backdrop-filter: blur(12px);
-    }
+  .app-surface-soft {
+    border: 1px solid var(--border);
+    background: var(--muted);
+    box-shadow: none;
+  }
 
-    .dark .app-surface-soft {
-      border-color: rgba(255, 255, 255, 0.06);
-      background: rgba(9, 9, 11, 0.65);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
-    }
+  .dark .app-surface-soft {
+    border-color: rgba(148, 163, 184, 0.18);
+    background: var(--muted);
+    box-shadow: none;
+  }
 
-    .app-field {
-      border-color: oklch(0 0 0 / 10%);
-      background: oklch(1 0 0 / 40%);
-    }
+  .app-field {
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.92);
+  }
 
-    .dark .app-field {
-      border-color: rgba(148, 163, 184, 0.28);
-      background: rgba(15, 23, 42, 0.72);
-    }
+  .dark .app-field {
+    border-color: rgba(148, 163, 184, 0.24);
+    background: rgba(10, 18, 32, 0.84);
+    color: rgba(226, 232, 240, 0.95);
+  }
 
-    .app-chip {
-      border: 1px solid oklch(0 0 0 / 10%);
-      background: oklch(1 0 0 / 60%);
-      color: var(--foreground);
-    }
+  .app-chip {
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--foreground);
+  }
 
-    .dark .app-chip {
-      border: 1px solid rgba(148, 163, 184, 0.28);
-      background: rgba(15, 23, 42, 0.68);
-      color: rgba(226, 232, 240, 0.94);
-    }
+  .dark .app-chip {
+    border-color: rgba(148, 163, 184, 0.25);
+    background: rgba(10, 18, 32, 0.82);
+    color: rgba(226, 232, 240, 0.95);
+  }
 
-    .app-chip-success {
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      background: rgba(16, 185, 129, 0.1);
-      color: #059669;
-    }
+  .app-chip-success {
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+  }
 
-    .dark .app-chip-success {
-      border: 1px solid rgba(16, 185, 129, 0.35);
-      background: rgba(16, 185, 129, 0.14);
-      color: #6ee7b7;
-    }
+  .dark .app-chip-success {
+    border-color: rgba(16, 185, 129, 0.42);
+    background: rgba(16, 185, 129, 0.18);
+    color: #6ee7b7;
+  }
 
-    .dashboard-page {
-      position: relative;
-    }
+  .dashboard-page {
+    position: relative;
+  }
 
-    .dashboard-page::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background:
-        radial-gradient(circle at 15% 15%, oklch(0.45 0.16 230 / 6%), transparent 40%),
-        radial-gradient(circle at 85% 12%, oklch(0.58 0.14 85 / 4%), transparent 30%),
-        radial-gradient(circle at 50% 85%, oklch(0.64 0.1 260 / 4%), transparent 35%);
-      opacity: 0.8;
-      z-index: 0;
-    }
+  .dashboard-page a [data-slot="card"],
+  .dashboard-page .dashboard-interactive {
+    transition: border-color 120ms ease, background-color 120ms ease;
+  }
 
-    .dark .dashboard-page::before {
-      background:
-        radial-gradient(circle at 12% 18%, rgba(6, 182, 212, 0.08), transparent 24%),
-        radial-gradient(circle at 88% 14%, rgba(249, 115, 22, 0.08), transparent 20%),
-        radial-gradient(circle at 50% 78%, rgba(168, 85, 247, 0.08), transparent 26%);
-      opacity: 0.9;
-    }
+  .dashboard-page a:hover [data-slot="card"],
+  .dashboard-page .dashboard-interactive:hover {
+    border-color: rgba(14, 116, 144, 0.32);
+  }
 
-    .dashboard-page > * {
-      position: relative;
-      z-index: 1;
-    }
+  .dark .dashboard-page a:hover [data-slot="card"],
+  .dark .dashboard-page .dashboard-interactive:hover {
+    border-color: rgba(34, 211, 238, 0.36);
+  }
 
-    .dashboard-page [data-slot="card"] {
-        position: relative;
-        overflow: hidden;
-        border-color: oklch(0.65 0.12 250 / 0.2);
-        background:
-          linear-gradient(160deg, oklch(1 0 0 / 95%), oklch(1 0 0 / 70%)),
-          var(--card);
-        box-shadow:
-          0 10px 30px oklch(0.65 0.12 250 / 8%),
-          0 2px 4px oklch(0 0 0 / 2%),
-          inset 0 1px 0 oklch(1 0 0 / 90%);
-        backdrop-filter: blur(30px);
-    }
+  .dashboard-page .dashboard-banner {
+    border: 1px solid var(--border);
+    background: var(--card);
+    box-shadow: none;
+  }
 
-    .dark .dashboard-page [data-slot="card"] {
-      border-color: rgba(255, 255, 255, 0.08);
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015)),
-        radial-gradient(circle at top right, rgba(34, 211, 238, 0.14), transparent 34%),
-        radial-gradient(circle at bottom left, rgba(249, 115, 22, 0.12), transparent 30%),
-        rgba(9, 12, 18, 0.82);
-      box-shadow:
-        0 24px 80px rgba(0, 0, 0, 0.28),
-        inset 0 1px 0 rgba(255, 255, 255, 0.035);
-    }
+  .dark .dashboard-page .dashboard-banner {
+    border-color: rgba(148, 163, 184, 0.2);
+    background: var(--card);
+    box-shadow: none;
+  }
 
-    .dashboard-page [data-slot="card"]::before {
-      content: "";
-      position: absolute;
-      inset: 1px;
-      border-radius: inherit;
-      border: 1px solid rgba(212, 212, 216, 0.16);
-      pointer-events: none;
-    }
+  .dashboard-page .dashboard-tablist {
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.9);
+  }
 
-    .dark .dashboard-page [data-slot="card"]::before {
-      border: 1px solid rgba(255, 255, 255, 0.03);
-    }
+  .dark .dashboard-page .dashboard-tablist {
+    border-color: rgba(148, 163, 184, 0.24);
+    background: rgba(8, 14, 27, 0.84);
+  }
 
-    .dashboard-page a [data-slot="card"],
-    .dashboard-page .dashboard-interactive {
-      transition:
-        transform 180ms ease,
-        box-shadow 180ms ease,
-        border-color 180ms ease;
-    }
+  .dashboard-page .dashboard-pill {
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.88);
+  }
 
-    .dashboard-page a:hover [data-slot="card"],
-    .dashboard-page .dashboard-interactive:hover {
-      transform: translateY(-4px) scale(1.01);
-      border-color: var(--primary);
-      background: linear-gradient(160deg, oklch(1 0 0 / 95%), oklch(1 0 0 / 40%)), var(--card);
-      box-shadow:
-        0 20px 40px oklch(0.65 0.12 250 / 12%),
-        0 0 0 2px oklch(0.65 0.12 250 / 10%),
-        inset 0 1px 0 oklch(1 0 0 / 80%);
-    }
-
-    .dark .dashboard-page a:hover [data-slot="card"],
-    .dark .dashboard-page .dashboard-interactive:hover {
-      border-color: rgba(103, 232, 249, 0.4);
-      background:
-        linear-gradient(135deg, rgba(8, 145, 178, 0.16), rgba(8, 145, 178, 0.04)),
-        radial-gradient(circle at top right, rgba(56, 189, 248, 0.22), transparent 44%),
-        rgba(9, 12, 18, 0.94);
-      box-shadow:
-        0 40px 100px rgba(0, 0, 0, 0.4),
-        0 0 0 1px rgba(103, 232, 249, 0.12),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    }
-
-    .dashboard-page .dashboard-banner {
-      border: 1px solid oklch(0.2 0.05 285 / 15%);
-      background: linear-gradient(135deg, oklch(0.45 0.16 230 / 10%), oklch(0.58 0.14 85 / 6%), oklch(0.98 0.02 285 / 94%));
-      box-shadow: 0 8px 16px oklch(0.2 0.05 285 / 8%);
-      backdrop-filter: blur(18px);
-    }
-
-    .dark .dashboard-page .dashboard-banner {
-      border: 1px solid oklch(0.98 0.01 260 / 12%);
-      background: linear-gradient(135deg, oklch(0.76 0.14 205 / 16%), oklch(0.78 0.17 75 / 9%), oklch(0.12 0.03 260 / 88%));
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
-    }
-
-    .dashboard-page .dashboard-tablist {
-      border-color: rgba(212, 212, 216, 0.6);
-      background: linear-gradient(180deg, rgba(250, 250, 252, 0.93), rgba(250, 250, 252, 0.9));
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.64);
-    }
-
-    .dark .dashboard-page .dashboard-tablist {
-      border-color: rgba(255, 255, 255, 0.08);
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(10, 12, 18, 0.9));
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-    }
-
-    .dashboard-page .dashboard-pill {
-      border: 1px solid rgba(212, 212, 216, 0.6);
-      background: rgba(250, 250, 252, 0.92);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.64);
-      backdrop-filter: blur(14px);
-    }
-
-    .dark .dashboard-page .dashboard-pill {
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(9, 12, 18, 0.72);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-    }
+  .dark .dashboard-page .dashboard-pill {
+    border-color: rgba(148, 163, 184, 0.24);
+    background: rgba(9, 15, 28, 0.82);
+  }
 }
 
 ::selection {
-  background: rgba(8, 145, 178, 0.16);
+  background: rgba(20, 184, 166, 0.24);
   color: #0f172a;
 }
 
-/* Soften Tailwind `bg-white*` utilities in light mode: map them to a softer slate. */
-/* 
- * Soften Tailwind bg-white* utilities globally when used without a dark: variant.
- * This prevents stark white backgrounds in both light and dark modes 
- * for components that haven't been fully themed yet.
- */
-html:not(.dark) [class*="bg-white"],
-html:not(.dark) [class*="bg-zinc-50"],
-html:not(.dark) [class*="bg-zinc-100"],
-html:not(.dark) [class*="bg-zinc-200"],
-html:not(.dark) [class*="bg-slate-50"],
-html:not(.dark) [class*="bg-slate-100"],
-html:not(.dark) [class*="bg-gray-50"] {
-  background-color: oklch(1 0 0 / 92%) !important;
-  backdrop-filter: blur(25px);
-  border: 1px solid oklch(0.65 0.12 250 / 0.12);
-}
-
-.dark [class*="bg-white"]:not([class*="dark:bg-"]),
-.dark [class*="bg-zinc-50"]:not([class*="dark:bg-"]),
-.dark [class*="bg-zinc-100"]:not([class*="dark:bg-"]),
-.dark [class*="bg-slate-50"]:not([class*="dark:bg-"]),
-.dark [class*="bg-slate-100"]:not([class*="dark:bg-"]),
-.dark [class*="bg-gray-50"]:not([class*="dark:bg-"]),
-.dark [class*="bg-gray-100"]:not([class*="dark:bg-"]),
-.dark [class*="bg-indigo-50"]:not([class*="dark:bg-"]),
-.dark [class*="bg-violet-50"]:not([class*="dark:bg-"]),
-.dark [class*="bg-emerald-50"]:not([class*="dark:bg-"]),
-.dark [class*="bg-amber-50"]:not([class*="dark:bg-"]),
-.dark [class*="bg-red-50"]:not([class*="dark:bg-"]) {
-  background-color: oklch(0.16 0.03 260 / var(--tw-bg-opacity, 1)) !important;
-}
-
-/* New Hover Catch-all for dark mode: prevent white backgrounds when classes like hover:bg-white are used. */
-.dark [class*="hover:bg-white"]:hover,
-.dark [class*="hover:bg-zinc-50"]:hover,
-.dark [class*="hover:bg-zinc-100"]:hover,
-.dark [class*="hover:bg-zinc-200"]:hover,
-.dark [class*="hover:bg-slate-50"]:hover,
-.dark [class*="hover:bg-slate-100"]:hover,
-.dark [class*="hover:bg-gray-50"]:hover,
-.dark [class*="hover:bg-gray-100"]:hover,
-.dark [class*="hover:bg-accent"]:hover {
-  background-color: oklch(0.25 0.04 260 / 0.25) !important;
-  color: oklch(0.98 0.01 260) !important;
-}
-
-/* Satin 2.0 Specific Overrides for common white backgrounds */
-html:not(.dark) .bg-sidebar {
-  background-color: oklch(0.98 0.005 220 / 0.85) !important;
-  backdrop-filter: blur(30px);
-}
-
-html:not(.dark) .bg-card {
-  background-color: oklch(0.99 0.005 230 / 0.75) !important;
-  backdrop-filter: blur(25px);
-}
-
 .dark ::selection {
-  background: rgba(8, 145, 178, 0.35);
+  background: rgba(34, 211, 238, 0.3);
   color: #f4f4f5;
 }
 
@@ -526,35 +335,72 @@ html:not(.dark) .bg-card {
   outline: none !important;
 }
 
-/* ─── Custom scrollbar (dark, slim, glass) ─── */
+/* Simple scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
+  scrollbar-color: rgba(100, 116, 139, 0.42) transparent;
 }
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.22);
+  background: rgba(100, 116, 139, 0.45);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.4);
+  background: rgba(100, 116, 139, 0.62);
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-/* ─── Chart bar hover glow ─── */
+/* Chart hover feedback */
 .recharts-bar-rectangle:hover {
-  filter: brightness(1.25) drop-shadow(0 0 6px rgba(56, 189, 248, 0.4));
-  transition: filter 150ms ease;
+  filter: none;
+  transition: none;
 }
 .recharts-pie-sector:hover {
-  filter: brightness(1.15) drop-shadow(0 0 8px rgba(56, 189, 248, 0.35));
-  transition: filter 150ms ease;
+  filter: none;
+  transition: none;
+}
+
+/* Flat visual mode everywhere except /wrapped */
+body:not(.route-wrapped) [class*="bg-gradient"] {
+  background-image: none !important;
+}
+
+body:not(.route-wrapped) .bg-clip-text.text-transparent {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+body:not(.route-wrapped) [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body:not(.route-wrapped) [class*="shadow"] {
+  box-shadow: none !important;
+}
+
+body:not(.route-wrapped) [class*="animate-"] {
+  animation: none !important;
+}
+
+body:not(.route-wrapped) [class*="hover:scale"]:hover,
+body:not(.route-wrapped) [class*="group-hover:scale"] {
+  transform: none !important;
+}
+
+body:not(.route-wrapped) [class*="hover:brightness"]:hover,
+body:not(.route-wrapped) [class*="group-hover:brightness"] {
+  filter: none !important;
+}
+
+body:not(.route-wrapped) [class*="transition"] {
+  transition-duration: 0ms !important;
 }

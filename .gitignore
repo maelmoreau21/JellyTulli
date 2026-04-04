@@ -31,8 +31,9 @@ yarn-error.log*
 .pnpm-debug.log*
 eslint-report.json
 
-# env files (can opt-in for committing if needed)
+# env files
 .env*
+!.env
 
 # vercel
 .vercel

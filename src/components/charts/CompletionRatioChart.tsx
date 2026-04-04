@@ -52,7 +52,7 @@ function renderActiveShape(props: ActiveShapeProps) {
                 outerRadius={outerRadius + 8}
                 startAngle={startAngle} endAngle={endAngle}
                 fill={fill}
-                style={{ filter: "drop-shadow(0 0 8px rgba(56, 189, 248, 0.4))", transition: "all 200ms ease" }}
+                style={{ transition: "none" }}
             />
             <text x={cx} y={cy - 8} textAnchor="middle" fill={activeTextColor} fontSize={13} fontWeight={600}>
                 {payload.name}
@@ -85,7 +85,7 @@ export function CompletionRatioChart({ data }: CompletionRatioChartProps) {
         border: root?.getPropertyValue('--chart-tooltip-border')?.trim() || '1px solid rgba(103, 232, 249, 0.18)',
         borderRadius: root?.getPropertyValue('--chart-tooltip-radius')?.trim() || '18px',
         boxShadow: root?.getPropertyValue('--chart-tooltip-box-shadow')?.trim() || '0 20px 60px rgba(0, 0, 0, 0.35)',
-        backdropFilter: root?.getPropertyValue('--chart-tooltip-backdrop')?.trim() || 'blur(18px)'
+        backdropFilter: root?.getPropertyValue('--chart-tooltip-backdrop')?.trim() || 'none'
     };
     const chartLabelStyle = { color: root?.getPropertyValue('--chart-label-color')?.trim() || '#a1a1aa' };
     const chartItemStyle = { color: root?.getPropertyValue('--chart-item-color')?.trim() || '#e5eefb' };
@@ -133,9 +133,9 @@ export function CompletionRatioChart({ data }: CompletionRatioChartProps) {
                         dataKey="value"
                         nameKey="name"
                         strokeWidth={0}
-                        animationDuration={1000}
+                        animationDuration={0}
                         animationBegin={0}
-                        animationEasing="ease-out"
+                        animationEasing="linear"
                         activeShape={renderActiveShape as unknown as React.FC<ActiveShapeProps>}
                         onMouseEnter={(d: { value?: number; name?: string } | undefined, index: number) => setActiveIndex(index)}
                         onMouseLeave={() => setActiveIndex(-1)}
@@ -157,7 +157,7 @@ export function CompletionRatioChart({ data }: CompletionRatioChartProps) {
                             const pct = total > 0 ? ((n / total) * 100).toFixed(0) : '0';
                             return [`${n} sessions (${pct}%)`, name ?? ''] as [string, string];
                         }}
-                        animationDuration={200}
+                        animationDuration={0}
                     />
                     <Legend
                         wrapperStyle={{ fontSize: "12px", color: chartLabelStyle.color, cursor: "pointer" }}

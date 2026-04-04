@@ -12,6 +12,8 @@ model Server {
   jellyfinServerId  String            @unique
   name              String
   url               String
+  jellyfinApiKey    String?
+  allowAuthFallback Boolean           @default(false)
   isActive          Boolean           @default(true)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt

@@ -217,9 +217,9 @@ export default function PluginSecurityPage() {
 
     const healthBadge = useMemo(() => {
         if (!overview?.plugin.connected) {
-            return <Badge variant="destructive">Offline</Badge>;
+            return <Badge className="app-chip border-red-500/35 text-red-600 dark:text-red-300">Offline</Badge>;
         }
-        return <Badge variant="default">Online</Badge>;
+        return <Badge className="app-chip-success">Online</Badge>;
     }, [overview?.plugin.connected]);
 
     return (
@@ -246,14 +246,14 @@ export default function PluginSecurityPage() {
             </div>
 
             {message && (
-                <div className={`rounded-md border px-3 py-2 text-sm flex items-center gap-2 ${message.type === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" : "border-red-500/40 bg-red-500/10 text-red-400"}`}>
+                <div className={`app-field flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${message.type === "success" ? "border-emerald-500/35 text-emerald-600 dark:text-emerald-300" : "border-red-500/35 text-red-600 dark:text-red-300"}`}>
                     {message.type === "success" ? <ShieldCheck className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
                     <span>{message.text}</span>
                 </div>
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <Card>
+                <Card className="app-surface border-border">
                     <CardHeader>
                         <CardTitle className="text-base">Etat plugin</CardTitle>
                         <CardDescription>Connectivite et heartbeat</CardDescription>
@@ -278,7 +278,7 @@ export default function PluginSecurityPage() {
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="app-surface border-border">
                     <CardHeader>
                         <CardTitle className="text-base">Etat cle API</CardTitle>
                         <CardDescription>Cycle de vie et fenetre de transition</CardDescription>
@@ -309,7 +309,7 @@ export default function PluginSecurityPage() {
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="app-surface border-border">
                     <CardHeader>
                         <CardTitle className="text-base">Alertes recentes</CardTitle>
                         <CardDescription>Fenetre 24h / 30j</CardDescription>
@@ -324,7 +324,7 @@ export default function PluginSecurityPage() {
                 </Card>
             </div>
 
-            <Card>
+            <Card className="app-surface border-border">
                 <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2"><KeyRound className="w-4 h-4" /> Politique de rotation</CardTitle>
                     <CardDescription>
@@ -375,7 +375,7 @@ export default function PluginSecurityPage() {
             </Card>
 
             {freshApiKey && (
-                <Card className="border-emerald-500/40 bg-emerald-500/5">
+                <Card className="app-surface border-border">
                     <CardHeader>
                         <CardTitle className="text-base">Nouvelle cle (affichage unique)</CardTitle>
                         <CardDescription>
@@ -397,7 +397,7 @@ export default function PluginSecurityPage() {
                 </Card>
             )}
 
-            <Card>
+            <Card className="app-surface border-border">
                 <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                         <ShieldAlert className="w-4 h-4" />
@@ -438,7 +438,7 @@ export default function PluginSecurityPage() {
                 </CardContent>
             </Card>
 
-            <Card>
+            <Card className="app-surface border-border">
                 <CardHeader>
                     <CardTitle className="text-base">Journal d audit complet</CardTitle>
                     <CardDescription>

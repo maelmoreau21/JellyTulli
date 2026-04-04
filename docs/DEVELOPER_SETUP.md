@@ -1,30 +1,42 @@
 # Developer setup
 
-Quick steps to get the project running locally:
+## Primary method (recommended)
 
-1. Install dependencies
+Run JellyTrack with Docker first. The repository ships a committed `.env` example.
+
+1. Edit `.env` and replace every `CHANGE_ME_*` value.
+2. Start the stack:
+
+```bash
+docker compose up -d
+```
+
+3. Open `http://localhost:3000` (or the value of `APP_PORT` in your `.env`).
+
+## Local source development (optional)
+
+Use this mode if you need to change application code locally.
+
+1. Install dependencies:
 
 ```bash
 npm ci
 ```
 
-2. Create a PostgreSQL database and set `DATABASE_URL` in a `.env` file at project root.
-
-3. Set Jellyfin environment variables (for local sync testing):
+2. Start database dependencies:
 
 ```bash
-export JELLYFIN_URL="https://your-jellyfin"
-export JELLYFIN_API_KEY="your-api-key"
+docker compose up -d postgres redis
 ```
 
-4. Generate and apply Prisma client & migrations
+3. Generate Prisma client and sync schema:
 
 ```bash
 npx prisma generate
-npx prisma migrate dev --name init
+npx prisma db push
 ```
 
-5. Run the dev server
+4. Start the dev server:
 
 ```bash
 npm run dev

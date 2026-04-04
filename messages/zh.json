@@ -52,7 +52,7 @@
     "playbackVolume": "播放数据量",
     "plays": "播放计",
     "playsCount": "{count, plural, other {# 次播放}}",
-    "playsInYear": "{year} 年共播放 {count} 次",
+    "playsInYear": "{count, plural, other {# 次播放}} in {year} 年共播放 {count} 次",
     "playsTotal": "{year} 年总计 {count} 次播放",
     "previousYear": "前一年",
     "series": "剧集",
@@ -404,7 +404,11 @@
   "liveStreams": {
     "description": "目前有 {count} 个活跃播放流。",
     "noStreams": "目前没有活跃的播放流。",
-    "title": "当前播放"
+    "title": "当前播放",
+    "timelineView": "Timeline View",
+    "cardsView": "Cards View",
+    "transcodeAbbr": "TC",
+    "directPlayAbbr": "DP"
   },
   "login": {
     "loadingForm": "加载表单中...",
@@ -927,7 +931,7 @@
     "ofLabel": "来自 {label}",
     "pantheonSubtitle": "您本年度累计观看最多的五项内容",
     "pantheonTitle": "名人堂 (Top 5)",
-    "peakContent": "在 {bold}{bold} 点，您最常开始播放（共 {count} 次会话）。",
+    "peakContent": "在 {bold}{hour}{bold} 点，您最常开始播放（共 {count} 次会话）。",
     "peakLabel": "活跃于 {hour} 点",
     "peakSubtitle": "您的服务器最忙碌的时刻",
     "peakTitle": "活跃高峰",

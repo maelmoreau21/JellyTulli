@@ -404,7 +404,11 @@
   "liveStreams": {
     "description": "Atualmente {count} stream(s) ativo(s).",
     "noStreams": "Nenhum stream em reprodução no momento.",
-    "title": "Ao vivo"
+    "title": "Ao vivo",
+    "timelineView": "Timeline View",
+    "cardsView": "Cards View",
+    "transcodeAbbr": "TC",
+    "directPlayAbbr": "DP"
   },
   "login": {
     "loadingForm": "Carregando formulário...",
@@ -927,7 +931,7 @@
     "ofLabel": "de {label}",
     "pantheonSubtitle": "Seus 5 conteúdos mais vistos",
     "pantheonTitle": "O Panteão",
-    "peakContent": "Às {bold}{bold} você é mais ativo ({count} sessões).",
+    "peakContent": "Às {bold}{hour}{bold} você é mais ativo ({count} sessões).",
     "peakLabel": "Ativo às {hour}",
     "peakSubtitle": "Quando o servidor esquenta para você",
     "peakTitle": "Hora do rush",

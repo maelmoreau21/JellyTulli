@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useTranslations, useLocale } from 'next-intl';
+import { JellyfinServersSettings } from "./JellyfinServersSettings";
 
 export default function SettingsPluginPage() {
     const t = useTranslations('settings');
@@ -127,7 +128,7 @@ export default function SettingsPluginPage() {
     };
 
     return (
-        <div className="p-4 max-w-[1100px] mx-auto">
+        <div className="p-4 max-w-[1100px] mx-auto space-y-6">
             <Card className="app-surface">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Plug className="w-5 h-5" /> {t('pluginTitle')}</CardTitle>
@@ -280,6 +281,8 @@ export default function SettingsPluginPage() {
                     </CardFooter>
                 )}
             </Card>
+
+            <JellyfinServersSettings />
         </div>
     );
 }

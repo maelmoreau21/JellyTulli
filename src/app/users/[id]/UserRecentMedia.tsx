@@ -8,6 +8,7 @@ import LogsListClient from "@/app/logs/LogsListClient";
 import type { SafeLog, SafeTelemetryEvent } from '@/types/logs';
 
 const ITEMS_PER_PAGE = 50;
+const MAX_TELEMETRY_EVENTS_PER_SESSION = 200;
 
 type MediaCompact = {
     serverId: string;
@@ -19,18 +20,21 @@ type MediaCompact = {
     durationMs?: bigint | null;
 };
 
-export default async function UserRecentMedia({ userId, userIds = [], page = 1 }: { userId: string; userIds?: string[]; page?: number }) {
+export default async function UserRecentMedia({ userId, userIds = [], userDbIds = [], page = 1 }: { userId: string; userIds?: string[]; userDbIds?: string[]; page?: number }) {
     const t = await getTranslations('userProfile');
 
     const targetJellyfinIds = Array.from(new Set([userId, ...userIds].filter(Boolean)));
+    const resolvedUserDbIds = Array.from(new Set(userDbIds.filter(Boolean)));
 
-    const users = await prisma.user.findMany({
-        where: { jellyfinUserId: { in: targetJellyfinIds } },
-        orderBy: { createdAt: "asc" },
-        select: { id: true },
-    });
+    const userDbIdsToUse = resolvedUserDbIds.length > 0
+        ? resolvedUserDbIds
+        : (await prisma.user.findMany({
+            where: { jellyfinUserId: { in: targetJellyfinIds } },
+            orderBy: { createdAt: "asc" },
+            select: { id: true },
+        })).map((u) => u.id);
 
-    if (users.length === 0) {
+    if (userDbIdsToUse.length === 0) {
         return (
             <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50 backdrop-blur-sm mt-6">
                 <CardHeader>
@@ -41,12 +45,10 @@ export default async function UserRecentMedia({ userId, userIds = [], page = 1 }
         );
     }
 
-    const userDbIds = users.map((u) => u.id);
-
     // Count total sessions for pagination
     const totalCount = await prisma.playbackHistory.count({
         where: { 
-            userId: { in: userDbIds },
+            userId: { in: userDbIdsToUse },
             ...ZAPPING_CONDITION
         },
     });
@@ -68,13 +70,17 @@ export default async function UserRecentMedia({ userId, userIds = [], page = 1 }
     // Fetch paginated sessions
     const sessions = await prisma.playbackHistory.findMany({
         where: { 
-            userId: { in: userDbIds },
+            userId: { in: userDbIdsToUse },
             ...ZAPPING_CONDITION
         },
         include: {
             user: { select: { id: true, username: true, jellyfinUserId: true } },
             media: { select: { id: true, serverId: true, jellyfinMediaId: true, title: true, type: true, parentId: true, artist: true, resolution: true } },
-            telemetryEvents: { select: { eventType: true, positionMs: true, createdAt: true, metadata: true } },
+            telemetryEvents: {
+                select: { eventType: true, positionMs: true, createdAt: true, metadata: true },
+                orderBy: { createdAt: 'desc' },
+                take: MAX_TELEMETRY_EVENTS_PER_SESSION,
+            },
         },
         orderBy: { startedAt: "desc" },
         skip: (safePage - 1) * ITEMS_PER_PAGE,
@@ -82,7 +88,7 @@ export default async function UserRecentMedia({ userId, userIds = [], page = 1 }
     });
 
     const activePairs = await prisma.activeStream.findMany({
-        where: { userId: { in: userDbIds } },
+        where: { userId: { in: userDbIdsToUse } },
         select: { userId: true, mediaId: true }
     });
     const activePairSet = new Set(activePairs.map((entry) => `${entry.userId}:${entry.mediaId}`));
