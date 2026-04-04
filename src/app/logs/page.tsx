@@ -1,6 +1,7 @@
 import { Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogFilters } from "./LogFilters";
+import LogSearchBar from "./LogSearchBar";
 import { ColumnToggle } from "./ColumnToggle";
 import { FiltersCollapse } from "./FiltersCollapse";
 import { SavedFilters } from "@/components/SavedFilters";
@@ -445,7 +446,17 @@ export default async function LogsPage({
                 <div className="space-y-4">
                     <Card className="border-0 shadow-sm bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-800">
                         <CardContent className="space-y-4">
-                            <FiltersCollapse storageKey="logs.filtersOpen" defaultOpen={true}>
+                            <div className="flex items-start gap-2 flex-wrap">
+                                <div className="flex-1 w-full relative z-10">
+                                    <LogSearchBar initialQuery={query} />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <SavedFilters />
+                                    <ColumnToggle visibleColumns={visibleColumns} />
+                                </div>
+                            </div>
+
+                            <FiltersCollapse storageKey="logs.filtersOpen" defaultOpen={false}>
                                 <ServerFilter
                                     servers={selectableServerOptions}
                                     enabled={multiServerEnabled}
@@ -466,11 +477,8 @@ export default async function LogsPage({
                                             initialServers={serversParam}
                                             serverOptions={selectableServerOptions}
                                             multiServerEnabled={multiServerEnabled}
+                                            hideSearch={true}
                                         />
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <SavedFilters />
-                                        <ColumnToggle visibleColumns={visibleColumns} />
                                     </div>
                                 </div>
                             </FiltersCollapse>

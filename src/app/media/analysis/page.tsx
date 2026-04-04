@@ -158,103 +158,97 @@ export default async function AnalysisPage({ searchParams }: { searchParams?: Pr
                 />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-3 space-y-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>{t('genreDiversity')}</CardTitle>
-                            <CardDescription>{t('genreDiversityDesc')}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="h-[340px]"><GenreDistributionChart data={topGenres} /></div>
-                        </CardContent>
-                    </Card>
-
-
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>{t('deepStatsOverview')}</CardTitle>
-                            <CardDescription>{t('deepStatsOverviewDesc') || 'Analyses avancées de votre collection multimédia.'}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div>
-                                <StatsDeepAnalysis />
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{t('statsContent')}</CardTitle>
+                        <CardDescription>{t('statsContentDesc')}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-3">
+                            <div className="app-surface-soft p-3 rounded-lg border">
+                                <div className="text-sm text-zinc-400">{t('totalMedia')}</div>
+                                <div className="text-2xl font-bold">{totalMedia}</div>
+                                <div className="text-xs text-muted-foreground mt-1">{t('totalMediaDesc')}</div>
                             </div>
-                        </CardContent>
-                    </Card>
-                </div>
 
-                <div className="space-y-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>{t('statsContent')}</CardTitle>
-                            <CardDescription>{t('statsContentDesc')}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-3">
-                                <div className="app-surface-soft p-3 rounded-lg border">
-                                    <div className="text-sm text-zinc-400">{t('totalMedia')}</div>
-                                    <div className="text-2xl font-bold">{totalMedia}</div>
-                                    <div className="text-xs text-muted-foreground mt-1">{t('totalMediaDesc')}</div>
-                                </div>
-
-                                <div className="app-surface-soft p-3 rounded-lg border">
-                                    <div className="text-sm text-zinc-400">{t('uniqueGenres')}</div>
-                                    <div className="text-2xl font-bold">{uniqueGenres}</div>
-                                </div>
-
-                                <div className="app-surface-soft p-3 rounded-lg border">
-                                    <div className="text-sm text-zinc-400">{t('avgDuration')}</div>
-                                    <div className="text-2xl font-bold">{formatDuration(avgDurationMinutes)}</div>
-                                    <div className="text-xs text-muted-foreground mt-1">{t('avgDurationDesc')}</div>
-                                </div>
+                            <div className="app-surface-soft p-3 rounded-lg border">
+                                <div className="text-sm text-zinc-400">{t('uniqueGenres')}</div>
+                                <div className="text-2xl font-bold">{uniqueGenres}</div>
                             </div>
-                        </CardContent>
-                    </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>{t('videoQuality')}</CardTitle>
-                            <CardDescription>{t('videoQualityDesc')}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex flex-col gap-4 mt-4">
-                            {[
-                                { label: t('4kLabel') || "4K UHD", val: res4K, key: '4K', color: "bg-gradient-to-r from-yellow-400 to-orange-500", text: "text-transparent bg-clip-text" },
-                                { label: "1440p QHD", val: res1440p, key: '1440p', color: "text-sky-400" },
-                                { label: "1080p FHD", val: res1080p, key: '1080p', color: "text-blue-400" },
-                                { label: "720p HD", val: res720p, key: '720p', color: "text-emerald-400" },
-                                { label: t('standardOther'), val: resSD, key: 'SD', color: "text-zinc-500" }
-                            ].map((q, idx) => (
-                                <a key={q.key} href={buildAllMediaResolutionUrl(q.key)} className="block">
-                                    <div className="app-surface-soft flex justify-between items-center p-3 rounded-lg border border-zinc-800/50 hover:shadow-md hover:scale-[1.01] transition-transform">
-                                        <span className={`font-semibold ${q.color} ${q.text || ""}`}>{q.label}</span>
-                                        <span className="text-xl font-bold">{q.val}</span>
-                                    </div>
-                                </a>
+                            <div className="app-surface-soft p-3 rounded-lg border">
+                                <div className="text-sm text-zinc-400">{t('avgDuration')}</div>
+                                <div className="text-2xl font-bold">{formatDuration(avgDurationMinutes)}</div>
+                                <div className="text-xs text-muted-foreground mt-1">{t('avgDurationDesc')}</div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{t('videoQuality')}</CardTitle>
+                        <CardDescription>{t('videoQualityDesc')}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-4 mt-4">
+                        {[
+                            { label: t('4kLabel') || "4K UHD", val: res4K, key: '4K', color: "bg-gradient-to-r from-yellow-400 to-orange-500", text: "text-transparent bg-clip-text" },
+                            { label: "1440p QHD", val: res1440p, key: '1440p', color: "text-sky-400" },
+                            { label: "1080p FHD", val: res1080p, key: '1080p', color: "text-blue-400" },
+                            { label: "720p HD", val: res720p, key: '720p', color: "text-emerald-400" },
+                            { label: t('standardOther'), val: resSD, key: 'SD', color: "text-zinc-500" }
+                        ].map((q, idx) => (
+                            <a key={q.key} href={buildAllMediaResolutionUrl(q.key)} className="block">
+                                <div className="app-surface-soft flex justify-between items-center p-3 rounded-lg border border-zinc-800/50 hover:shadow-md hover:scale-[1.01] transition-transform">
+                                    <span className={`font-semibold ${q.color} ${q.text || ""}`}>{q.label}</span>
+                                    <span className="text-xl font-bold">{q.val}</span>
+                                </div>
+                            </a>
+                        ))}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{t('libraryCollections')}</CardTitle>
+                        <CardDescription>{t('statsContentDesc') || ''}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            {topLibraries.slice(0, 6).map((l, i) => (
+                                <div key={i} className="flex items-center justify-between">
+                                    <div className="text-sm">{l.name}</div>
+                                    <div className="text-sm font-semibold">{l.count}</div>
+                                </div>
                             ))}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
 
+            <div className="space-y-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{t('genreDiversity')}</CardTitle>
+                        <CardDescription>{t('genreDiversityDesc')}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="h-[340px]"><GenreDistributionChart data={topGenres} /></div>
+                    </CardContent>
+                </Card>
 
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>{t('libraryCollections')}</CardTitle>
-                            <CardDescription>{t('statsContentDesc') || ''}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
-                                {topLibraries.slice(0, 6).map((l, i) => (
-                                    <div key={i} className="flex items-center justify-between">
-                                        <div className="text-sm">{l.name}</div>
-                                        <div className="text-sm font-semibold">{l.count}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{t('deepStatsOverview')}</CardTitle>
+                        <CardDescription>{t('deepStatsOverviewDesc') || 'Analyses avancées de votre collection multimédia.'}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div>
+                            <StatsDeepAnalysis />
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );

@@ -9,9 +9,9 @@ export default function MediaLayout({ children }: { children: React.ReactNode })
     const pathname = usePathname();
 
     const tabs = [
-        { href: '/media/collections', key: 'libraries' },
-        { href: '/media/analysis', key: 'deepAnalysisTitle' },
         { href: '/media/all', key: 'allMedia' },
+        { href: '/media/analysis', key: 'deepAnalysisTitle' },
+        { href: '/media/collections', key: 'libraries' },
     ];
 
     return (

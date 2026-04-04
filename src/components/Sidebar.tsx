@@ -62,9 +62,16 @@ export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {
     const authServerName = (session?.user as any)?.authServerName as string | undefined;
     const authServerIsPrimary = (session?.user as any)?.authServerIsPrimary !== false;
 
-    // Build navigation based on role
+    // Determine JellyTrack mode (default to 'single') and build navigation based on role
+    const jellytrackMode = (process.env.JELLYTRACK_MODE || 'single').toLowerCase();
+    const isMultiServer = jellytrackMode === 'multi';
+
+    const adminNavItems = isMultiServer
+        ? adminNavigationKeys
+        : adminNavigationKeys.filter(item => item.key !== 'serverCompare');
+
     const navigation = isAdmin
-        ? adminNavigationKeys.map(item => ({ name: t(item.key as any), href: item.href, icon: item.icon }))
+        ? adminNavItems.map(item => ({ name: t(item.key as any), href: item.href, icon: item.icon }))
         : [
             { name: t('myProfile'), href: `/users/${jellyfinUserId || ''}`, icon: UserCircle },
             // Only show wrapped if globally visible AND active

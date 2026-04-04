@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/authOptions";
 import { getLogHealthSnapshot } from "@/lib/logHealth";
 import { AlertTriangle, CheckCircle2, Clock3, HeartPulse, RadioTower, RefreshCw, ShieldAlert, Library, Activity, History } from "lucide-react";
 import { HealthEvent } from "@/lib/systemHealth";
+import RecentClosuresClient from "./RecentClosuresClient";
 import { HealthAnomalyCharts } from "@/components/admin/HealthAnomalyCharts";
 import { getLocale, getTranslations } from "next-intl/server";
 import PluginHealthCenterClient from "@/app/admin/plugin-health/PluginHealthCenterClient";
@@ -177,24 +178,7 @@ export default async function HealthPage() {
                                 <CardDescription>{t("recentClosuresDesc")}</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                {snapshot.recentEvents.length === 0 && (
-                                    <div className="app-surface-soft rounded-lg border border-dashed border-border py-8 text-center text-sm italic text-muted-foreground">
-                                        {t("noRecentEvents")}
-                                    </div>
-                                )}
-                                <div className="max-h-[400px] space-y-2 overflow-y-auto pr-1">
-                                    {snapshot.recentEvents.map((event: HealthEvent) => (
-                                        <div key={event.id} className="app-surface-soft rounded-lg border border-border p-3">
-                                            <div className="flex items-start gap-3 text-sm font-medium text-foreground">
-                                                {String(event.kind || "").includes("error")
-                                                    ? <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5" />
-                                                    : <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5" />}
-                                                <div className="flex-1 leading-relaxed">{event.message}</div>
-                                            </div>
-                                            <div className="mt-2 text-right text-[10px] font-mono text-muted-foreground">{formatDate(event.createdAt)}</div>
-                                        </div>
-                                    ))}
-                                </div>
+                                <RecentClosuresClient events={snapshot.recentEvents} defaultCount={5} />
                             </CardContent>
                         </Card>
 
@@ -220,30 +204,24 @@ export default async function HealthPage() {
                                     <CardTitle className="text-lg">{t("processingStatusTitle")}</CardTitle>
                                     <CardDescription>{t("processingStatusDesc")}</CardDescription>
                                 </CardHeader>
-                                <CardContent className="p-0">
-                                    <div className="divide-y divide-border">
-                                        <div className="p-4">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><RadioTower className="h-4 w-4 text-cyan-500" /> {t("monitor")}</div>
-                                                <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t("lastSuccess")}</div>
-                                            </div>
-                                            <div className="text-xs text-muted-foreground ml-6">{formatDate(snapshot.status.monitor.lastSuccessAt)}</div>
+                                <CardContent>
+                                    <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        <div className="app-surface-soft p-3 rounded-lg border">
+                                            <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><RadioTower className="h-4 w-4 text-cyan-500" /> {t("monitor")}</div>
+                                            <div className="mt-2 text-xs text-muted-foreground">{t("lastSuccess")}</div>
+                                            <div className="mt-1 text-sm font-medium">{formatDate(snapshot.status.monitor.lastSuccessAt)}</div>
                                         </div>
 
-                                        <div className="p-4">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><RefreshCw className="h-4 w-4 text-amber-500" /> {t("sync")}</div>
-                                                <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t("lastSuccess")}</div>
-                                            </div>
-                                            <div className="text-xs text-muted-foreground ml-6">{formatDate(snapshot.status.sync.lastSuccessAt)}{snapshot.status.sync.mode ? ` (${snapshot.status.sync.mode})` : ''}</div>
+                                        <div className="app-surface-soft p-3 rounded-lg border">
+                                            <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><RefreshCw className="h-4 w-4 text-amber-500" /> {t("sync")}</div>
+                                            <div className="mt-2 text-xs text-muted-foreground">{t("lastSuccess")}</div>
+                                            <div className="mt-1 text-sm font-medium">{formatDate(snapshot.status.sync.lastSuccessAt)}{snapshot.status.sync.mode ? ` (${snapshot.status.sync.mode})` : ''}</div>
                                         </div>
 
-                                        <div className="p-4">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><Clock3 className="h-4 w-4 text-emerald-500" /> {t("backup")}</div>
-                                                <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t("lastSuccess")}</div>
-                                            </div>
-                                            <div className="text-xs text-muted-foreground ml-6">{formatDate(snapshot.status.backup.lastSuccessAt)}</div>
+                                        <div className="app-surface-soft p-3 rounded-lg border">
+                                            <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><Clock3 className="h-4 w-4 text-emerald-500" /> {t("backup")}</div>
+                                            <div className="mt-2 text-xs text-muted-foreground">{t("lastSuccess")}</div>
+                                            <div className="mt-1 text-sm font-medium">{formatDate(snapshot.status.backup.lastSuccessAt)}</div>
                                         </div>
                                     </div>
                                 </CardContent>

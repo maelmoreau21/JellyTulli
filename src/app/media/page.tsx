@@ -21,5 +21,5 @@ export default async function MediaPage({
     }
 
     const query = params.toString();
-    redirect(query ? `/media/collections?${query}` : '/media/collections');
+    redirect(query ? `/media/all?${query}` : '/media/all');
 }

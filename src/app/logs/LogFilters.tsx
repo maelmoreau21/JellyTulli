@@ -20,9 +20,10 @@ interface LogFiltersProps {
     initialServers: string;
     serverOptions: Array<{ id: string; name: string }>;
     multiServerEnabled: boolean;
+    hideSearch?: boolean;
 }
 
-export function LogFilters({ initialQuery, initialSort, initialHideZapped, initialType, initialClient, initialAudio, initialSubtitle, initialDateFrom, initialDateTo, initialServers, serverOptions, multiServerEnabled }: LogFiltersProps) {
+export function LogFilters({ initialQuery, initialSort, initialHideZapped, initialType, initialClient, initialAudio, initialSubtitle, initialDateFrom, initialDateTo, initialServers, serverOptions, multiServerEnabled, hideSearch = false }: LogFiltersProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const t = useTranslations('logs');
@@ -54,7 +55,9 @@ export function LogFilters({ initialQuery, initialSort, initialHideZapped, initi
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
-        const query = formData.get("query") as string;
+        // Preserve existing query param if this form does not include a `query` input
+        const formHasQuery = formData.has("query");
+        const query = formHasQuery ? (formData.get("query") as string) : (searchParams.get("query") || "");
         const sort = formData.get("sort") as string;
         const hideZapped = formData.get("hideZapped") === "on";
         
@@ -94,14 +97,18 @@ export function LogFilters({ initialQuery, initialSort, initialHideZapped, initi
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             <div className="flex md:flex-row flex-col gap-2 md:gap-4">
                 <div className="relative flex-1 md:min-w-[350px]">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                    <Input
-                        name="query"
-                        type="text"
-                        defaultValue={initialQuery}
-                        placeholder={t('searchPlaceholder')}
-                        className="app-field pl-9 h-10 md:h-9 w-full"
-                    />
+                    {!hideSearch && (
+                        <>
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                            <Input
+                                name="query"
+                                type="text"
+                                defaultValue={initialQuery}
+                                placeholder={t('searchPlaceholder')}
+                                className="app-field pl-9 h-10 md:h-9 w-full"
+                            />
+                        </>
+                    )}
                 </div>
                 <div className="flex flex-col md:flex-row gap-2 md:items-center w-full md:w-auto">
                     <div className="flex items-center justify-between md:justify-start w-full md:w-auto gap-2 pl-1 md:pr-3">
