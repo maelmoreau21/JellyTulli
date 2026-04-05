@@ -313,6 +313,7 @@
       "desc": "Compare la charge actuelle, la pression de transcodage et la fraîcheur des heartbeats entre les serveurs Jellyfin.",
       "disabled": "Cette vue nécessite le mode multi‑serveurs. Définissez JELLYTRACK_MODE=multi pour l'activer."
     },
+     "show": "Afficher",
     "showAll": "Tout afficher",
     "sync": "Synchronisation",
     "today": "Aujourd'hui",

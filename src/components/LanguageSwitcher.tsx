@@ -60,7 +60,7 @@ export function LanguageSwitcher() {
                 <ChevronDown className={`ml-auto w-4 h-4 text-zinc-400 dark:text-zinc-500 transition-transform group-hover:text-zinc-600 dark:group-hover:text-zinc-300 ${open ? 'rotate-180' : ''}`} />
             </button>
             {open && (
-                <div className="absolute bottom-full left-0 mb-0 z-[70] w-full overflow-hidden rounded-t-2xl border-x border-t app-surface p-2 shadow-[0_-20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_-20px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+                <div className="absolute top-full left-0 mt-2 z-[70] w-full overflow-hidden rounded-b-2xl border-x border-b app-surface p-2 shadow-[0_20px_50px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl">
                     <div className="mb-2 rounded-xl border border-border/5 bg-muted/30 px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">
                         Interface
                     </div>

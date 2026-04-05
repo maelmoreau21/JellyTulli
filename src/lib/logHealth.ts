@@ -143,7 +143,8 @@ export async function getLogHealthSnapshot() {
         }
 
         if (isErrorLike || isCleanupLike) {
-            sourceImpact.set(event.source, (sourceImpact.get(event.source) || 0) + detailCount);
+            const src = String(event.source || "unknown").toLowerCase();
+            sourceImpact.set(src, (sourceImpact.get(src) || 0) + detailCount);
         }
     });
 

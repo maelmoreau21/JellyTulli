@@ -1,5 +1,5 @@
 "use client";
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from "recharts";
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, LabelList } from "recharts";
 import { useTranslations } from "next-intl";
 import ResponsiveContainer from "../charts/ResponsiveContainerGuard";
 import { chartAxisColor, chartGridColor, chartItemStyle, chartLabelStyle, chartPalette, chartTooltipStyle } from "@/lib/chartTheme";
@@ -39,6 +39,8 @@ export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: Timelin
     const breakdownData = safeBreakdown
         .filter((entry) => entry.value > 0)
         .sort((a, b) => b.value - a.value);
+
+    const totalBreakdown = breakdownData.reduce((s, e) => s + (typeof e.value === 'number' ? e.value : 0), 0);
 
     const sourceColorMap: Record<string, string> = {
         monitor: "#0ea5e9",
@@ -130,7 +132,9 @@ export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: Timelin
                                 {t('anomalyDetectedNone')}
                             </div>
                         ) : (
-                            <ResponsiveContainer width="100%" height={320} minHeight={200}>
+                            <div>
+                                {/* Legend removed to free horizontal space; values shown on bars and in tooltip */}
+                                <ResponsiveContainer width="100%" height={320} minHeight={200}>
                                 <BarChart data={breakdownData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} layout="vertical">
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartGridColor} opacity={0.5} />
                                     <XAxis type="number" hide />
@@ -146,11 +150,14 @@ export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: Timelin
                                     />
                                     <Tooltip
                                         cursor={{ fill: 'transparent' }}
-                                        contentStyle={{ ...chartTooltipStyle, borderRadius: '10px' }}
-                                        formatter={(val: number) => [val, t('anomalyCumulativeImpact')]}
-                                        labelFormatter={(label) => formatSourceLabel(String(label))}
+                                            contentStyle={{ ...chartTooltipStyle, borderRadius: '10px' }}
+                                            formatter={(val: number) => {
+                                                const pct = totalBreakdown ? ` (${Math.round((val / totalBreakdown) * 100)}%)` : "";
+                                                return [`${val}${pct}`, t('anomalyCumulativeImpact')];
+                                            }}
+                                            labelFormatter={(label) => formatSourceLabel(String(label))}
                                     />
-                                    <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24}>
+                                        <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={24}>
                                         {breakdownData.map((entry, index) => (
                                             <Cell
                                                 key={`cell-${index}`}
@@ -158,9 +165,11 @@ export function HealthAnomalyCharts({ timeline, breakdown }: { timeline: Timelin
                                                 fillOpacity={0.85}
                                             />
                                         ))}
-                                    </Bar>
+                                            <LabelList dataKey="value" position="right" style={{ fill: 'var(--muted-foreground)', fontSize: 12, fontWeight: 600 }} />
+                                        </Bar>
                                 </BarChart>
-                            </ResponsiveContainer>
+                                </ResponsiveContainer>
+                            </div>
                         )}
                     </div>
                 </div>

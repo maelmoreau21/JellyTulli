@@ -8,6 +8,81 @@ const ALLOWED_IMAGE_TYPES = ["Primary", "Thumb", "Backdrop", "Banner", "Logo", "
 // Jellyfin IDs can be UUIDs with or without dashes (both are valid in practice).
 const UUID_PATTERN = /^(?:[a-f0-9]{32}|[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i;
 
+type JellyfinItemMeta = {
+    id: string;
+    type: string | null;
+    parentId: string | null;
+    seasonId: string | null;
+    seriesId: string | null;
+    albumId: string | null;
+};
+
+function normalizeCandidateId(value: unknown): string | null {
+    const id = typeof value === "string" ? value.trim() : "";
+    if (!id) return null;
+    return UUID_PATTERN.test(id) ? id : null;
+}
+
+async function fetchJellyfinItemMeta(itemId: string): Promise<JellyfinItemMeta | null> {
+    const baseUrl = process.env.JELLYFIN_URL;
+    const apiKey = process.env.JELLYFIN_API_KEY;
+    if (!baseUrl || !apiKey) return null;
+
+    try {
+        const url = `${baseUrl}/Items/${encodeURIComponent(itemId)}?Fields=ParentId,SeasonId,SeriesId,AlbumId,Type`;
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "X-Emby-Token": apiKey,
+            },
+            next: { revalidate: 3600 },
+        });
+
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        const id = normalizeCandidateId(data?.Id) || itemId;
+
+        return {
+            id,
+            type: typeof data?.Type === "string" ? data.Type : null,
+            parentId: normalizeCandidateId(data?.ParentId),
+            seasonId: normalizeCandidateId(data?.SeasonId),
+            seriesId: normalizeCandidateId(data?.SeriesId),
+            albumId: normalizeCandidateId(data?.AlbumId),
+        };
+    } catch {
+        return null;
+    }
+}
+
+async function fetchSeriesSeasonCandidateIds(seriesId: string): Promise<string[]> {
+    const baseUrl = process.env.JELLYFIN_URL;
+    const apiKey = process.env.JELLYFIN_API_KEY;
+    if (!baseUrl || !apiKey) return [];
+
+    try {
+        const url = `${baseUrl}/Items?ParentId=${encodeURIComponent(seriesId)}&IncludeItemTypes=Season&Recursive=false&SortBy=SortName&SortOrder=Ascending&Limit=10`;
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "X-Emby-Token": apiKey,
+            },
+            next: { revalidate: 3600 },
+        });
+
+        if (!response.ok) return [];
+
+        const data = await response.json();
+        const items = Array.isArray(data?.Items) ? data.Items : [];
+        return items
+            .map((item) => normalizeCandidateId(item?.Id))
+            .filter((id): id is string => Boolean(id));
+    } catch {
+        return [];
+    }
+}
+
 export async function GET(req: NextRequest) {
     // SECURITY: Require authentication (defense-in-depth, middleware also checks)
     const session = await getServerSession(authOptions);
@@ -39,10 +114,54 @@ export async function GET(req: NextRequest) {
 
     try {
         let response = await fetchJellyfinImage(itemId, type);
+        const attemptedIds = new Set<string>([itemId]);
+
+        const tryCandidate = async (candidate: string | null | undefined): Promise<boolean> => {
+            const candidateId = normalizeCandidateId(candidate);
+            if (!candidateId || attemptedIds.has(candidateId)) return false;
+
+            attemptedIds.add(candidateId);
+            const candidateResponse = await fetchJellyfinImage(candidateId, type);
+            if (!candidateResponse.ok) return false;
+
+            response = candidateResponse;
+            return true;
+        };
 
         // If the item has no image, try the fallback (e.g. parent album)
         if (!response.ok && fallbackId) {
-            response = await fetchJellyfinImage(fallbackId, type);
+            await tryCandidate(fallbackId);
+        }
+
+        // If still missing, walk known Jellyfin hierarchy IDs to match Jellyfin-like fallback behavior:
+        // Episode -> Season -> Series, Track -> Album, Season -> Series.
+        if (!response.ok) {
+            const itemMeta = await fetchJellyfinItemMeta(itemId);
+            const candidateIds: string[] = [];
+            const addCandidate = (value: string | null | undefined) => {
+                const id = normalizeCandidateId(value);
+                if (!id || attemptedIds.has(id) || candidateIds.includes(id)) return;
+                candidateIds.push(id);
+            };
+
+            addCandidate(itemMeta?.seasonId);
+            addCandidate(itemMeta?.seriesId);
+            addCandidate(itemMeta?.albumId);
+            addCandidate(itemMeta?.parentId);
+
+            // Series can legitimately miss a primary image. In that case,
+            // use the first available season poster as visual fallback.
+            if ((itemMeta?.type || "").toLowerCase() === "series") {
+                const seasonCandidates = await fetchSeriesSeasonCandidateIds(itemId);
+                for (const seasonId of seasonCandidates) {
+                    addCandidate(seasonId);
+                }
+            }
+
+            for (const candidateId of candidateIds) {
+                const found = await tryCandidate(candidateId);
+                if (found) break;
+            }
         }
 
         if (!response.ok) {

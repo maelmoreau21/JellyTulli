@@ -71,15 +71,15 @@ export function YearlyHeatmap({ data, availableYears, dataByType, libraryTypes }
         return () => ro.disconnect();
     }, []);
 
-    // Dynamic block size: fill the container width (53 weeks + ~40px label margin)
+    // Dynamic block size: fill the container width (53 weeks + label margin)
     const blockSize = useMemo(() => {
         if (containerWidth <= 0) return 14; // default before measurement
         const WEEKS = 53;
-        const LABEL_MARGIN = 20; // space for weekday labels on the left (reduced to better fill width)
-        const BLOCK_MARGIN = 3;
-        const available = containerWidth - LABEL_MARGIN;
+        const LABEL_MARGIN = 44; // more room for weekday/month labels
+        const BLOCK_MARGIN = 2; // smaller margin to fit more neatly
+        const available = Math.max(0, containerWidth - LABEL_MARGIN);
         const computed = Math.floor(available / WEEKS) - BLOCK_MARGIN;
-        return Math.max(8, Math.min(22, computed)); // clamp 8..22
+        return Math.max(10, Math.min(20, computed)); // clamp 10..20 for readability
     }, [containerWidth]);
 
     const sortedYears = useMemo(() => {
@@ -145,7 +145,7 @@ export function YearlyHeatmap({ data, availableYears, dataByType, libraryTypes }
     }, [t]);
 
     return (
-        <Card className="app-surface-soft dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 backdrop-blur-sm overflow-hidden flex flex-col">
+        <Card className="app-surface border-border overflow-hidden flex flex-col">
             <CardHeader className="w-full pb-2">
                 <CardTitle className="flex items-center justify-between text-zinc-900 dark:text-zinc-100">
                     <span>{t('yearlyActivity')}</span>
@@ -217,13 +217,14 @@ export function YearlyHeatmap({ data, availableYears, dataByType, libraryTypes }
             </CardHeader>
             <CardContent className="w-full pb-6 pt-4 px-4" ref={containerRef}>
                 <div className="w-full">
+                    <div className="w-full overflow-hidden">
                     <ActivityCalendar
                         data={processedData}
                         theme={customTheme}
                         colorScheme={mountedTheme && theme === 'dark' ? 'dark' : 'light'}
                         blockSize={blockSize}
                         blockRadius={3}
-                        blockMargin={3}
+                        blockMargin={2}
                         fontSize={blockSize < 11 ? 10 : 12}
                         labels={{
                             months: t('months').split(','),
@@ -250,6 +251,7 @@ export function YearlyHeatmap({ data, availableYears, dataByType, libraryTypes }
                             </TooltipProvider>
                         )}
                     />
+                </div>
                 </div>
             </CardContent>
         </Card>

@@ -39,7 +39,7 @@ export function ThemeToggle() {
             className={`group flex items-center gap-3 w-full rounded-2xl border px-3 py-3 text-sm transition-all ${
                 isDark
                     ? "border-zinc-200 dark:border-zinc-800 bg-zinc-950/90 text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900"
-                    : "border-border/60 bg-card text-zinc-700 hover:border-border hover:bg-zinc-200/50"
+                    : "app-surface-soft border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 hover:border-zinc-300 dark:hover:border-zinc-700"
             }`}
             aria-label={isDark ? t('switchToLight') : t('switchToDark')}
         >

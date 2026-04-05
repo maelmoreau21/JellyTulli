@@ -34,7 +34,7 @@ export default function RecentClosuresClient({ events, defaultCount = 5 }: { eve
     };
 
     return (
-        <div>
+        <div className="flex flex-col h-full">
             <div className="flex items-center justify-between">
                 <div />
                 <div className="flex items-center gap-2">
@@ -54,7 +54,7 @@ export default function RecentClosuresClient({ events, defaultCount = 5 }: { eve
                 </div>
             </div>
 
-            <div className="max-h-[320px] mt-3 space-y-2 overflow-y-auto pr-1">
+            <div className="flex-1 mt-3 space-y-2 overflow-y-auto pr-1">
                 {list.length === 0 && (
                     <div className="app-surface-soft rounded-lg border border-dashed border-border py-8 text-center text-sm italic text-muted-foreground">{t("noRecentEvents")}</div>
                 )}

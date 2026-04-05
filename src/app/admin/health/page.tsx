@@ -23,17 +23,19 @@ export const dynamic = "force-dynamic";
 
 function ProcessingTile({ Icon, title, statusClass, statusLabel, lines = [] }: { Icon?: any; title: string; statusClass?: string; statusLabel?: string; lines?: Array<{ label: string; value?: string | null } | null> }) {
     return (
-        <div className="app-surface-soft p-3 rounded-lg border">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                    {Icon && <Icon className="h-4 w-4 text-zinc-500" />}
-                    {title}
+        <div className="app-surface p-4 rounded-lg border">
+            <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3 min-w-0">
+                    {Icon && <Icon className="h-5 w-5 text-zinc-500 mt-0.5" />}
+                    <div className="min-w-0">
+                        <div className="text-sm font-semibold text-foreground truncate">{title}</div>
+                    </div>
                 </div>
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusClass}`}>
+                <div className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusClass}`}>
                     {statusLabel}
-                </span>
+                </div>
             </div>
-            <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+            <div className="mt-3 space-y-2 text-sm text-muted-foreground">
                 {lines.filter(Boolean).map((line, idx) => (
                     <div key={idx} className="flex items-center justify-between gap-2">
                         <div className="text-xs text-muted-foreground">{(line as any).label}</div>
@@ -181,7 +183,7 @@ export default async function HealthPage() {
                         </CardContent>
                     </Card>
 
-                    <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="grid gap-4 lg:grid-cols-3 items-stretch">
                         <Card className="app-surface border-border lg:col-span-1">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
@@ -211,7 +213,7 @@ export default async function HealthPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="app-surface border-border lg:col-span-1">
+                        <Card className="app-surface border-border lg:col-span-1 h-full">
                             <CardHeader>
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     <History className="h-5 w-5 text-cyan-400" />
@@ -219,7 +221,7 @@ export default async function HealthPage() {
                                 </CardTitle>
                                 <CardDescription>{t("recentClosuresDesc")}</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-3">
+                            <CardContent className="space-y-3 flex flex-col h-full">
                                 <RecentClosuresClient events={snapshot.recentEvents} defaultCount={5} />
                             </CardContent>
                         </Card>
@@ -242,10 +244,10 @@ export default async function HealthPage() {
                             </Card>
 
                             <Card className="app-surface overflow-hidden border-border">
-                                <CardHeader className="app-surface-soft border-b border-border">
-                                    <CardTitle className="text-lg">{t("processingStatusTitle")}</CardTitle>
-                                    <CardDescription>{t("processingStatusDesc")}</CardDescription>
-                                </CardHeader>
+                                <CardHeader className="px-4 py-3 border-b border-border">
+                                        <CardTitle className="text-lg text-foreground">{t("processingStatusTitle")}</CardTitle>
+                                        <CardDescription className="text-muted-foreground">{t("processingStatusDesc")}</CardDescription>
+                                    </CardHeader>
                                 <CardContent>
                                     <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <ProcessingTile

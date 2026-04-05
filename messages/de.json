@@ -311,6 +311,7 @@
       "desc": "Compare current load, transcoding pressure and heartbeat freshness across Jellyfin servers.",
       "disabled": "This view requires multi-server mode. Set JELLYTRACK_MODE=multi to enable."
     },
+    "show": "Anzeigen",
     "showAll": "Alle anzeigen",
     "sync": "Synchronization",
     "today": "Today",

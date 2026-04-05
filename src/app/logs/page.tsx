@@ -485,9 +485,19 @@ export default async function LogsPage({
                         </CardContent>
                     </Card>
 
-        <div className="app-surface-soft border rounded-md overflow-x-auto w-full mt-6">
+                        <div className="app-surface-soft border rounded-md overflow-x-auto w-full mt-6">
                             <LogsListClient 
-                                serverLogs={safeLogs.map(log => ({ ...log, mediaSubtitle: getMediaSubtitle(log.media ?? null) }))} 
+                                serverLogs={safeLogs.map((log) => {
+                                    const media = log.media ?? null;
+                                    const metadata = media?.jellyfinMediaId ? jellyfinMetaMap.get(media.jellyfinMediaId) : null;
+                                    const fallbackImageParentId = media ? (media.parentId || metadata?.parentId || null) : null;
+
+                                    return {
+                                        ...log,
+                                        mediaSubtitle: getMediaSubtitle(media),
+                                        fallbackImageParentId,
+                                    };
+                                })} 
                                 visibleColumns={visibleColumns as string[]} 
                                 initialColumns={initialColumns} 
                             />

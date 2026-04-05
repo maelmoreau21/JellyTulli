@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { useTranslations } from 'next-intl';
 
 export default function SettingsNotificationsPage() {
@@ -156,11 +157,16 @@ export default function SettingsNotificationsPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="discord-condition">{t('notifConditions')}</Label>
-                                <select id="discord-condition" value={discordAlertCondition} onChange={(e) => setDiscordAlertCondition(e.target.value)} className="app-field flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                                    <option value="ALL">{t('notifAll')}</option>
-                                    <option value="TRANSCODE_ONLY">{t('notifTranscode')}</option>
-                                    <option value="NEW_IP_ONLY">{t('notifNewIp')}</option>
-                                </select>
+                                <Select value={discordAlertCondition} onValueChange={(value) => setDiscordAlertCondition(String(value))}>
+                                    <SelectTrigger className="w-full bg-background/0 border-border">
+                                        <SelectValue placeholder={t('notifAll')} />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-card border-border">
+                                        <SelectItem value="ALL">{t('notifAll')}</SelectItem>
+                                        <SelectItem value="TRANSCODE_ONLY">{t('notifTranscode')}</SelectItem>
+                                        <SelectItem value="NEW_IP_ONLY">{t('notifNewIp')}</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="max-transcodes">Seuil de Transcodes Simultanés</Label>
