@@ -37,14 +37,10 @@ export function SavedFilters() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [filters, setFilters] = useState<SavedFilter[]>([]);
+  const [filters, setFilters] = useState<SavedFilter[]>(() => loadFilters());
   const [newName, setNewName] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [showInput, setShowInput] = useState(false);
-
-  useEffect(() => {
-    setFilters(loadFilters());
-  }, []);
 
   const currentUrl = `${pathname}?${searchParams.toString()}`;
 

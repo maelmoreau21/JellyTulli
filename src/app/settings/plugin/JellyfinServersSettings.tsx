@@ -344,7 +344,7 @@ export function JellyfinServersSettings() {
                     <Input value={server.url} readOnly className="font-mono text-xs" />
                   </div>
                   <div className="lg:col-span-4">
-                    <Label className="text-xs">Cle d'API serveur</Label>
+                    <Label className="text-xs">Cle d&apos;API serveur</Label>
                     <Input value={server.hasApiKey ? server.apiKeyMasked : 'non configuree'} readOnly className="font-mono text-xs" />
                   </div>
                 </div>
@@ -399,10 +399,10 @@ export function JellyfinServersSettings() {
 
         {isMultiMode ? (
           <div className="space-y-3">
-            <div className="flex justify-end">
+              <div className="flex justify-end">
               <button type="button" onClick={() => setShowAddForm((prev) => !prev)} className="inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 border border-border hover:bg-muted text-sm font-medium">
                 <Plus className="w-4 h-4" />
-                {showAddForm ? "Masquer l'ajout" : "Ajouter un serveur"}
+                {showAddForm ? <>Masquer l&apos;ajout</> : <>Ajouter un serveur</>}
               </button>
             </div>
 
@@ -420,7 +420,7 @@ export function JellyfinServersSettings() {
                     <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://jellyfin-secondaire.local" />
                   </div>
                   <div className="lg:col-span-4">
-                    <Label>Cle d'API serveur</Label>
+                    <Label>Cle d&apos;API serveur</Label>
                     <Input value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="API key Jellyfin" type="password" />
                   </div>
                 </div>
@@ -437,7 +437,7 @@ export function JellyfinServersSettings() {
               </div>
             )}
 
-            <p className="text-xs text-muted-foreground">Le bouton "Ajouter un serveur" reste disponible en permanence pour en ajouter autant que necessaire.</p>
+            <p className="text-xs text-muted-foreground">Le bouton &quot;Ajouter un serveur&quot; reste disponible en permanence pour en ajouter autant que necessaire.</p>
           </div>
         ) : null}
       </CardContent>

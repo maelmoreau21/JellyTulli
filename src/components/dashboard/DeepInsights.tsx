@@ -322,8 +322,15 @@ const getDeepInsights = unstable_cache(
         const audioWhere = {
             ...filteredWhere,
             media: {
-                type: { notIn: ['Audio', 'MusicAlbum'] }
+                type: { notIn: ['Audio', 'Track', 'MusicAlbum', 'Book', 'AudioBook'] }
             }
+        };
+
+        const hasKnownCodec = (value: string | null | undefined) => {
+            if (!value) return false;
+            const normalized = String(value).trim().toLowerCase();
+            if (!normalized) return false;
+            return !['unknown', 'none', 'off', 'disabled', 'null', 'undefined', 'n/a', 'na', '-'].includes(normalized);
         };
 
         const audioRows = await prisma.playbackHistory.findMany({
@@ -355,23 +362,23 @@ const getDeepInsights = unstable_cache(
         });
         const subtitleMap = new Map<string, number>();
         subtitleRows.forEach(s => {
-            if (!s.subtitleLanguage && !s.subtitleCodec) {
-                subtitleMap.set('None', (subtitleMap.get('None') || 0) + 1);
-            } else if (s.subtitleLanguage) {
-                const lang = normalizeLanguageTag(s.subtitleLanguage);
-                if (lang) {
-                    let codec = s.subtitleCodec ? String(s.subtitleCodec).trim() : '';
-                    if (codec.toLowerCase() === 'unknown') codec = '';
+            const subtitleLanguage = s.subtitleLanguage ? String(s.subtitleLanguage).trim() : '';
+            const subtitleCodec = s.subtitleCodec ? String(s.subtitleCodec).trim() : '';
+            const lang = normalizeLanguageTag(subtitleLanguage || null);
+            const hasCodec = hasKnownCodec(subtitleCodec);
 
-                    const key = codec ? `${lang} (${codec})` : lang;
-                    subtitleMap.set(key, (subtitleMap.get(key) || 0) + 1);
-                } else if (s.subtitleCodec && s.subtitleCodec.toLowerCase() !== 'unknown') {
-                    // Fallback to just codec if language is unknown but codec is known
-                    subtitleMap.set(s.subtitleCodec, (subtitleMap.get(s.subtitleCodec) || 0) + 1);
-                }
-            } else if (s.subtitleCodec && s.subtitleCodec.toLowerCase() !== 'unknown') {
-                subtitleMap.set(s.subtitleCodec, (subtitleMap.get(s.subtitleCodec) || 0) + 1);
+            if (!lang && !hasCodec) {
+                subtitleMap.set('None', (subtitleMap.get('None') || 0) + 1);
+                return;
             }
+
+            if (lang) {
+                const key = hasCodec ? `${lang} (${subtitleCodec})` : lang;
+                subtitleMap.set(key, (subtitleMap.get(key) || 0) + 1);
+                return;
+            }
+
+            subtitleMap.set(subtitleCodec, (subtitleMap.get(subtitleCodec) || 0) + 1);
         });
         const subtitleChartData = Array.from(subtitleMap.entries())
             .map(([name, value]) => ({ name, value }))
@@ -457,7 +464,7 @@ export async function DeepInsights({
 
     const localizedSubtitleChartData = (data.subtitleChartData || []).map((d: { name: string; value: number }) => {
         const rawName = String(d.name || '');
-        if (rawName === 'None') return { ...d, name: t('none'), rawName };
+        if (rawName === 'None') return { ...d, name: tc('none'), rawName };
         return { ...d, rawName };
     });
 

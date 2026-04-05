@@ -21,6 +21,30 @@ interface OrphanPlayback {
 
 export const dynamic = "force-dynamic";
 
+function ProcessingTile({ Icon, title, statusClass, statusLabel, lines = [] }: { Icon?: any; title: string; statusClass?: string; statusLabel?: string; lines?: Array<{ label: string; value?: string | null } | null> }) {
+    return (
+        <div className="app-surface-soft p-3 rounded-lg border">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    {Icon && <Icon className="h-4 w-4 text-zinc-500" />}
+                    {title}
+                </div>
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusClass}`}>
+                    {statusLabel}
+                </span>
+            </div>
+            <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                {lines.filter(Boolean).map((line, idx) => (
+                    <div key={idx} className="flex items-center justify-between gap-2">
+                        <div className="text-xs text-muted-foreground">{(line as any).label}</div>
+                        <div className="text-sm font-medium text-foreground">{(line as any).value ?? "-"}</div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 export default async function HealthPage() {
     const session = await getServerSession(authOptions);
     if (!session?.user?.isAdmin) {
@@ -56,6 +80,8 @@ export default async function HealthPage() {
         if (normalized === "ok") return "border-emerald-500/35 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300";
         return "border-zinc-500/25 bg-zinc-500/10 text-zinc-600 dark:text-zinc-300";
     }
+
+    
 
     return (
         <div className="flex-col md:flex">
@@ -222,52 +248,40 @@ export default async function HealthPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        <div className="app-surface-soft p-3 rounded-lg border">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><RadioTower className="h-4 w-4 text-cyan-500" /> {t("monitor")}</div>
-                                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${sectionStatusClass(snapshot.status.monitor.status)}`}>
-                                                    {formatSectionStatus(snapshot.status.monitor.status)}
-                                                </span>
-                                            </div>
-                                            <div className="mt-2 text-xs text-muted-foreground">{t("lastPoll")}</div>
-                                            <div className="mt-1 text-sm font-medium">{formatDate(snapshot.status.monitor.lastPollAt)}</div>
-                                            <div className="mt-2 text-xs text-muted-foreground">{t("lastSuccess")}</div>
-                                            <div className="mt-1 text-sm font-medium">{formatDate(snapshot.status.monitor.lastSuccessAt)}</div>
-                                            {snapshot.status.monitor.lastError && (
-                                                <div className="mt-2 text-xs text-red-500/90">{t("lastError")}: {snapshot.status.monitor.lastError}</div>
-                                            )}
-                                        </div>
+                                        <ProcessingTile
+                                            Icon={RadioTower}
+                                            title={t("monitor")}
+                                            statusClass={sectionStatusClass(snapshot.status?.monitor?.status)}
+                                            statusLabel={formatSectionStatus(snapshot.status?.monitor?.status)}
+                                            lines={[
+                                                { label: t("lastPoll"), value: formatDate(snapshot.status?.monitor?.lastPollAt) },
+                                                { label: t("lastSuccess"), value: formatDate(snapshot.status?.monitor?.lastSuccessAt) },
+                                                snapshot.status?.monitor?.lastError ? { label: t("lastError"), value: snapshot.status?.monitor?.lastError } : null,
+                                            ]}
+                                        />
 
-                                        <div className="app-surface-soft p-3 rounded-lg border">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><RefreshCw className="h-4 w-4 text-amber-500" /> {t("sync")}</div>
-                                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${sectionStatusClass(snapshot.status.sync.status)}`}>
-                                                    {formatSectionStatus(snapshot.status.sync.status)}
-                                                </span>
-                                            </div>
-                                            {snapshot.status.sync.mode && (
-                                                <div className="mt-2 text-xs text-muted-foreground">{t("mode")}: <span className="font-medium text-foreground">{snapshot.status.sync.mode}</span></div>
-                                            )}
-                                            <div className="mt-2 text-xs text-muted-foreground">{t("lastSuccess")}</div>
-                                            <div className="mt-1 text-sm font-medium">{formatDate(snapshot.status.sync.lastSuccessAt)}</div>
-                                            {snapshot.status.sync.lastError && (
-                                                <div className="mt-2 text-xs text-red-500/90">{t("lastError")}: {snapshot.status.sync.lastError}</div>
-                                            )}
-                                        </div>
+                                        <ProcessingTile
+                                            Icon={RefreshCw}
+                                            title={t("sync")}
+                                            statusClass={sectionStatusClass(snapshot.status?.sync?.status)}
+                                            statusLabel={formatSectionStatus(snapshot.status?.sync?.status)}
+                                            lines={[
+                                                snapshot.status?.sync?.mode ? { label: t("mode"), value: String(snapshot.status.sync.mode) } : null,
+                                                { label: t("lastSuccess"), value: formatDate(snapshot.status?.sync?.lastSuccessAt) },
+                                                snapshot.status?.sync?.lastError ? { label: t("lastError"), value: snapshot.status?.sync?.lastError } : null,
+                                            ]}
+                                        />
 
-                                        <div className="app-surface-soft p-3 rounded-lg border">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><Clock3 className="h-4 w-4 text-emerald-500" /> {t("backup")}</div>
-                                                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${sectionStatusClass(snapshot.status.backup.status)}`}>
-                                                    {formatSectionStatus(snapshot.status.backup.status)}
-                                                </span>
-                                            </div>
-                                            <div className="mt-2 text-xs text-muted-foreground">{t("lastSuccess")}</div>
-                                            <div className="mt-1 text-sm font-medium">{formatDate(snapshot.status.backup.lastSuccessAt)}</div>
-                                            {snapshot.status.backup.lastError && (
-                                                <div className="mt-2 text-xs text-red-500/90">{t("lastError")}: {snapshot.status.backup.lastError}</div>
-                                            )}
-                                        </div>
+                                        <ProcessingTile
+                                            Icon={Clock3}
+                                            title={t("backup")}
+                                            statusClass={sectionStatusClass(snapshot.status?.backup?.status)}
+                                            statusLabel={formatSectionStatus(snapshot.status?.backup?.status)}
+                                            lines={[
+                                                { label: t("lastSuccess"), value: formatDate(snapshot.status?.backup?.lastSuccessAt) },
+                                                snapshot.status?.backup?.lastError ? { label: t("lastError"), value: snapshot.status?.backup?.lastError } : null,
+                                            ]}
+                                        />
                                     </div>
                                 </CardContent>
                             </Card>

@@ -1,6 +1,22 @@
+const NON_LANGUAGE_TOKENS = new Set([
+    'none',
+    'off',
+    'disabled',
+    'unknown',
+    'unk',
+    'und',
+    'undefined',
+    'null',
+    'n/a',
+    'na',
+    '-',
+]);
+
 export function normalizeLanguageTag(value: string | null | undefined): string | null {
     if (!value) return null;
     let s = String(value).trim();
+    if (!s) return null;
+
     // remove parenthesized parts: "English (AAC)" -> "English"
     s = s.replace(/\(.*\)/, '').trim();
     // split on common separators and pick first token
@@ -8,17 +24,25 @@ export function normalizeLanguageTag(value: string | null | undefined): string |
     // normalize underscores to hyphens
     s = s.replace(/_/g, '-');
 
+    if (!s) return null;
+
     const low = s.toLowerCase();
+    if (NON_LANGUAGE_TOKENS.has(low)) return null;
 
     // If it's a 2-letter code or region variant like en or en-US, return primary 2-letter code
     const twoMatch = low.match(/^([a-z]{2})(?:[-_][a-z]{2})?$/i);
-    if (twoMatch) return twoMatch[1].toUpperCase();
+    if (twoMatch) {
+        const primary = twoMatch[1].toLowerCase();
+        if (NON_LANGUAGE_TOKENS.has(primary)) return null;
+        return primary.toUpperCase();
+    }
 
     // Map common 3-letter codes and short tokens to 2-letter
     const quickMap: Record<string, string> = {
         'fre': 'FR', 'fra': 'FR', 'eng': 'EN', 'spa': 'ES', 'por': 'PT', 'deu': 'DE', 'ger': 'DE', 'ita': 'IT', 'nld': 'NL', 'zho': 'ZH', 'chi': 'ZH', 'jpn': 'JA', 'kor': 'KO', 'rus': 'RU', 'pol': 'PL'
     };
     const token = low.split(/\s+/)[0];
+    if (NON_LANGUAGE_TOKENS.has(token)) return null;
     if (quickMap[token]) return quickMap[token];
 
     // Map common full names

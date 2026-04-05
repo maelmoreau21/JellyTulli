@@ -98,6 +98,8 @@ export default async function ServerComparePage({
     }
 
     const selectedServerScope = selectedServerIds.length > 0 ? { in: selectedServerIds } : undefined;
+    // Date.now is intentionally called once during render to compute thresholds.
+    // eslint-disable-next-line react-hooks/purity
     const nowMs = Date.now();
     const dayAgo = new Date(nowMs - 24 * 60 * 60 * 1000);
     const staleThreshold = new Date(nowMs - 5 * 60 * 1000);

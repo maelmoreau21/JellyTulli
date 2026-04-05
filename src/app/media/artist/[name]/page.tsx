@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 
 interface ArtistPageProps {
     params: Promise<{ name: string }>;
+    searchParams?: Promise<{ tracksPage?: string; tracksPerPage?: string }>;
 }
 
 type AlbumRow = {
@@ -36,6 +37,7 @@ type TrackRow = {
 };
 
 const buildAlbumKey = (serverId: string, jellyfinMediaId: string) => `${serverId}:${jellyfinMediaId}`;
+const JELLYFIN_ID_PATTERN = /^(?:[a-f0-9]{32}|[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i;
 
 function safeDecodeParam(value: string) {
     try {
@@ -45,13 +47,52 @@ function safeDecodeParam(value: string) {
     }
 }
 
-export default async function ArtistProfilePage({ params }: ArtistPageProps) {
+async function findArtistImageItemId(artistName: string): Promise<string | null> {
+    const jellyfinUrl = process.env.JELLYFIN_URL;
+    const jellyfinApiKey = process.env.JELLYFIN_API_KEY;
+    if (!jellyfinUrl || !jellyfinApiKey) return null;
+
+    try {
+        const url = `${jellyfinUrl}/Items?IncludeItemTypes=MusicArtist&Recursive=true&SearchTerm=${encodeURIComponent(artistName)}&Limit=25&Fields=SortName`;
+        const res = await fetch(url, {
+            headers: { "X-Emby-Token": jellyfinApiKey },
+            next: { revalidate: 21600 },
+        });
+        if (!res.ok) return null;
+
+        const payload = await res.json();
+        const items = Array.isArray(payload?.Items) ? payload.Items : [];
+        if (items.length === 0) return null;
+
+        const normalizedArtistName = artistName.trim().toLowerCase();
+        const exactMatch = items.find((item: any) => {
+            const itemName = String(item?.Name || '').trim().toLowerCase();
+            const sortName = String(item?.SortName || '').trim().toLowerCase();
+            return itemName === normalizedArtistName || sortName === normalizedArtistName;
+        });
+
+        const candidateId = String((exactMatch || items[0])?.Id || '').trim();
+        if (!JELLYFIN_ID_PATTERN.test(candidateId)) return null;
+        return candidateId;
+    } catch {
+        return null;
+    }
+}
+
+export default async function ArtistProfilePage({ params, searchParams: searchParamsPromise }: ArtistPageProps) {
     const auth = await requireAuth();
     if (isAuthError(auth)) return auth;
 
     const { name } = await params;
+    const searchParams = (await searchParamsPromise) || {};
     const artistName = safeDecodeParam(name).trim();
     if (!artistName) notFound();
+
+    const requestedTracksPage = Number.parseInt(String(searchParams.tracksPage || '1'), 10);
+    const requestedTracksPerPage = Number.parseInt(String(searchParams.tracksPerPage || '25'), 10);
+    const tracksPerPage = requestedTracksPerPage === 50 ? 50 : 25;
+
+    const artistImageItemIdPromise = findArtistImageItemId(artistName);
 
     const tProfile = await getTranslations("mediaProfile");
 
@@ -262,6 +303,21 @@ export default async function ArtistProfilePage({ params }: ArtistPageProps) {
         .sort((a, b) => (b.plays - a.plays) || a.title.localeCompare(b.title));
 
     const heroAlbum = albumsWithStats[0] || null;
+    const artistImageItemId = await artistImageItemIdPromise;
+    const trackTotalItems = trackRows.length;
+    const trackTotalPages = Math.max(1, Math.ceil(trackTotalItems / tracksPerPage));
+    const tracksPage = Number.isFinite(requestedTracksPage)
+        ? Math.min(Math.max(requestedTracksPage, 1), trackTotalPages)
+        : 1;
+    const trackPageStart = (tracksPage - 1) * tracksPerPage;
+    const paginatedTrackRows = trackRows.slice(trackPageStart, trackPageStart + tracksPerPage);
+
+    const buildTracksUrl = (page: number, perPage = tracksPerPage) => {
+        const params = new URLSearchParams();
+        params.set('tracksPage', String(Math.max(1, page)));
+        params.set('tracksPerPage', String(perPage === 50 ? 50 : 25));
+        return `/media/artist/${encodeURIComponent(artistName)}?${params.toString()}`;
+    };
 
     return (
         <div className="flex-col md:flex">
@@ -278,9 +334,9 @@ export default async function ArtistProfilePage({ params }: ArtistPageProps) {
                     <CardContent className="p-4 md:p-6">
                         <div className="flex flex-col md:flex-row gap-6">
                             <div className="relative w-40 h-40 rounded-xl overflow-hidden ring-1 ring-zinc-300/40 dark:ring-white/10 bg-zinc-200 dark:bg-zinc-900 shrink-0">
-                                {heroAlbum ? (
+                                {(artistImageItemId || heroAlbum) ? (
                                     <FallbackImage
-                                        src={getJellyfinImageUrl(heroAlbum.jellyfinMediaId, "Primary", heroAlbum.parentId || undefined)}
+                                        src={getJellyfinImageUrl(artistImageItemId || heroAlbum!.jellyfinMediaId, "Primary", heroAlbum?.jellyfinMediaId || undefined)}
                                         alt={artistName}
                                         fill
                                         className="object-cover"
@@ -335,7 +391,7 @@ export default async function ArtistProfilePage({ params }: ArtistPageProps) {
 
                     <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">Temps d'écoute</CardTitle>
+                            <CardTitle className="text-sm font-medium">Temps d&apos;écoute</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{totalHours}h</div>
@@ -379,16 +435,32 @@ export default async function ArtistProfilePage({ params }: ArtistPageProps) {
                 </Card>
 
                 <Card className="bg-white/70 dark:bg-zinc-900/50 border-zinc-200/60 dark:border-zinc-800/50">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Music className="w-5 h-5 text-cyan-400" /> Titres</CardTitle>
-                        <CardDescription>Top titres lies a cet artiste.</CardDescription>
+                    <CardHeader className="gap-3">
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div>
+                                <CardTitle className="flex items-center gap-2"><Music className="w-5 h-5 text-cyan-400" /> Titres</CardTitle>
+                                <CardDescription>Top titres lies a cet artiste.</CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2 rounded-lg border border-zinc-200/60 dark:border-zinc-700/60 px-2 py-1.5 bg-zinc-100/60 dark:bg-zinc-800/30">
+                                <span className="text-xs text-zinc-500">Par page</span>
+                                {[25, 50].map((size) => (
+                                    <Link
+                                        key={size}
+                                        href={buildTracksUrl(1, size)}
+                                        className={`px-2 py-1 rounded-md text-xs font-semibold transition-colors ${tracksPerPage === size ? 'bg-primary text-primary-foreground' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+                                    >
+                                        {size}
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         {trackRows.length === 0 ? (
                             <div className="text-sm text-zinc-500 italic">Aucun titre disponible.</div>
                         ) : (
-                            <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-                                {trackRows.slice(0, 120).map((track) => (
+                            <div className="space-y-2">
+                                {paginatedTrackRows.map((track) => (
                                     <div key={track.id} className="app-surface-soft rounded-lg border border-border p-3 flex items-center justify-between gap-4">
                                         <div className="min-w-0">
                                             <Link href={`/media/${track.jellyfinMediaId}`} className="text-sm font-semibold text-primary hover:underline truncate block">
@@ -414,6 +486,26 @@ export default async function ArtistProfilePage({ params }: ArtistPageProps) {
                                         </div>
                                     </div>
                                 ))}
+
+                                {trackTotalPages > 1 && (
+                                    <div className="pt-3 mt-3 border-t border-zinc-200/60 dark:border-zinc-800/60 flex items-center justify-between gap-3 flex-wrap">
+                                        <div className="text-xs text-zinc-500">
+                                            Page {tracksPage} / {trackTotalPages} • {trackTotalItems} titres
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {tracksPage > 1 && (
+                                                <Link href={buildTracksUrl(tracksPage - 1)} className="px-3 py-1.5 text-xs rounded-md border border-zinc-300/50 dark:border-zinc-700/70 hover:bg-zinc-200/40 dark:hover:bg-zinc-800/50 transition-colors">
+                                                    Précédent
+                                                </Link>
+                                            )}
+                                            {tracksPage < trackTotalPages && (
+                                                <Link href={buildTracksUrl(tracksPage + 1)} className="px-3 py-1.5 text-xs rounded-md border border-zinc-300/50 dark:border-zinc-700/70 hover:bg-zinc-200/40 dark:hover:bg-zinc-800/50 transition-colors">
+                                                    Suivant
+                                                </Link>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </CardContent>

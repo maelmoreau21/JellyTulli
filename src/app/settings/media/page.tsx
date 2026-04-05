@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "next-intl";
 import { ResolutionThresholds } from "@/components/settings/ResolutionThresholds";
 import { InfoIcon, Film, EyeOff } from "lucide-react";
@@ -29,13 +30,54 @@ function normalizeLibraryName(value: string | null | undefined): string {
     return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+type ResolutionThreshold = { maxW: number; maxH: number };
+type ResolutionThresholdSettings = Record<string, ResolutionThreshold>;
+
+const DEFAULT_RESOLUTION_THRESHOLDS: ResolutionThresholdSettings = {
+    "480p": { maxW: 792, maxH: 528 },
+    "720p": { maxW: 1408, maxH: 792 },
+    "1080p": { maxW: 2112, maxH: 1188 },
+    "4K": { maxW: 4224, maxH: 2376 },
+};
+
+function normalizeThreshold(raw: unknown, fallback: ResolutionThreshold): ResolutionThreshold {
+    if (!raw || typeof raw !== "object") return fallback;
+    const candidate = raw as Record<string, unknown>;
+    const maxW = Number(candidate.maxW);
+    const maxH = Number(candidate.maxH);
+    return {
+        maxW: Number.isFinite(maxW) && maxW > 0 ? maxW : fallback.maxW,
+        maxH: Number.isFinite(maxH) && maxH > 0 ? maxH : fallback.maxH,
+    };
+}
+
+function sanitizeResolutionThresholds(raw: unknown): ResolutionThresholdSettings {
+    const source = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+    return {
+        "480p": normalizeThreshold(source["480p"], DEFAULT_RESOLUTION_THRESHOLDS["480p"]),
+        "720p": normalizeThreshold(source["720p"], DEFAULT_RESOLUTION_THRESHOLDS["720p"]),
+        "1080p": normalizeThreshold(source["1080p"], DEFAULT_RESOLUTION_THRESHOLDS["1080p"]),
+        "4K": normalizeThreshold(source["4K"], DEFAULT_RESOLUTION_THRESHOLDS["4K"]),
+    };
+}
+
+function extractShowLibraryMediaBadges(raw: unknown): boolean {
+    if (!raw || typeof raw !== "object") return true;
+    const candidate = raw as Record<string, unknown>;
+    if (typeof candidate.showLibraryMediaBadges === "boolean") {
+        return candidate.showLibraryMediaBadges;
+    }
+    return true;
+}
+
 export default function SettingsMediaPage() {
     const t = useTranslations("settings");
     const tc = useTranslations("common");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-    const [resolutionThresholds, setResolutionThresholds] = useState<any>(null);
+    const [resolutionThresholds, setResolutionThresholds] = useState<ResolutionThresholdSettings>(sanitizeResolutionThresholds(null));
+    const [showLibraryMediaBadges, setShowLibraryMediaBadges] = useState(true);
     const [excludedLibraryScopes, setExcludedLibraryScopes] = useState<string[]>([]);
     const [orphanScopedExclusions, setOrphanScopedExclusions] = useState<string[]>([]);
     const [legacyGlobalExclusions, setLegacyGlobalExclusions] = useState<string[]>([]);
@@ -55,7 +97,11 @@ export default function SettingsMediaPage() {
 
                 const data = await settingsRes.json();
                 if (!mounted) return;
-                setResolutionThresholds(data.resolutionThresholds || null);
+                const rawResolutionSettings = data.resolutionThresholds && typeof data.resolutionThresholds === "object"
+                    ? data.resolutionThresholds
+                    : null;
+                setResolutionThresholds(sanitizeResolutionThresholds(rawResolutionSettings));
+                setShowLibraryMediaBadges(extractShowLibraryMediaBadges(rawResolutionSettings));
 
                 if (serverRes.ok) {
                     const serverData = await serverRes.json().catch(() => ({}));
@@ -218,13 +264,17 @@ export default function SettingsMediaPage() {
                 ...legacyGlobalExclusions,
             ])
         );
+        const resolutionPayload = {
+            ...sanitizeResolutionThresholds(resolutionThresholds),
+            showLibraryMediaBadges,
+        };
 
         try {
             const res = await fetch("/api/settings", { 
                 method: "POST", 
                 headers: { "Content-Type": "application/json" }, 
                 body: JSON.stringify({ 
-                    resolutionThresholds: resolutionThresholds,
+                    resolutionThresholds: resolutionPayload,
                     excludedLibraries: mergedExcludedLibraries,
                 }) 
             });
@@ -333,7 +383,7 @@ export default function SettingsMediaPage() {
 
                         {groupedByServer.length === 0 ? (
                             <p className="text-sm text-zinc-400 italic">
-                                {t("noLibrariesFound") || "Aucune bibliothèque trouvée."} Vérifiez l'URL et la clé API Jellyfin de chaque serveur, puis rechargez la page.
+                                {t("noLibrariesFound") || "Aucune bibliothèque trouvée."} Vérifiez l&apos;URL et la clé API Jellyfin de chaque serveur, puis rechargez la page.
                             </p>
                         ) : (
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -376,7 +426,7 @@ export default function SettingsMediaPage() {
                             <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
                                 <div className="text-sm font-semibold text-amber-600 dark:text-amber-400">Règles héritées à vérifier</div>
                                 <p className="text-xs text-amber-700/80 dark:text-amber-300/80">
-                                    Certaines exclusions anciennes n'ont pas pu être reliées automatiquement à un serveur+bibliothèque. Vous pouvez les retirer manuellement ci-dessous.
+                                    Certaines exclusions anciennes n&apos;ont pas pu être reliées automatiquement à un serveur+bibliothèque. Vous pouvez les retirer manuellement ci-dessous.
                                 </p>
 
                                 {legacyGlobalExclusions.length > 0 && (
@@ -418,6 +468,23 @@ export default function SettingsMediaPage() {
                                 )}
                             </div>
                         )}
+                    </div>
+
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-semibold">Affichage des badges en bibliothèque</h3>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                            Affiche ou masque les badges de résolution, qualité série et bitrate dans l&apos;onglet Bibliothèque.
+                        </p>
+                        <div className="rounded-lg border border-zinc-200/70 dark:border-zinc-800/70 bg-zinc-50/70 dark:bg-zinc-900/40 p-4 flex items-center justify-between gap-4">
+                            <div>
+                                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Afficher les badges média</p>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Désactive cette option pour alléger visuellement les cartes.</p>
+                            </div>
+                            <Switch
+                                checked={showLibraryMediaBadges}
+                                onCheckedChange={(checked) => setShowLibraryMediaBadges(Boolean(checked))}
+                            />
+                        </div>
                     </div>
 
                     <div className="space-y-4">

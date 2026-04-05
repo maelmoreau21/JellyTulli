@@ -1,7 +1,7 @@
 import { Clock, Monitor, Smartphone, PlayCircle, Hash, Film, Calendar, Zap, Trophy, Percent, Layers } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import prisma from "@/lib/prisma";
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, getLocale } from 'next-intl/server';
 import { getCompletionMetrics, isZapped } from "@/lib/mediaPolicy";
 // No more library rules
 
@@ -35,6 +35,8 @@ export default async function UserInfo({ userId, userIds = [], userDbIds = [] }:
     const mergedHistory = users.flatMap((u) => u.playbackHistory);
 
     const t = await getTranslations('userProfile');
+    const tu = await getTranslations('users');
+    const locale = await getLocale();
     // const rules = await loadLibraryRules();
 
     const clientCounts = new Map<string, number>();
@@ -194,7 +196,7 @@ export default async function UserInfo({ userId, userIds = [], userDbIds = [] }:
                     <p className="text-xs text-muted-foreground">{t('cumulTotal')}</p>
                     {lastActive && (
                         <div className="mt-2 text-[10px] text-zinc-500 pt-2 border-t border-zinc-200/50 dark:border-zinc-800/50">
-                            {t('colLastActive')}: {new Date(lastActive).toLocaleString()}
+                            {tu('colLastActive')}: {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(lastActive))}
                         </div>
                     )}
                 </CardContent>

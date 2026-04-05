@@ -31,12 +31,12 @@ const adminNavigationKeys = [
     { key: 'dashboard', href: '/', icon: LayoutDashboard },
     { key: 'recentlyAdded', href: '/recent', icon: Sparkles },
     { key: 'library', href: '/media', icon: Film },
-    { key: 'logs', href: '/logs', icon: ScrollText },
-    { key: 'logHealth', href: '/admin/health', icon: HeartPulse },
-    { key: 'serverCompare', href: '/admin/server-compare', icon: GitCompareArrows },
     { key: 'users', href: '/users', icon: Users },
     { key: 'cleanup', href: '/admin/cleanup', icon: Eraser },
+    { key: 'logHealth', href: '/admin/health', icon: HeartPulse },
+    { key: 'logs', href: '/logs', icon: ScrollText },
     { key: 'settings', href: '/settings/plugin', icon: Settings },
+    { key: 'serverCompare', href: '/admin/server-compare', icon: GitCompareArrows },
 ];
 
 export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {

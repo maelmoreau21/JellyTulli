@@ -188,27 +188,39 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
     );
 
     useEffect(() => {
-        setGhostPage(1);
-        setAbandonedPage(1);
+        const run = () => {
+            setGhostPage(1);
+            setAbandonedPage(1);
+        };
+        if (typeof queueMicrotask === "function") queueMicrotask(run);
+        else setTimeout(run, 0);
     }, [searchQuery, period, pageSize]);
 
     useEffect(() => {
-        setGhostPage(1);
+        const run = () => setGhostPage(1);
+        if (typeof queueMicrotask === "function") queueMicrotask(run);
+        else setTimeout(run, 0);
     }, [ghostFilter]);
 
     useEffect(() => {
-        setAbandonedPage(1);
+        const run = () => setAbandonedPage(1);
+        if (typeof queueMicrotask === "function") queueMicrotask(run);
+        else setTimeout(run, 0);
     }, [abandonFilter]);
 
     useEffect(() => {
         if (ghostPage > ghostPageData.totalPages) {
-            setGhostPage(ghostPageData.totalPages);
+            const run = () => setGhostPage(ghostPageData.totalPages);
+            if (typeof queueMicrotask === "function") queueMicrotask(run);
+            else setTimeout(run, 0);
         }
     }, [ghostPage, ghostPageData.totalPages]);
 
     useEffect(() => {
         if (abandonedPage > abandonedPageData.totalPages) {
-            setAbandonedPage(abandonedPageData.totalPages);
+            const run = () => setAbandonedPage(abandonedPageData.totalPages);
+            if (typeof queueMicrotask === "function") queueMicrotask(run);
+            else setTimeout(run, 0);
         }
     }, [abandonedPage, abandonedPageData.totalPages]);
 

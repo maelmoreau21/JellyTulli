@@ -54,6 +54,7 @@ const getGranularData = unstable_cache(
                 userId: true,
                 audioLanguage: true,
                 subtitleLanguage: true,
+                subtitleCodec: true,
                 media: { select: { libraryName: true, collectionType: true, type: true, durationMs: true, title: true, jellyfinMediaId: true } }
             },
             orderBy: { startedAt: 'asc' }
@@ -72,6 +73,13 @@ const getGranularData = unstable_cache(
         }>();
         const audioMap = new Map<string, number>();
         const subMap = new Map<string, number>();
+        const subtitleIgnoredTypes = new Set(['Audio', 'Track', 'MusicAlbum', 'Book', 'AudioBook']);
+        const hasKnownCodec = (value: string | null | undefined) => {
+            if (!value) return false;
+            const normalized = String(value).trim().toLowerCase();
+            if (!normalized) return false;
+            return !['unknown', 'none', 'off', 'disabled', 'null', 'undefined', 'n/a', 'na', '-'].includes(normalized);
+        };
         let dropSkipped = 0;
         let dropAbandoned = 0;
         let dropAlmost = 0;
@@ -158,8 +166,20 @@ const getGranularData = unstable_cache(
                 }
             }
 
-            const sNorm = h.subtitleLanguage ? (normalizeLanguageTag(h.subtitleLanguage) || String(h.subtitleLanguage).toUpperCase()) : 'OFF';
-            subMap.set(sNorm, (subMap.get(sNorm) || 0) + 1);
+            if (!subtitleIgnoredTypes.has(h.media.type || '')) {
+                const subtitleLanguage = h.subtitleLanguage ? String(h.subtitleLanguage).trim() : '';
+                const subtitleCodec = h.subtitleCodec ? String(h.subtitleCodec).trim() : '';
+                const normalizedSubtitleLanguage = normalizeLanguageTag(subtitleLanguage || null);
+                const hasSubtitleCodec = hasKnownCodec(subtitleCodec);
+
+                if (!normalizedSubtitleLanguage && !hasSubtitleCodec) {
+                    subMap.set('OFF', (subMap.get('OFF') || 0) + 1);
+                } else if (normalizedSubtitleLanguage) {
+                    subMap.set(normalizedSubtitleLanguage, (subMap.get(normalizedSubtitleLanguage) || 0) + 1);
+                } else {
+                    subMap.set('UNKNOWN', (subMap.get('UNKNOWN') || 0) + 1);
+                }
+            }
         });
 
         const dailyData = Array.from(dailyMap.values()).map(d => {
@@ -329,7 +349,8 @@ export async function GranularAnalysis({
 
     const localizedSubtitleData = (data.subtitleData || []).map((d: { name?: string; value?: number }) => {
         const name = String(d.name || '').toUpperCase();
-        if (name === 'OFF' || name === 'NONE' || name === 'UNKNOWN') return { ...d, name: t('disabled') };
+        if (name === 'OFF' || name === 'NONE') return { ...d, name: t('disabled') };
+        if (name === 'UNKNOWN') return { ...d, name: tc('unknown') };
         return d;
     });
 

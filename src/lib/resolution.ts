@@ -2,6 +2,30 @@
  * Determine a canonical resolution label from width/height.
  * Uses boundaries similar to Tdarr to be inclusive of various aspect ratios.
  */
+type ResolutionThreshold = { maxW: number; maxH: number };
+
+const DEFAULT_THRESHOLDS: Record<'480p' | '720p' | '1080p' | '4K', ResolutionThreshold> = {
+  '480p': { maxW: 792, maxH: 528 },
+  '720p': { maxW: 1440, maxH: 792 },
+  '1080p': { maxW: 2112, maxH: 1188 },
+  '4K': { maxW: 4224, maxH: 2376 },
+};
+
+function toPositiveNumber(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+function normalizeThreshold(raw: unknown, fallback: ResolutionThreshold): ResolutionThreshold {
+  if (!raw || typeof raw !== 'object') return fallback;
+  const candidate = raw as Record<string, unknown>;
+  return {
+    maxW: toPositiveNumber(candidate.maxW, fallback.maxW),
+    maxH: toPositiveNumber(candidate.maxH, fallback.maxH),
+  };
+}
+
 export function resolutionFromDimensions(width?: number | null, height?: number | null, customThresholds?: any): string {
   const w = width ? Number(width) : 0;
   const h = height ? Number(height) : 0;
@@ -10,11 +34,14 @@ export function resolutionFromDimensions(width?: number | null, height?: number 
 
   // Boundaries (Max values for each category)
   // Based on Tdarr / Common Media Server standards
-  const thresholds = customThresholds || {
-    "480p": { maxW: 792, maxH: 528 },
-    "720p": { maxW: 1440, maxH: 792 },
-    "1080p": { maxW: 2112, maxH: 1188 },
-    "4K": { maxW: 4224, maxH: 2376 }
+  const rawThresholds = (customThresholds && typeof customThresholds === 'object')
+    ? (customThresholds as Record<string, unknown>)
+    : {};
+  const thresholds: Record<'480p' | '720p' | '1080p' | '4K', ResolutionThreshold> = {
+    '480p': normalizeThreshold(rawThresholds['480p'], DEFAULT_THRESHOLDS['480p']),
+    '720p': normalizeThreshold(rawThresholds['720p'], DEFAULT_THRESHOLDS['720p']),
+    '1080p': normalizeThreshold(rawThresholds['1080p'], DEFAULT_THRESHOLDS['1080p']),
+    '4K': normalizeThreshold(rawThresholds['4K'], DEFAULT_THRESHOLDS['4K']),
   };
 
   // If it exceeds 1080p boundaries, it's 4K

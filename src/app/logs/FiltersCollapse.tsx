@@ -13,16 +13,15 @@ interface FiltersCollapseProps {
 
 export function FiltersCollapse({ children, storageKey = "logs.filtersOpen", defaultOpen = true }: FiltersCollapseProps) {
     const tc = useTranslations("common");
-    const [open, setOpen] = useState<boolean>(defaultOpen);
-
-    useEffect(() => {
+    const [open, setOpen] = useState<boolean>(() => {
         try {
+            if (typeof window === "undefined") return defaultOpen;
             const raw = localStorage.getItem(storageKey);
-            if (raw !== null) setOpen(raw === "1");
+            return raw !== null ? raw === "1" : defaultOpen;
         } catch {
-            // ignore (SSR-safe)
+            return defaultOpen;
         }
-    }, [storageKey]);
+    });
 
     useEffect(() => {
         try {

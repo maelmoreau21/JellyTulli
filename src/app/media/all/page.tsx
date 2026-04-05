@@ -30,6 +30,15 @@ type AllMediaSearchParams = {
     servers?: string;
 };
 
+function shouldShowLibraryMediaBadges(resolutionThresholds: unknown): boolean {
+    if (!resolutionThresholds || typeof resolutionThresholds !== 'object') return true;
+    const candidate = resolutionThresholds as Record<string, unknown>;
+    if (typeof candidate.showLibraryMediaBadges === 'boolean') {
+        return candidate.showLibraryMediaBadges;
+    }
+    return true;
+}
+
 export default async function AllMediaPage({ searchParams: searchParamsPromise }: { searchParams?: Promise<AllMediaSearchParams> }) {
     const auth = await requireAdmin();
     if (isAuthError(auth)) return auth;
@@ -53,6 +62,7 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
         }),
     ]);
     const excludedLibraries = settings?.excludedLibraries || [];
+    const showLibraryMediaBadges = shouldShowLibraryMediaBadges(settings?.resolutionThresholds);
 
     const jellytrackMode = (process.env.JELLYTRACK_MODE || 'single').toLowerCase();
     const selectableServerOptions = buildSelectableServerOptions(serverRows);
@@ -343,16 +353,23 @@ export default async function AllMediaPage({ searchParams: searchParamsPromise }
                     <Link href={`/media/${media.jellyfinMediaId}`} key={media.id} className="group flex flex-col space-y-2">
                         <div className={`app-surface-soft relative ${media.type === 'MusicAlbum' ? 'aspect-square' : 'aspect-[2/3]'} rounded-md overflow-hidden ring-1 ring-zinc-200/50 dark:ring-white/10 shadow-lg`}>
                             <FallbackImage src={getJellyfinImageUrl(media.jellyfinMediaId, 'Primary', media.parentId || undefined)} alt={media.title} fill className="object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50" />
-                            {(media.normalizedResolution && !['MusicAlbum', 'Season', 'Series'].includes(media.type)) && (
+                            {showLibraryMediaBadges && (media.normalizedResolution && !['MusicAlbum', 'Season', 'Series'].includes(media.type)) && (
                                 <div className="absolute top-2 right-2 z-10">
                                     <Badge className={`px-1.5 py-0 text-[10px] font-black tracking-tighter uppercase ${media.normalizedResolution === '4K' ? 'bg-orange-500 text-black border-transparent' : media.normalizedResolution === '1080p' ? 'bg-blue-600 text-white border-transparent' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}`}>
                                         {media.normalizedResolution === '4K' ? '4K UHD' : media.normalizedResolution}
                                     </Badge>
                                 </div>
                             )}
-                            {(media.bitrateKbps && media.type === 'MusicAlbum') && (
+                            {showLibraryMediaBadges && (media.bitrateKbps && media.type === 'MusicAlbum') && (
                                 <div className="absolute top-2 right-2 z-10">
                                     <Badge className="px-1.5 py-0 text-[10px] font-black tracking-tighter uppercase bg-yellow-500/90 text-black border-transparent backdrop-blur-sm">{media.bitrateKbps} KBPS</Badge>
+                                </div>
+                            )}
+                            {showLibraryMediaBadges && media.type === 'Series' && media.plays > 0 && (
+                                <div className="absolute top-2 right-2 z-10">
+                                    <Badge className={`px-1.5 py-0 text-[10px] font-black tracking-tighter uppercase border-transparent ${media.qualityPercent >= 80 ? 'bg-emerald-500 text-black' : media.qualityPercent >= 50 ? 'bg-amber-500 text-black' : 'bg-red-500 text-white'}`}>
+                                        DP {Math.max(0, Math.min(100, media.qualityPercent))}%
+                                    </Badge>
                                 </div>
                             )}
                         </div>

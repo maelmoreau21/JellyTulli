@@ -1,11 +1,20 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
-import { AlertTriangle, CheckCircle2, Clock3 } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
+import { AlertTriangle, CheckCircle2, Clock3, RadioTower, RefreshCw, ShieldAlert } from "lucide-react";
+
+function SourceIcon({ source }: { source?: string | null }) {
+    const s = (source || "").toLowerCase();
+    if (s === "monitor") return <RadioTower className="h-4 w-4 text-cyan-500 mt-0.5" />;
+    if (s === "sync") return <RefreshCw className="h-4 w-4 text-amber-500 mt-0.5" />;
+    if (s === "backup") return <Clock3 className="h-4 w-4 text-emerald-500 mt-0.5" />;
+    return <ShieldAlert className="h-4 w-4 text-zinc-500 mt-0.5" />;
+}
 
 export default function RecentClosuresClient({ events, defaultCount = 5 }: { events?: Array<any>, defaultCount?: number }) {
     const t = useTranslations("dashboard");
+    const locale = useLocale();
     const [count, setCount] = useState<number>(defaultCount);
 
     const sorted = useMemo(() => {
@@ -21,7 +30,7 @@ export default function RecentClosuresClient({ events, defaultCount = 5 }: { eve
 
     const formatDate = (s?: string | null) => {
         if (!s) return t("never");
-        try { return new Date(s).toLocaleString(); } catch { return String(s); }
+        try { return new Date(s).toLocaleString(locale); } catch { return String(s); }
     };
 
     return (
@@ -31,7 +40,7 @@ export default function RecentClosuresClient({ events, defaultCount = 5 }: { eve
                 <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">{t("show")}</span>
                     <div className="inline-flex rounded-md border bg-transparent p-0.5">
-                        {[5, 10].map((n) => (
+                        {[5, 10, 20].map((n) => (
                             <button
                                 key={n}
                                 type="button"
@@ -53,10 +62,16 @@ export default function RecentClosuresClient({ events, defaultCount = 5 }: { eve
                 {list.map((event: any) => (
                     <div key={event.id} className="app-surface-soft rounded-lg border border-border p-3">
                         <div className="flex items-start gap-3 text-sm font-medium text-foreground">
-                            {String(event.kind || "").includes("error")
-                                ? <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5" />
-                                : <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5" />}
-                            <div className="flex-1 leading-relaxed">{event.message}</div>
+                            <SourceIcon source={event.source} />
+                            <div className="flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="leading-relaxed">{event.message ?? event.kind ?? JSON.stringify(event.details ?? {})}</div>
+                                    <div className="text-xs text-muted-foreground ml-3">{String(event.kind || "").replace(/_/g, " ")}</div>
+                                </div>
+                                {event.details && typeof event.details === 'object' && (
+                                    <div className="mt-2 text-xs text-muted-foreground">{Object.entries(event.details).map(([k, v]) => `${k}: ${String(v)}`).join(' · ')}</div>
+                                )}
+                            </div>
                         </div>
                         <div className="mt-2 text-right text-[10px] font-mono text-muted-foreground">{formatDate(event.createdAt)}</div>
                     </div>
