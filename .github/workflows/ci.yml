@@ -20,8 +20,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
+
+      - name: Debug Node / workspace
+        run: |
+          echo "--- node / npm versions ---"
+          node -v
+          npm -v
+          echo "--- workspace pwd & ls ---"
+          pwd
+          ls -la
+          echo "package-lock exists: $(if [ -f package-lock.json ]; then echo yes; else echo no; fi)"
+          node -e "try{const lo=require('./package-lock.json').lockfileVersion; console.log('lockfileVersion:', lo);}catch(e){console.log('lockfileVersion:unknown')}"
+        shell: bash
 
       - name: Install dependencies
         run: npm ci
