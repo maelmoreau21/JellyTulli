@@ -49,8 +49,18 @@ describe('syncJellyfinLibrary (integration - pagination & resilience)', () => {
     let vfAttempts = 0;
 
     globalThis.fetch = vi.fn(async (url: string) => {
+      const makeResponse = (body: any, ok = true, status = 200) => {
+        const textBody = typeof body === 'string' ? body : JSON.stringify(body);
+        return {
+          ok,
+          status,
+          json: async () => (typeof body === 'string' ? JSON.parse(body) : body),
+          text: async () => textBody,
+        } as any;
+      };
+
       if (url.includes('/Users')) {
-        return { ok: true, json: async () => [{ Id: 'u1', Name: 'Alice' }] } as any;
+        return makeResponse([{ Id: 'u1', Name: 'Alice' }]);
       }
 
       if (url.includes('/Library/VirtualFolders')) {
@@ -59,11 +69,11 @@ describe('syncJellyfinLibrary (integration - pagination & resilience)', () => {
           // Simulate transient network error to exercise retry logic
           throw new Error('transient network');
         }
-        return { ok: true, json: async () => [{ Id: 'vf1', ItemId: null, Name: 'Films', CollectionType: 'movies' }] } as any;
+        return makeResponse([{ Id: 'vf1', ItemId: null, Name: 'Films', CollectionType: 'movies' }]);
       }
 
       if (url.includes('/UserViews')) {
-        return { ok: true, json: async () => ({ Items: [] }) } as any;
+        return makeResponse({ Items: [] });
       }
 
       if (url.includes('/Items')) {
@@ -82,7 +92,7 @@ describe('syncJellyfinLibrary (integration - pagination & resilience)', () => {
             RunTimeTicks: '6000000000',
             DateCreated: new Date().toISOString(),
           }));
-          return { ok: true, json: async () => ({ Items: items }) } as any;
+          return makeResponse({ Items: items });
         }
 
         if (startIndex === 200) {
@@ -98,13 +108,13 @@ describe('syncJellyfinLibrary (integration - pagination & resilience)', () => {
               DateCreated: new Date().toISOString(),
             }
           ];
-          return { ok: true, json: async () => ({ Items: items }) } as any;
+          return makeResponse({ Items: items });
         }
 
-        return { ok: true, json: async () => ({ Items: [] }) } as any;
+        return makeResponse({ Items: [] });
       }
 
-      return { ok: false, status: 404, json: async () => ({}) } as any;
+      return makeResponse({}, false, 404);
     }) as any;
 
     process.env.JELLYFIN_URL = 'http://test.local';
