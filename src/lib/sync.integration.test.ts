@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, beforeEach, afterEach, expect, vi } from 'vitest';
 
-// Mock Prisma to avoid touching a real database during integration tests
-vi.mock('./prisma', () => {
+// Mock Prisma to avoid touching a real database during integration tests.
+// Register the same factory for both local and aliased imports so modules
+// importing either './prisma' or '@/lib/prisma' receive the mocked client.
+function prismaMockFactory() {
   const mediaUpsert = vi.fn(async (..._args: any[]) => ({}));
   const mediaUpdateMany = vi.fn(async () => ({ count: 0 }));
   const userUpsert = vi.fn(async () => ({}));
@@ -28,7 +30,10 @@ vi.mock('./prisma', () => {
       $transaction: vi.fn(async (fn: any) => typeof fn === 'function' ? await fn(tx) : undefined),
     },
   };
-});
+}
+
+vi.mock('./prisma', prismaMockFactory);
+vi.mock('@/lib/prisma', prismaMockFactory);
 
 vi.mock('@/lib/systemHealth', () => ({
   appendHealthEvent: vi.fn(),

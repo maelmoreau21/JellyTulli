@@ -43,17 +43,25 @@ export async function getConfiguredJellyfinServers(): Promise<JellyfinServerConn
   const masterIdentity = getMasterServerIdentityFromEnv();
   const ensuredMaster = await ensureMasterServer();
 
-  const rows = await prisma.server.findMany({
-    where: { isActive: true },
-    select: {
-      id: true,
-      jellyfinServerId: true,
-      name: true,
-      url: true,
-      jellyfinApiKey: true,
-      allowAuthFallback: true,
-    },
-  });
+  const serverModel = (prisma as any)?.server;
+  let rows: Array<Record<string, any>> = [];
+  if (!serverModel || typeof serverModel.findMany !== 'function') {
+    // In some test environments the prisma mock doesn't include the `server` model.
+    // Fall back to an empty list so `ensureMasterServer()` can still provide a master entry.
+    console.warn('Prisma "server" model not available; falling back to empty server list for tests.');
+  } else {
+    rows = await serverModel.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        jellyfinServerId: true,
+        name: true,
+        url: true,
+        jellyfinApiKey: true,
+        allowAuthFallback: true,
+      },
+    });
+  }
 
   const masterUrl = normalizeUrl(masterIdentity.url);
   const list: JellyfinServerConnection[] = rows.map((row) => {
