@@ -157,37 +157,55 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
 
                 // 3. Sync Media Items
                 const baseItemsQuery = `IncludeItemTypes=Movie,Series,Season,Episode,Audio,MusicAlbum,Book,BoxSet&Recursive=true&Fields=ProviderIds,PremiereDate,DateCreated,Genres,MediaSources,ParentId,People,Studios,RunTimeTicks,ProductionYear,Path`;
-                let minDateParam = '';
+                let recentFilters: string[] = [''];
                 if (options?.recentOnly) {
                     const sevenDaysAgo = new Date();
                     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                    minDateParam = `&MinDateCreated=${sevenDaysAgo.toISOString()}&SortBy=DateCreated&SortOrder=Descending`;
+                    const sinceIso = sevenDaysAgo.toISOString();
+                    // Query both newly created and recently saved items to avoid missing imports
+                    // where filesystem metadata keeps an old creation date.
+                    recentFilters = [
+                        `&MinDateCreated=${sinceIso}&SortBy=DateCreated&SortOrder=Descending`,
+                        `&MinDateLastSaved=${sinceIso}&SortBy=DateLastSaved&SortOrder=Descending`,
+                    ];
                 }
 
                 const DEFAULT_PAGE_SIZE = 200;
                 const SLOW_PAGE_SIZE = 50;
                 const SLOW_START_THRESHOLD = 2000;
                 type JellyfinItem = Record<string, any>;
-                const items: JellyfinItem[] = [];
-                let startIndex = 0;
-                while (true) {
-                    const currentPageSize = startIndex >= SLOW_START_THRESHOLD ? SLOW_PAGE_SIZE : DEFAULT_PAGE_SIZE;
-                    const pageUrl = `${baseUrl}/Items?${baseItemsQuery}${minDateParam}&StartIndex=${startIndex}&Limit=${currentPageSize}`;
-                    const timeoutMs = startIndex >= SLOW_START_THRESHOLD ? 120000 : 60000;
-                    const retries = startIndex >= SLOW_START_THRESHOLD ? 6 : 4;
-                    console.log(`[Sync] [${currentServerName}] Fetching Items StartIndex=${startIndex} Limit=${currentPageSize} timeout=${timeoutMs} retries=${retries}`);
-                    const pageRes = await fetchWithRetry(pageUrl, { headers: jellyfinHeaders }, timeoutMs, retries);
-                    const pageData = await pageRes.json();
-                    const pageItems = pageData.Items || [];
-                    items.push(...pageItems);
-                    if (pageItems.length < currentPageSize) break;
-                    startIndex += currentPageSize;
-                    if (startIndex >= 50000) break;
+                const itemsById = new Map<string, JellyfinItem>();
+
+                for (const recentFilter of recentFilters) {
+                    let startIndex = 0;
+                    while (true) {
+                        const currentPageSize = startIndex >= SLOW_START_THRESHOLD ? SLOW_PAGE_SIZE : DEFAULT_PAGE_SIZE;
+                        const pageUrl = `${baseUrl}/Items?${baseItemsQuery}${recentFilter}&StartIndex=${startIndex}&Limit=${currentPageSize}`;
+                        const timeoutMs = startIndex >= SLOW_START_THRESHOLD ? 120000 : 60000;
+                        const retries = startIndex >= SLOW_START_THRESHOLD ? 6 : 4;
+                        console.log(`[Sync] [${currentServerName}] Fetching Items StartIndex=${startIndex} Limit=${currentPageSize} timeout=${timeoutMs} retries=${retries}`);
+                        const pageRes = await fetchWithRetry(pageUrl, { headers: jellyfinHeaders }, timeoutMs, retries);
+                        const pageData = await pageRes.json();
+                        const pageItems: JellyfinItem[] = pageData.Items || [];
+
+                        for (const pageItem of pageItems) {
+                            const itemId = typeof pageItem?.Id === 'string' ? pageItem.Id : null;
+                            if (itemId) itemsById.set(itemId, pageItem);
+                        }
+
+                        if (pageItems.length < currentPageSize) break;
+                        startIndex += currentPageSize;
+                        if (startIndex >= 50000) break;
+                    }
                 }
+
+                const items = Array.from(itemsById.values());
 
                 const itemLibraryCache = new Map<string, string>();
                 const itemCollectionCache = new Map<string, string>();
                 const seriesResolutionMap = new Map<string, string>();
+                const seriesLatestDateMap = new Map<string, Date>();
+                const albumLatestDateMap = new Map<string, Date>();
 
                 let mediaCount = 0;
                 for (const item of items) {
@@ -294,6 +312,26 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
                         const artist = item.AlbumArtist || item.AlbumArtists?.[0]?.Name || item.Artists?.[0] || null;
                         const dateAdded = item.DateCreated ? new Date(item.DateCreated) : new Date();
 
+                        if (item.Type === 'Episode' && item.SeriesId) {
+                            const sid = normalizeJellyfinId(item.SeriesId);
+                            if (sid) {
+                                const previous = seriesLatestDateMap.get(sid);
+                                if (!previous || dateAdded.getTime() > previous.getTime()) {
+                                    seriesLatestDateMap.set(sid, dateAdded);
+                                }
+                            }
+                        }
+
+                        if ((item.Type === 'Audio' || item.Type === 'Track') && item.AlbumId) {
+                            const aid = normalizeJellyfinId(item.AlbumId);
+                            if (aid) {
+                                const previous = albumLatestDateMap.get(aid);
+                                if (!previous || dateAdded.getTime() > previous.getTime()) {
+                                    albumLatestDateMap.set(aid, dateAdded);
+                                }
+                            }
+                        }
+
                         const compactId = compactJellyfinId(jellyfinMediaId);
                         const candidates = Array.from(new Set([jellyfinMediaId, compactId]));
 
@@ -390,6 +428,26 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
                             where: { serverId: currentServerId, jellyfinMediaId: sid, type: 'Series' },
                             data: { resolution: res }
                         }).catch(e => console.error(`[Sync] Failed to update series resolution for ${sid}:`, e));
+                    }
+                }
+
+                if (seriesLatestDateMap.size > 0) {
+                    console.log(`[Sync] Propagating latest episode dates to ${seriesLatestDateMap.size} series on ${currentServerName}...`);
+                    for (const [sid, latestDate] of seriesLatestDateMap.entries()) {
+                        await prisma.media.updateMany({
+                            where: { serverId: currentServerId, jellyfinMediaId: sid, type: 'Series' },
+                            data: { dateAdded: latestDate }
+                        }).catch(e => console.error(`[Sync] Failed to update series dateAdded for ${sid}:`, e));
+                    }
+                }
+
+                if (albumLatestDateMap.size > 0) {
+                    console.log(`[Sync] Propagating latest track dates to ${albumLatestDateMap.size} albums on ${currentServerName}...`);
+                    for (const [aid, latestDate] of albumLatestDateMap.entries()) {
+                        await prisma.media.updateMany({
+                            where: { serverId: currentServerId, jellyfinMediaId: aid, type: 'MusicAlbum' },
+                            data: { dateAdded: latestDate }
+                        }).catch(e => console.error(`[Sync] Failed to update album dateAdded for ${aid}:`, e));
                     }
                 }
 

@@ -2,12 +2,12 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
-import { Loader2 } from "lucide-react";
+import { Loader2, Download, Upload, Database, Clock3 } from "lucide-react";
 
 type Backup = { name: string; size: number | string; sizeMb: string; date: string };
 
@@ -57,7 +57,7 @@ export default function SettingsDataBackupsPage() {
     };
 
     const handleDelete = async (fileName: string) => {
-        if (!confirm("Delete this backup?")) return;
+        if (!confirm("Supprimer cette sauvegarde ?")) return;
         setMsg(null);
         try {
             const res = await fetch("/api/backup/auto/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileName }) });
@@ -74,7 +74,7 @@ export default function SettingsDataBackupsPage() {
     };
 
     const handleRestore = async (fileName: string) => {
-        if (!confirm("Restoring will replace your database. Continue?")) return;
+        if (!confirm("La restauration remplacera votre base actuelle. Continuer ?")) return;
         setMsg(null);
         try {
             const res = await fetch("/api/backup/auto/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileName }) });
@@ -117,64 +117,117 @@ export default function SettingsDataBackupsPage() {
         window.open("/api/backup/export", "_blank");
     };
 
+    const totalBackups = backups.length;
+    const totalSizeMb = backups.reduce((sum, item) => sum + Number(item.sizeMb || 0), 0);
+    const latestBackup = backups[0] || null;
+
     return (
-        <div className="p-4 md:p-8 max-w-[1100px] mx-auto space-y-4">
-            <Card className="app-surface">
+        <div className="p-4 md:p-8 max-w-[1200px] mx-auto space-y-6">
+            <Card className="app-surface border-zinc-200/50 dark:border-zinc-800/50">
                 <CardHeader>
-                    <CardTitle>{t("dataBackups")}</CardTitle>
+                    <CardTitle className="text-2xl flex items-center gap-2">
+                        <Database className="w-6 h-6 text-cyan-500" />
+                        {t("dataBackups")}
+                    </CardTitle>
                     <CardDescription>{t("dataBackupsDesc")}</CardDescription>
                 </CardHeader>
 
-                <CardContent>
-                    {msg && <div className={`p-3 rounded text-sm ${msg.type === "success" ? "text-emerald-400 bg-emerald-500/5" : "text-red-400 bg-red-500/5"}`}>{msg.text}</div>}
+                <CardContent className="space-y-5">
+                    {msg && (
+                        <div className={`rounded-lg border p-3 text-sm ${msg.type === "success" ? "border-emerald-500/20 text-emerald-400 bg-emerald-500/5" : "border-red-500/20 text-red-400 bg-red-500/5"}`}>
+                            {msg.text}
+                        </div>
+                    )}
 
-                    <div className="flex gap-2 items-center mb-4">
-                        <Button onClick={triggerBackup} disabled={running}>{running ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />{t("backingUp")}</> : t("backupNow")}</Button>
-                        <Button variant="outline" onClick={handleExport}>{t("exportBackup")}</Button>
-
-                        <div className="flex items-center gap-2 ml-auto">
-                            <Label className="text-sm">{t("importBackup")}</Label>
-                            <Input type="file" accept=".json,application/json" ref={fileRef} />
-                            <Button onClick={handleImport}>{t("importBackup")}</Button>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="app-surface-soft rounded-lg border p-4">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Sauvegardes</div>
+                            <div className="mt-1 text-2xl font-semibold">{totalBackups}</div>
+                        </div>
+                        <div className="app-surface-soft rounded-lg border p-4">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Taille totale</div>
+                            <div className="mt-1 text-2xl font-semibold">{totalSizeMb.toFixed(2)} {tCommon("mb")}</div>
+                        </div>
+                        <div className="app-surface-soft rounded-lg border p-4">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Dernière sauvegarde</div>
+                            <div className="mt-1 text-sm font-medium flex items-center gap-1.5">
+                                <Clock3 className="w-4 h-4 text-amber-400" />
+                                {latestBackup ? new Date(latestBackup.date).toLocaleString() : "-"}
+                            </div>
                         </div>
                     </div>
 
-                    <Table className="table-fixed">
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>{tCommon("mb")}</TableHead>
-                                <TableHead>{t("day")}</TableHead>
-                                <TableHead>Action</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {loading ? (
-                                <TableRow><TableCell colSpan={4} className="text-center py-8 text-zinc-400">{tCommon("loading")}</TableCell></TableRow>
-                            ) : backups.length === 0 ? (
-                                <TableRow><TableCell colSpan={4} className="text-center py-8 text-zinc-400">{t("noAutoBackups")}</TableCell></TableRow>
-                            ) : (
-                                backups.map((b) => (
-                                    <TableRow key={b.name}>
-                                        <TableCell className="max-w-[400px] truncate">{b.name}</TableCell>
-                                        <TableCell>{String(b.sizeMb)}</TableCell>
-                                        <TableCell>{new Date(b.date).toLocaleString()}</TableCell>
-                                        <TableCell>
-                                            <div className="flex gap-2">
-                                                <Button size="sm" onClick={() => handleRestore(b.name)}>{tCommon("restore")}</Button>
-                                                <Button size="sm" variant="ghost" onClick={() => handleDelete(b.name)}>{tCommon("delete")}</Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
+                    <div className="grid gap-4 lg:grid-cols-3">
+                        <div className="lg:col-span-2 app-surface-soft rounded-lg border p-4 space-y-3">
+                            <div>
+                                <h3 className="font-semibold">Actions rapides</h3>
+                                <p className="text-xs text-muted-foreground mt-1">Créer une sauvegarde immédiate ou exporter l'état actuel de la base.</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2 items-center">
+                                <Button onClick={triggerBackup} disabled={running}>
+                                    {running ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />{t("backingUp")}</> : t("backupNow")}
+                                </Button>
+                                <Button variant="outline" onClick={handleExport}>
+                                    <Download className="w-4 h-4 mr-2" />
+                                    {t("exportBackup")}
+                                </Button>
+                            </div>
+                        </div>
 
-                <CardFooter>
+                        <div className="app-surface-soft rounded-lg border p-4 space-y-3">
+                            <div>
+                                <h3 className="font-semibold">Importer une sauvegarde</h3>
+                                <p className="text-xs text-muted-foreground mt-1">Chargez un fichier JSON de sauvegarde puis restaurez la base.</p>
+                            </div>
+                            <Label className="text-sm">{t("importBackup")}</Label>
+                            <Input type="file" accept=".json,application/json" ref={fileRef} />
+                            <Button className="w-full" onClick={handleImport}>
+                                <Upload className="w-4 h-4 mr-2" />
+                                {t("importBackup")}
+                            </Button>
+                        </div>
+                    </div>
+
+                    <div className="app-surface-soft rounded-lg border overflow-hidden">
+                        <div className="px-4 py-3 border-b border-zinc-200/50 dark:border-zinc-800/50">
+                            <h3 className="font-semibold">Historique des sauvegardes</h3>
+                            <p className="text-xs text-muted-foreground mt-1">Restaurez ou supprimez une sauvegarde existante.</p>
+                        </div>
+                        <Table className="table-fixed">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Fichier</TableHead>
+                                    <TableHead>{tCommon("mb")}</TableHead>
+                                    <TableHead>{t("day")}</TableHead>
+                                    <TableHead>Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <TableRow><TableCell colSpan={4} className="text-center py-8 text-zinc-400">{tCommon("loading")}</TableCell></TableRow>
+                                ) : backups.length === 0 ? (
+                                    <TableRow><TableCell colSpan={4} className="text-center py-8 text-zinc-400">{t("noAutoBackups")}</TableCell></TableRow>
+                                ) : (
+                                    backups.map((b) => (
+                                        <TableRow key={b.name}>
+                                            <TableCell className="max-w-[460px] truncate">{b.name}</TableCell>
+                                            <TableCell>{String(b.sizeMb)}</TableCell>
+                                            <TableCell>{new Date(b.date).toLocaleString()}</TableCell>
+                                            <TableCell>
+                                                <div className="flex gap-2">
+                                                    <Button size="sm" onClick={() => handleRestore(b.name)}>{tCommon("restore")}</Button>
+                                                    <Button size="sm" variant="ghost" onClick={() => handleDelete(b.name)}>{tCommon("delete")}</Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+
                     <div className="text-xs text-muted-foreground">{t("backupManagementDesc")}</div>
-                </CardFooter>
+                </CardContent>
             </Card>
         </div>
     );

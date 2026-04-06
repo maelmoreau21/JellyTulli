@@ -6,6 +6,7 @@ import { AVAILABLE_LOCALES } from "@/i18n/locales";
 // No more library rules
 import { getSanitizedLibraryNames, getServerLibraryScopes } from "@/lib/libraryUtils";
 import { revalidatePath } from "next/cache";
+import { normalizeSchedulerIntervals } from "@/lib/schedulerIntervals";
 
 export const dynamic = "force-dynamic";
 
@@ -91,9 +92,15 @@ export async function GET() {
             ])
         ).sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
 
+        const resolutionSettings = settings?.resolutionThresholds && typeof settings.resolutionThresholds === "object"
+            ? (settings.resolutionThresholds as Record<string, unknown>)
+            : null;
+        const schedulerIntervals = normalizeSchedulerIntervals(resolutionSettings?.schedulerIntervals);
+
 
         return NextResponse.json({
             ...settings,
+            schedulerIntervals,
             availableLibraries: mergedAvailableLibraries,
             availableLibraryScopes,
             libraryScanSource: jellyfinScanNames.source,
@@ -112,7 +119,26 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { discordWebhookUrl, discordAlertCondition, discordAlertsEnabled, maxConcurrentTranscodes, excludedLibraries, syncCronHour, syncCronMinute, backupCronHour, backupCronMinute, defaultLocale, wrappedVisible, wrappedPeriodEnabled, wrappedStartMonth, wrappedStartDay, wrappedEndMonth, wrappedEndDay, resolutionThresholds } = body;
+        const {
+            discordWebhookUrl,
+            discordAlertCondition,
+            discordAlertsEnabled,
+            maxConcurrentTranscodes,
+            excludedLibraries,
+            syncCronHour,
+            syncCronMinute,
+            backupCronHour,
+            backupCronMinute,
+            defaultLocale,
+            wrappedVisible,
+            wrappedPeriodEnabled,
+            wrappedStartMonth,
+            wrappedStartDay,
+            wrappedEndMonth,
+            wrappedEndDay,
+            resolutionThresholds,
+            schedulerIntervals,
+        } = body;
 
         // Input validation — Discord webhook URL must be a valid Discord URL or null
         if (discordWebhookUrl !== undefined && discordWebhookUrl !== null && discordWebhookUrl !== "") {
@@ -175,6 +201,35 @@ export async function POST(req: NextRequest) {
             )
             : undefined;
 
+        const existingSettings = await prisma.globalSettings.findUnique({
+            where: { id: "global" },
+            select: { resolutionThresholds: true },
+        });
+
+        let mergedResolutionThresholds: unknown = undefined;
+        if (resolutionThresholds !== undefined || schedulerIntervals !== undefined) {
+            if (resolutionThresholds === null && schedulerIntervals === undefined) {
+                mergedResolutionThresholds = null;
+            } else {
+                const existingResolution = existingSettings?.resolutionThresholds;
+                const existingObj = existingResolution && typeof existingResolution === "object"
+                    ? (existingResolution as Record<string, unknown>)
+                    : {};
+                const incomingObj = resolutionThresholds && typeof resolutionThresholds === "object"
+                    ? (resolutionThresholds as Record<string, unknown>)
+                    : {};
+                const combined: Record<string, unknown> = { ...existingObj, ...incomingObj };
+
+                if (schedulerIntervals !== undefined) {
+                    combined.schedulerIntervals = normalizeSchedulerIntervals(schedulerIntervals);
+                } else {
+                    combined.schedulerIntervals = normalizeSchedulerIntervals(combined.schedulerIntervals);
+                }
+
+                mergedResolutionThresholds = combined;
+            }
+        }
+
         const updated = await (prisma.globalSettings as any).upsert({
             where: { id: "global" },
             update: {
@@ -194,7 +249,7 @@ export async function POST(req: NextRequest) {
                 wrappedStartDay: wrappedStartDay !== undefined ? Number(wrappedStartDay) : undefined,
                 wrappedEndMonth: wrappedEndMonth !== undefined ? Number(wrappedEndMonth) : undefined,
                 wrappedEndDay: wrappedEndDay !== undefined ? Number(wrappedEndDay) : undefined,
-                resolutionThresholds: resolutionThresholds !== undefined ? resolutionThresholds : undefined,
+                resolutionThresholds: mergedResolutionThresholds !== undefined ? mergedResolutionThresholds : undefined,
             },
             create: {
                 id: "global",
@@ -214,19 +269,33 @@ export async function POST(req: NextRequest) {
                 wrappedStartDay: wrappedStartDay !== undefined ? Number(wrappedStartDay) : 1,
                 wrappedEndMonth: wrappedEndMonth !== undefined ? Number(wrappedEndMonth) : 1,
                 wrappedEndDay: wrappedEndDay !== undefined ? Number(wrappedEndDay) : 31,
-                resolutionThresholds: resolutionThresholds || null,
+                resolutionThresholds: mergedResolutionThresholds !== undefined ? mergedResolutionThresholds : (resolutionThresholds || null),
             }
         });
 
+        const updatedResolution = updated?.resolutionThresholds && typeof updated.resolutionThresholds === "object"
+            ? (updated.resolutionThresholds as Record<string, unknown>)
+            : null;
+        const normalizedIntervals = normalizeSchedulerIntervals(updatedResolution?.schedulerIntervals);
+
         // Reschedule cron jobs if schedule changed
-        if (syncCronHour !== undefined || syncCronMinute !== undefined || backupCronHour !== undefined || backupCronMinute !== undefined) {
+        if (
+            syncCronHour !== undefined ||
+            syncCronMinute !== undefined ||
+            backupCronHour !== undefined ||
+            backupCronMinute !== undefined ||
+            schedulerIntervals !== undefined
+        ) {
             try {
                 const { rescheduleCronJobs } = await import("@/server/cronManager");
-                rescheduleCronJobs({
+                await rescheduleCronJobs({
                     syncCronHour: updated.syncCronHour,
                     syncCronMinute: updated.syncCronMinute,
                     backupCronHour: updated.backupCronHour,
                     backupCronMinute: updated.backupCronMinute,
+                    recentSyncEveryHours: normalizedIntervals.recentSyncEveryHours,
+                    fullSyncEveryHours: normalizedIntervals.fullSyncEveryHours,
+                    backupEveryHours: normalizedIntervals.backupEveryHours,
                 });
             } catch (err) {
                 console.warn("[Settings] Could not reschedule cron jobs:", err);
