@@ -50,8 +50,11 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
             try {
                 const response = await fetch(url, { ...options, signal: controller.signal });
                 clearTimeout(id);
-                if (!response.ok && [500, 502, 503, 504].includes(response.status)) {
-                    throw new Error(`HTTP ${response.status} from server`);
+                if (!response.ok) {
+                    const bodyPreview = await response.text().catch(() => "");
+                    const compactPreview = bodyPreview.trim().replace(/\s+/g, ' ').slice(0, 200);
+                    const previewSuffix = compactPreview ? ` - ${compactPreview}` : "";
+                    throw new Error(`HTTP ${response.status} ${response.statusText || ''}${previewSuffix}`.trim());
                 }
                 return response;
             } catch (e: unknown) {
@@ -70,6 +73,42 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
             }
         }
         throw new Error("Max retries exceeded");
+    };
+
+    const parseJsonResponse = <T>(rawBody: string, url: string): T => {
+        try {
+            return JSON.parse(rawBody) as T;
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
+            throw new Error(`Invalid JSON response from ${url.split('?')[0]}: ${msg}`);
+        }
+    };
+
+    const fetchJsonWithRetry = async <T>(url: string, options: RequestInit = {}, timeout = 30000, maxRetries = 3): Promise<T> => {
+        let lastError: unknown = null;
+
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const response = await fetchWithRetry(url, options, timeout, 1);
+                const rawBody = await response.text();
+
+                if (!rawBody || !rawBody.trim()) {
+                    throw new Error(`Empty JSON response body from ${url.split('?')[0]}`);
+                }
+
+                return parseJsonResponse<T>(rawBody, url);
+            } catch (e: unknown) {
+                lastError = e;
+                const message = e instanceof Error ? e.message : String(e);
+                console.warn(`[Sync Warning] JSON attempt ${i + 1}/${maxRetries} failed for ${url.split('?')[0]}: ${message}`);
+
+                if (i === maxRetries - 1) break;
+                await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+            }
+        }
+
+        if (lastError instanceof Error) throw lastError;
+        throw new Error(`Unable to fetch JSON from ${url.split('?')[0]}`);
     };
 
     try {
@@ -111,8 +150,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
 
             try {
                 // 1. Sync Users
-                const usersRes = await fetchWithRetry(`${baseUrl}/Users`, { headers: jellyfinHeaders });
-                const users = await usersRes.json();
+                const users = await fetchJsonWithRetry<Array<{ Id?: string; Name?: string }>>(`${baseUrl}/Users`, { headers: jellyfinHeaders });
                 let usersCount = 0;
                 for (const user of users) {
                     const jellyfinUserId = normalizeJellyfinId(user.Id);
@@ -129,31 +167,31 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
                 const libraryNameMap = new Map<string, string>();
                 const libraryCollectionMap = new Map<string, string>();
 
-                const vfRes = await fetchWithRetry(`${baseUrl}/Library/VirtualFolders`, { headers: jellyfinHeaders });
-                if (vfRes.ok) {
-                    const folders = await vfRes.json() as Array<{ CollectionType?: string; Id?: string; ItemId?: string; Name?: string }>;
-                    folders.forEach((f) => {
-                        if (f.CollectionType === 'boxsets') return;
-                        const keys = [f.Id, f.ItemId].filter(Boolean) as string[];
-                        keys.forEach(k => {
-                            if (f.Name) libraryNameMap.set(k, f.Name);
-                            if (f.CollectionType) libraryCollectionMap.set(k, f.CollectionType);
-                        });
+                const folders = await fetchJsonWithRetry<Array<{ CollectionType?: string; Id?: string; ItemId?: string; Name?: string }>>(
+                    `${baseUrl}/Library/VirtualFolders`,
+                    { headers: jellyfinHeaders },
+                );
+                folders.forEach((f) => {
+                    if (f.CollectionType === 'boxsets') return;
+                    const keys = [f.Id, f.ItemId].filter(Boolean) as string[];
+                    keys.forEach(k => {
+                        if (f.Name) libraryNameMap.set(k, f.Name);
+                        if (f.CollectionType) libraryCollectionMap.set(k, f.CollectionType);
                     });
-                }
+                });
 
-                const uvRes = await fetchWithRetry(`${baseUrl}/UserViews`, { headers: jellyfinHeaders });
-                if (uvRes.ok) {
-                    const views = await uvRes.json() as { Items?: Array<{ CollectionType?: string; Id?: string; ItemId?: string; Name?: string }> };
-                    (views.Items || []).forEach((v) => {
-                        if (v.CollectionType === 'boxsets') return;
-                        const keys = [v.Id, v.ItemId].filter(Boolean) as string[];
-                        keys.forEach(k => {
-                            if (v.Name) libraryNameMap.set(k, v.Name);
-                            if (v.CollectionType) libraryCollectionMap.set(k, v.CollectionType);
-                        });
+                const views = await fetchJsonWithRetry<{ Items?: Array<{ CollectionType?: string; Id?: string; ItemId?: string; Name?: string }> }>(
+                    `${baseUrl}/UserViews`,
+                    { headers: jellyfinHeaders },
+                );
+                (views.Items || []).forEach((v) => {
+                    if (v.CollectionType === 'boxsets') return;
+                    const keys = [v.Id, v.ItemId].filter(Boolean) as string[];
+                    keys.forEach(k => {
+                        if (v.Name) libraryNameMap.set(k, v.Name);
+                        if (v.CollectionType) libraryCollectionMap.set(k, v.CollectionType);
                     });
-                }
+                });
 
                 // 3. Sync Media Items
                 const baseItemsQuery = `IncludeItemTypes=Movie,Series,Season,Episode,Audio,MusicAlbum,Book,BoxSet&Recursive=true&Fields=ProviderIds,PremiereDate,DateCreated,Genres,MediaSources,ParentId,People,Studios,RunTimeTicks,ProductionYear,Path`;
@@ -184,8 +222,7 @@ export async function syncJellyfinLibrary(options?: { recentOnly?: boolean }) {
                         const timeoutMs = startIndex >= SLOW_START_THRESHOLD ? 120000 : 60000;
                         const retries = startIndex >= SLOW_START_THRESHOLD ? 6 : 4;
                         console.log(`[Sync] [${currentServerName}] Fetching Items StartIndex=${startIndex} Limit=${currentPageSize} timeout=${timeoutMs} retries=${retries}`);
-                        const pageRes = await fetchWithRetry(pageUrl, { headers: jellyfinHeaders }, timeoutMs, retries);
-                        const pageData = await pageRes.json();
+                        const pageData = await fetchJsonWithRetry<{ Items?: JellyfinItem[] }>(pageUrl, { headers: jellyfinHeaders }, timeoutMs, retries);
                         const pageItems: JellyfinItem[] = pageData.Items || [];
 
                         for (const pageItem of pageItems) {

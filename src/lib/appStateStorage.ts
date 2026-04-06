@@ -1,3 +1,5 @@
+import { getBackupDirectory } from "@/lib/backupDir";
+
 // Avoid static top-level imports of 'fs' so Turbopack doesn't trace filesystem
 function getFS() {
     try {
@@ -10,18 +12,8 @@ function getFS() {
     }
 }
 
-function getPath() {
-    try {
-         
-        const req = eval('require');
-        return req('path');
-    } catch (e) {
-        throw new Error('Unable to load path module dynamically');
-    }
-}
-
 function getAppStateDir() {
-    return process.env.BACKUP_DIR || "./backups";
+    return getBackupDirectory();
 }
 
 function ensureAppStateDir() {
