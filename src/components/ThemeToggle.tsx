@@ -19,7 +19,7 @@ export function ThemeToggle() {
 
     if (!mounted) {
         return (
-            <button className="flex items-center gap-3 w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 px-3 py-3 text-sm bg-zinc-200/50 dark:bg-zinc-950/90 text-zinc-500 dark:text-zinc-400" aria-label={t('switchToLight')}>
+            <button className="app-surface-soft flex items-center gap-3 w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 px-3 py-3 text-sm text-zinc-500 dark:text-zinc-400" aria-label={t('switchToLight')}>
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20">
                     <Moon className="w-4 h-4" />
                 </div>
@@ -36,11 +36,7 @@ export function ThemeToggle() {
     return (
         <button
             onClick={() => setTheme(isDark ? "light" : "dark")}
-            className={`group flex items-center gap-3 w-full rounded-2xl border px-3 py-3 text-sm transition-all ${
-                isDark
-                    ? "border-zinc-200 dark:border-zinc-800 bg-zinc-950/90 text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900"
-                    : "app-surface-soft border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 hover:border-zinc-300 dark:hover:border-zinc-700"
-            }`}
+            className="group app-surface-soft flex items-center gap-3 w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 px-3 py-3 text-sm text-zinc-700 dark:text-zinc-200 transition-all hover:border-zinc-300 dark:hover:border-zinc-700"
             aria-label={isDark ? t('switchToLight') : t('switchToDark')}
         >
             <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ${

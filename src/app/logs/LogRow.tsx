@@ -37,6 +37,19 @@ export default function LogRow({ log, visibleColumns, onOpenDetails }: { log: Sa
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
 
+  const formatDurationSeconds = (secondsValue: number | null | undefined) => {
+    const totalSeconds = Math.max(0, Math.floor(Number(secondsValue || 0)));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+    }
+
+    return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+  };
+
   const durationMs = useMemo(() => {
     const fromLog = Number(log.durationWatched ?? 0) * 1000;
     const maxEvent = events.length ? Math.max(...events.map((e) => Number(e.positionMs || 0))) : 0;
@@ -303,9 +316,7 @@ export default function LogRow({ log, visibleColumns, onOpenDetails }: { log: Sa
                     ? (
                       <span className="text-amber-500/80 animate-pulse text-xs uppercase tracking-wider font-semibold flex flex-row items-center justify-end gap-1"><span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>Active</span>
                     )
-                    : (log.durationWatched ?? 0) > 0
-                      ? `${Math.floor((log.durationWatched ?? 0) / 60)} min`
-                      : '0 min'
+                    : formatDurationSeconds(log.durationWatched)
                   }
                 </TableCell>
               );

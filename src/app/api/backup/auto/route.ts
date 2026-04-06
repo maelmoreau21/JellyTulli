@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, isAuthError } from "@/lib/auth";
+import { getBackupDirectory } from "@/lib/backupDir";
 
 export async function GET() {
     const auth = await requireAdmin();
@@ -8,12 +9,13 @@ export async function GET() {
     try {
         // Dynamic imports to avoid Turbopack tracing filesystem at import time
         const fs = await import('fs');
+        const path = await import('path');
 
-        const BACKUP_DIR = process.env.BACKUP_DIR || "./backups";
-        const files = fs.readdirSync(BACKUP_DIR)
+        const backupDir = getBackupDirectory();
+        const files = fs.readdirSync(backupDir)
             .filter((f: string) => f.endsWith(".json") && f.startsWith("JellyTrack-auto-"))
             .map((f: string) => {
-                const stats = fs.statSync(`${BACKUP_DIR}/${f}`);
+                const stats = fs.statSync(path.join(backupDir, f));
                 return {
                     name: f,
                     size: stats.size,

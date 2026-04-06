@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin, isAuthError } from "@/lib/auth";
 import { apiT } from "@/lib/i18n-api";
+import { getBackupDirectory } from "@/lib/backupDir";
 
 export async function POST(req: NextRequest) {
     const auth = await requireAdmin();
@@ -25,8 +26,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: await apiT('fileInvalid') }, { status: 400 });
         }
 
-        const BACKUP_DIR = process.env.BACKUP_DIR || "./backups";
-        const filePath = `${BACKUP_DIR}/${safeName}`;
+        const backupDir = getBackupDirectory();
+        const filePath = path.join(backupDir, safeName);
 
         if (!fs.existsSync(filePath)) {
             return NextResponse.json({ error: await apiT('fileNotFound') }, { status: 404 });

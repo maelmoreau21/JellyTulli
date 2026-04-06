@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 // No rules
 import { appendHealthEvent, markBackupFinished, markBackupStarted, readSystemHealthState } from "@/lib/systemHealth";
+import { getBackupDirectory } from "@/lib/backupDir";
 
 const MAX_BACKUPS = 5;
 
@@ -13,34 +14,10 @@ export async function performAutoBackup(): Promise<string> {
     await markBackupStarted();
 
     try {
-        // Load fs/path dynamically via require-eval to avoid static bundler tracing
-        function getFS() {
-            try {
-                 
-                const req = eval('require');
-                return req('fs');
-            } catch (e) {
-                throw new Error('Unable to load fs module dynamically');
-            }
-        }
-        function getPath() {
-            try {
-                 
-                const req = eval('require');
-                return req('path');
-            } catch (e) {
-                throw new Error('Unable to load path module dynamically');
-            }
-        }
-        const fs = getFS();
-        const path = getPath();
-
-        // Ensure directory exists
-        const BACKUP_DIR = process.env.BACKUP_DIR || "./backups";
-        if (!fs.existsSync(BACKUP_DIR)) {
-            fs.mkdirSync(BACKUP_DIR, { recursive: true });
-            console.log(`[Auto-Backup] Created backup directory: ${BACKUP_DIR}`);
-        }
+        const fs = await import("fs");
+        const path = await import("path");
+        const backupDir = getBackupDirectory();
+        console.log(`[Auto-Backup] Using backup directory: ${backupDir}`);
 
         // Fetch all data
         const servers = await prisma.server.findMany();
@@ -72,7 +49,7 @@ export async function performAutoBackup(): Promise<string> {
         const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         const timeStr = new Date().toISOString().split('T')[1].replace(/:/g, '-').split('.')[0]; // HH-MM-SS
         const fileName = `JellyTrack-auto-${dateStr}_${timeStr}.json`;
-        const filePath = `${BACKUP_DIR}/${fileName}`;
+        const filePath = path.join(backupDir, fileName);
 
         // BigInt-safe JSON serializer (Prisma returns BigInt for durationMs, positionTicks, etc.)
         const bigIntReplacer = (_key: string, value: unknown) => typeof value === 'bigint' ? value.toString() : value;
@@ -84,11 +61,11 @@ export async function performAutoBackup(): Promise<string> {
 
         // Rolling rotation: delete oldest files if we exceed MAX_BACKUPS
         type BackupFile = { name: string; time: number };
-        const backupFiles = fs.readdirSync(BACKUP_DIR)
+        const backupFiles = fs.readdirSync(backupDir)
             .filter((f: string) => f.endsWith(".json") && f.startsWith("JellyTrack-auto-"))
             .map((f: string): BackupFile => ({
                 name: f,
-                time: fs.statSync(`${BACKUP_DIR}/${f}`).mtime.getTime(),
+                time: fs.statSync(path.join(backupDir, f)).mtime.getTime(),
             }))
             .sort((a: BackupFile, b: BackupFile) => b.time - a.time); // Newest first
 
@@ -96,7 +73,7 @@ export async function performAutoBackup(): Promise<string> {
             const toDelete = backupFiles.slice(MAX_BACKUPS);
             for (const old of toDelete) {
                 try {
-                    fs.unlinkSync(path.join(BACKUP_DIR, old.name));
+                    fs.unlinkSync(path.join(backupDir, old.name));
                     console.log(`[Auto-Backup] Rotation: deleted old backup ${old.name}`);
                 } catch (err) {
                     console.warn(`[Auto-Backup] Failed to delete ${old.name}:`, err);

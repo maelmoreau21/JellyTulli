@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { FallbackImage } from "@/components/FallbackImage";
 import { KillStreamButton } from "@/components/dashboard/KillStreamButton";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 
 interface LiveStream {
     serverId: string;
@@ -49,6 +50,7 @@ function StreamCard({ stream }: { stream: LiveStream }) {
     const aspectClass = isAudio ? 'aspect-square' : isEpisode ? 'aspect-video' : 'aspect-[2/3]';
     const widthClass = isEpisode ? 'w-20' : 'w-12';
     const posterId = stream.posterItemId || stream.itemId;
+    const mediaHref = stream.itemId ? `/media/${stream.itemId}` : null;
 
     let detail: string | null = null;
     if (stream.mediaSubtitle) detail = stream.mediaSubtitle;
@@ -62,69 +64,149 @@ function StreamCard({ stream }: { stream: LiveStream }) {
 
     return (
         <div className="flex items-center gap-4 p-3 border rounded-lg border-border/50 app-surface-soft hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-            {posterId ? (
-                <div className={`relative ${widthClass} ${aspectClass} bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10`}>
-                    <FallbackImage
-                        src={getImageUrl(posterId, 'Primary', stream.parentItemId || undefined)}
-                        alt={stream.mediaTitle}
-                        fill
-                        className="object-cover"
-                    />
-                </div>
-            ) : (
-                <div className={`relative ${widthClass} ${aspectClass} bg-muted rounded shrink-0 flex items-center justify-center ring-1 ring-white/10`}>
-                    <PlayCircle className="w-5 h-5 opacity-50" />
-                </div>
-            )}
-
-            <div className="space-y-1 flex-1 min-w-0">
-                <p className="text-sm font-medium leading-none truncate">
-                    {stream.mediaTitle}
-                </p>
-                {detail && (
-                    <p className="text-[11px] text-muted-foreground font-medium truncate">{detail}</p>
-                )}
-                <p className="text-xs text-muted-foreground flex flex-col gap-0.5">
-                    <span className="truncate">{stream.user} . {stream.device}</span>
-                    {(stream.audioLanguage || stream.subtitleLanguage) && (
-                        <span className="text-[10px] opacity-70 truncate inline-flex items-center gap-1">
-                            {stream.audioLanguage ? (
-                                <span className="inline-flex items-center gap-1">
-                                    <Headphones className="w-3 h-3" />
-                                    <span className="font-mono uppercase">{stream.audioLanguage.toUpperCase()}</span>
-                                </span>
-                            ) : null}
-                            {stream.audioCodec ? <span className="text-[10px] opacity-70">({stream.audioCodec})</span> : null}
-                            {stream.audioStreamIndex != null ? <span>· A:{stream.audioStreamIndex}</span> : null}
-                            {stream.subtitleLanguage ? (
-                                <span className="inline-flex items-center gap-1">
-                                    <Languages className="w-3 h-3" />
-                                    <span className="font-mono uppercase">{stream.subtitleLanguage.toUpperCase()}</span>
-                                </span>
-                            ) : null}
-                            {stream.subtitleCodec ? <span className="text-[10px] opacity-70">({stream.subtitleCodec})</span> : null}
-                            {stream.subtitleStreamIndex != null ? <span>· S:{stream.subtitleStreamIndex}</span> : null}
-                        </span>
-                    )}
-                    {(stream.city !== "Unknown" || stream.country !== "Unknown") && (
-                        <span className="text-[10px] opacity-70 truncate inline-flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            <span>{stream.city !== "Unknown" ? `${stream.city}, ` : ''}{stream.country === "Unknown" ? t('unknown') : stream.country}</span>
-                        </span>
-                    )}
-                </p>
-                    <div className="flex items-center gap-2 mt-1">
-                        <div className="flex-1 h-1.5 app-surface-soft border border-border/30 rounded-full overflow-hidden">
-                            <div
-                                className={`h-full rounded-full transition-all ${stream.isPaused ? 'bg-yellow-500' : 'bg-purple-500'}`}
-                                style={{ width: `${stream.progressPercent}%` }}
+            {mediaHref ? (
+                <Link href={mediaHref} className="-m-1 flex min-w-0 flex-1 items-center gap-4 rounded-md p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5">
+                    {posterId ? (
+                        <div className={`relative ${widthClass} ${aspectClass} bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10`}>
+                            <FallbackImage
+                                src={getImageUrl(posterId, 'Primary', stream.parentItemId || undefined)}
+                                alt={stream.mediaTitle}
+                                fill
+                                className="object-cover"
                             />
                         </div>
-                        <span className="text-[10px] text-muted-foreground w-8 text-right shrink-0">
-                            {stream.isPaused ? '⏸' : ''}{stream.progressPercent}%
-                        </span>
+                    ) : (
+                        <div className={`relative ${widthClass} ${aspectClass} bg-muted rounded shrink-0 flex items-center justify-center ring-1 ring-white/10`}>
+                            <PlayCircle className="w-5 h-5 opacity-50" />
+                        </div>
+                    )}
+
+                    <div className="space-y-1 flex-1 min-w-0">
+                        <p className="text-sm font-medium leading-none truncate hover:underline">
+                            {stream.mediaTitle}
+                        </p>
+                        {detail && (
+                            <p className="text-[11px] text-muted-foreground font-medium truncate">{detail}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground flex flex-col gap-0.5">
+                            <span className="truncate">{stream.user} . {stream.device}</span>
+                            {(stream.audioLanguage || stream.subtitleLanguage) && (
+                                <span className="text-[10px] opacity-70 truncate inline-flex items-center gap-1">
+                                    {stream.audioLanguage ? (
+                                        <span className="inline-flex items-center gap-1">
+                                            <Headphones className="w-3 h-3" />
+                                            <span className="font-mono uppercase">{stream.audioLanguage.toUpperCase()}</span>
+                                        </span>
+                                    ) : null}
+                                    {stream.audioCodec ? <span className="text-[10px] opacity-70">({stream.audioCodec})</span> : null}
+                                    {stream.audioStreamIndex != null ? <span>· A:{stream.audioStreamIndex}</span> : null}
+                                    {stream.subtitleLanguage ? (
+                                        <span className="inline-flex items-center gap-1">
+                                            <Languages className="w-3 h-3" />
+                                            <span className="font-mono uppercase">{stream.subtitleLanguage.toUpperCase()}</span>
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1">
+                                            <Languages className="w-3 h-3" />
+                                            <span>{tc('none')}</span>
+                                        </span>
+                                    )}
+                                    {stream.subtitleCodec ? <span className="text-[10px] opacity-70">({stream.subtitleCodec})</span> : null}
+                                    {stream.subtitleStreamIndex != null ? <span>· S:{stream.subtitleStreamIndex}</span> : null}
+                                </span>
+                            )}
+                            {(stream.city !== "Unknown" || stream.country !== "Unknown") && (
+                                <span className="text-[10px] opacity-70 truncate inline-flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />
+                                    <span>{stream.city !== "Unknown" ? `${stream.city}, ` : ''}{stream.country === "Unknown" ? t('unknown') : stream.country}</span>
+                                </span>
+                            )}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <div className="flex-1 h-1.5 app-surface-soft border border-border/30 rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full rounded-full transition-all ${stream.isPaused ? 'bg-yellow-500' : 'bg-purple-500'}`}
+                                    style={{ width: `${stream.progressPercent}%` }}
+                                />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground w-8 text-right shrink-0">
+                                {stream.isPaused ? '⏸' : ''}{stream.progressPercent}%
+                            </span>
+                        </div>
                     </div>
-            </div>
+                </Link>
+            ) : (
+                <div className="flex min-w-0 flex-1 items-center gap-4">
+                    {posterId ? (
+                        <div className={`relative ${widthClass} ${aspectClass} bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10`}>
+                            <FallbackImage
+                                src={getImageUrl(posterId, 'Primary', stream.parentItemId || undefined)}
+                                alt={stream.mediaTitle}
+                                fill
+                                className="object-cover"
+                            />
+                        </div>
+                    ) : (
+                        <div className={`relative ${widthClass} ${aspectClass} bg-muted rounded shrink-0 flex items-center justify-center ring-1 ring-white/10`}>
+                            <PlayCircle className="w-5 h-5 opacity-50" />
+                        </div>
+                    )}
+
+                    <div className="space-y-1 flex-1 min-w-0">
+                        <p className="text-sm font-medium leading-none truncate">
+                            {stream.mediaTitle}
+                        </p>
+                        {detail && (
+                            <p className="text-[11px] text-muted-foreground font-medium truncate">{detail}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground flex flex-col gap-0.5">
+                            <span className="truncate">{stream.user} . {stream.device}</span>
+                            {(stream.audioLanguage || stream.subtitleLanguage) && (
+                                <span className="text-[10px] opacity-70 truncate inline-flex items-center gap-1">
+                                    {stream.audioLanguage ? (
+                                        <span className="inline-flex items-center gap-1">
+                                            <Headphones className="w-3 h-3" />
+                                            <span className="font-mono uppercase">{stream.audioLanguage.toUpperCase()}</span>
+                                        </span>
+                                    ) : null}
+                                    {stream.audioCodec ? <span className="text-[10px] opacity-70">({stream.audioCodec})</span> : null}
+                                    {stream.audioStreamIndex != null ? <span>· A:{stream.audioStreamIndex}</span> : null}
+                                    {stream.subtitleLanguage ? (
+                                        <span className="inline-flex items-center gap-1">
+                                            <Languages className="w-3 h-3" />
+                                            <span className="font-mono uppercase">{stream.subtitleLanguage.toUpperCase()}</span>
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1">
+                                            <Languages className="w-3 h-3" />
+                                            <span>{tc('none')}</span>
+                                        </span>
+                                    )}
+                                    {stream.subtitleCodec ? <span className="text-[10px] opacity-70">({stream.subtitleCodec})</span> : null}
+                                    {stream.subtitleStreamIndex != null ? <span>· S:{stream.subtitleStreamIndex}</span> : null}
+                                </span>
+                            )}
+                            {(stream.city !== "Unknown" || stream.country !== "Unknown") && (
+                                <span className="text-[10px] opacity-70 truncate inline-flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />
+                                    <span>{stream.city !== "Unknown" ? `${stream.city}, ` : ''}{stream.country === "Unknown" ? t('unknown') : stream.country}</span>
+                                </span>
+                            )}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <div className="flex-1 h-1.5 app-surface-soft border border-border/30 rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full rounded-full transition-all ${stream.isPaused ? 'bg-yellow-500' : 'bg-purple-500'}`}
+                                    style={{ width: `${stream.progressPercent}%` }}
+                                />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground w-8 text-right shrink-0">
+                                {stream.isPaused ? '⏸' : ''}{stream.progressPercent}%
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="ml-auto font-medium text-xs shrink-0">
                 <span
                     className={`px-2 py-1 rounded-full ${stream.playMethod === "Transcode"
@@ -169,7 +251,13 @@ function StreamTimeline({ stream, colorIndex }: { stream: LiveStream; colorIndex
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0 font-medium">
                         <span className="text-xs text-foreground truncate max-w-[120px]">{stream.user}</span>
-                        <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">{stream.mediaTitle}</span>
+                        {stream.itemId ? (
+                            <Link href={`/media/${stream.itemId}`} className="text-[10px] text-muted-foreground truncate max-w-[180px] hover:text-primary hover:underline">
+                                {stream.mediaTitle}
+                            </Link>
+                        ) : (
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">{stream.mediaTitle}</span>
+                        )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                         <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${stream.playMethod === "Transcode" ? "bg-orange-500/10 text-orange-400" : "bg-emerald-500/10 text-emerald-400"}`}>

@@ -1,19 +1,45 @@
 "use client";
 
-import { useState } from "react";
-import { RefreshCw, Database, Save, Play } from "lucide-react";
+import { useEffect, useState } from "react";
+import { RefreshCw, Database, Save, Play, Clock3 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { useTranslations } from "next-intl";
+import { DEFAULT_SCHEDULER_INTERVALS, normalizeSchedulerIntervals, type SchedulerIntervals } from "@/lib/schedulerIntervals";
 
 export default function SchedulerTasksPage() {
     const t = useTranslations('settings');
     const tc = useTranslations('common');
+    const [intervals, setIntervals] = useState<SchedulerIntervals>(DEFAULT_SCHEDULER_INTERVALS);
 
     const [taskStatus, setTaskStatus] = useState<Record<string, { loading: boolean; msg: { type: 'success' | 'error', text: string } | null }>>({
         recentSync: { loading: false, msg: null },
         fullSync: { loading: false, msg: null },
         backup: { loading: false, msg: null },
     });
+
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const res = await fetch('/api/settings', { cache: 'no-store' });
+                if (!res.ok) return;
+                const data = await res.json().catch(() => ({}));
+                if (!mounted) return;
+
+                const intervalsRaw = data?.schedulerIntervals
+                    ?? (data?.resolutionThresholds && typeof data.resolutionThresholds === 'object'
+                        ? (data.resolutionThresholds as Record<string, unknown>).schedulerIntervals
+                        : null);
+                setIntervals(normalizeSchedulerIntervals(intervalsRaw));
+            } catch {
+                // Keep defaults if settings request fails.
+            }
+        })();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     const runTask = async (taskKey: string, url: string, body?: object) => {
         setTaskStatus(prev => ({ ...prev, [taskKey]: { loading: true, msg: null } }));
@@ -49,6 +75,10 @@ export default function SchedulerTasksPage() {
                                 <span className="font-medium text-sm">{t('recentSync')}</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 ml-6">{t('recentSyncDesc')}</p>
+                            <div className="mt-2 ml-6 inline-flex items-center gap-1.5 rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[11px] text-sky-300">
+                                <Clock3 className="w-3 h-3" />
+                                Toutes les {intervals.recentSyncEveryHours}h
+                            </div>
                             {taskStatus.recentSync.msg && (
                                 <div className={`mt-2 ml-6 text-xs ${taskStatus.recentSync.msg.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
                                     {taskStatus.recentSync.msg.text}
@@ -72,6 +102,10 @@ export default function SchedulerTasksPage() {
                                 <span className="font-medium text-sm">{t('fullSync')}</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 ml-6">{t('fullSyncDesc') || t('autoNightlyAt')}</p>
+                            <div className="mt-2 ml-6 inline-flex items-center gap-1.5 rounded-full border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[11px] text-violet-300">
+                                <Clock3 className="w-3 h-3" />
+                                Toutes les {intervals.fullSyncEveryHours}h
+                            </div>
                             {taskStatus.fullSync.msg && (
                                 <div className={`mt-2 ml-6 text-xs ${taskStatus.fullSync.msg.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
                                     {taskStatus.fullSync.msg.text}
@@ -95,6 +129,10 @@ export default function SchedulerTasksPage() {
                                 <span className="font-medium text-sm">{t('backupTask')}</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 ml-6">{t('backupTaskDesc') || t('autoNightlyAt')}</p>
+                            <div className="mt-2 ml-6 inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-300">
+                                <Clock3 className="w-3 h-3" />
+                                Toutes les {intervals.backupEveryHours}h
+                            </div>
                             {taskStatus.backup.msg && (
                                 <div className={`mt-2 ml-6 text-xs ${taskStatus.backup.msg.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
                                     {taskStatus.backup.msg.text}

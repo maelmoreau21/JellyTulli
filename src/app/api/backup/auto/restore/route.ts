@@ -6,6 +6,7 @@ import { apiT } from "@/lib/i18n-api";
 // No rules
 import { replaceSystemHealthState } from "@/lib/systemHealth";
 import { getMasterServerIdentityFromEnv } from "@/lib/serverRegistry";
+import { getBackupDirectory } from "@/lib/backupDir";
 
 export async function POST(req: NextRequest) {
     const auth = await requireAdmin();
@@ -30,8 +31,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: await apiT('fileAutoOnly') }, { status: 400 });
         }
 
-        const BACKUP_DIR = process.env.BACKUP_DIR || "./backups";
-        const filePath = `${BACKUP_DIR}/${sanitized}`;
+        const backupDir = getBackupDirectory();
+        const filePath = path.join(backupDir, sanitized);
 
         if (!fs.existsSync(filePath)) {
             return NextResponse.json({ error: await apiT('fileNotFound') }, { status: 404 });
