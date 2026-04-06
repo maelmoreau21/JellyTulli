@@ -161,7 +161,7 @@ export default function SettingsDataBackupsPage() {
                         <div className="lg:col-span-2 app-surface-soft rounded-lg border p-4 space-y-3">
                             <div>
                                 <h3 className="font-semibold">Actions rapides</h3>
-                                <p className="text-xs text-muted-foreground mt-1">Créer une sauvegarde immédiate ou exporter l'état actuel de la base.</p>
+                                <p className="text-xs text-muted-foreground mt-1">Créer une sauvegarde immédiate ou exporter l&apos;état actuel de la base.</p>
                             </div>
                             <div className="flex flex-wrap gap-2 items-center">
                                 <Button onClick={triggerBackup} disabled={running}>
