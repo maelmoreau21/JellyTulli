@@ -49,14 +49,24 @@ describe('syncJellyfinLibrary (integration smoke test)', () => {
 
   beforeEach(() => {
     globalThis.fetch = vi.fn(async (url: string) => {
+      const makeResponse = (body: any, ok = true, status = 200) => {
+        const textBody = typeof body === 'string' ? body : JSON.stringify(body);
+        return {
+          ok,
+          status,
+          json: async () => (typeof body === 'string' ? JSON.parse(body) : body),
+          text: async () => textBody,
+        } as any;
+      };
+
       if (url.includes('/Users')) {
-        return { ok: true, json: async () => [{ Id: 'u1', Name: 'Alice' }] } as any;
+        return makeResponse([{ Id: 'u1', Name: 'Alice' }]);
       }
       if (url.includes('/Library/VirtualFolders')) {
-        return { ok: true, json: async () => [] } as any;
+        return makeResponse([]);
       }
       if (url.includes('/UserViews')) {
-        return { ok: true, json: async () => ({ Items: [] }) } as any;
+        return makeResponse({ Items: [] });
       }
       if (url.includes('/Items')) {
         const item = {
@@ -72,9 +82,9 @@ describe('syncJellyfinLibrary (integration smoke test)', () => {
           RunTimeTicks: '6000000000',
           DateCreated: new Date().toISOString(),
         };
-        return { ok: true, json: async () => ({ Items: [item] }) } as any;
+        return makeResponse({ Items: [item] });
       }
-      return { ok: false, status: 404, json: async () => ({}) } as any;
+      return makeResponse({}, false, 404);
     }) as any;
 
     process.env.JELLYFIN_URL = 'http://test.local';
