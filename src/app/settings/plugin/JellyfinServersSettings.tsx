@@ -427,7 +427,7 @@ export function JellyfinServersSettings() {
 
                 <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                   <input type="checkbox" checked={allowAuthFallback} onChange={(e) => setAllowAuthFallback(e.target.checked)} />
-                  Autoriser ce serveur en fallback d'authentification
+                  Autoriser ce serveur en fallback d&apos;authentification
                 </label>
 
                 <button type="button" onClick={handleAddServer} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 border border-border hover:bg-muted text-sm font-medium disabled:opacity-60">
