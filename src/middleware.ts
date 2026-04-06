@@ -3,6 +3,24 @@ import { NextResponse } from "next/server";
 import { apiTSync } from "@/lib/i18n-api";
 import { getResolvedAuthSecret } from "@/lib/authSecret";
 
+function escapeRegExp(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function matchesPath(pathname: string, target: string, allowSubPaths = true) {
+    const normalizedPath = pathname.replace(/^\/+/, "");
+    const normalizedTarget = target.replace(/^\/+/, "").replace(/\/+$/, "");
+
+    if (!normalizedTarget) {
+        return false;
+    }
+
+    const escapedTarget = escapeRegExp(normalizedTarget);
+    const suffix = allowSubPaths ? "(?:/|$)" : "$";
+    const pattern = new RegExp(`(?:^|/)${escapedTarget}${suffix}`);
+    return pattern.test(normalizedPath);
+}
+
 // Admin-only routes for API and Pages
 const ADMIN_API_PATHS = [
     "/api/admin",
@@ -36,20 +54,20 @@ export default withAuth(
         }
 
         // 2. Non-admin -> API admin paths blocked (403)
-        const isAdminApi = ADMIN_API_PATHS.some((p) => pathname.startsWith(p));
+        const isAdminApi = ADMIN_API_PATHS.some((p) => matchesPath(pathname, p));
         if (isAdminApi) {
             const locale = req.cookies.get("locale")?.value || "fr";
             return NextResponse.json({ error: apiTSync(locale, "adminOnly") }, { status: 403 });
         }
 
         // 3. Non-admin -> Admin-only pages redirected to Dashboard
-        const isAdminPage = ADMIN_PAGE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+        const isAdminPage = ADMIN_PAGE_PATHS.some((p) => matchesPath(pathname, p));
         if (isAdminPage) {
             return NextResponse.redirect(new URL("/", req.url));
         }
 
         // 4. Non-admin -> List pages redirected to their own profile
-        const isRedirectList = REDIRECT_IF_NOT_ADMIN.some((p) => pathname === p);
+        const isRedirectList = REDIRECT_IF_NOT_ADMIN.some((p) => matchesPath(pathname, p, false));
         if (isRedirectList) {
             const jellyfinUserId = token?.jellyfinUserId as string;
             if (jellyfinUserId) {
@@ -64,9 +82,11 @@ export default withAuth(
         secret: getResolvedAuthSecret().value,
         callbacks: {
             authorized: ({ token, req }) => {
+                const pathname = req.nextUrl.pathname;
+
                 // Let API routes return JSON auth errors from their own handlers
                 // instead of forcing an HTML redirect to /login.
-                if (req.nextUrl.pathname.startsWith("/api/")) {
+                if (matchesPath(pathname, "/api")) {
                     return true;
                 }
                 return !!token;
