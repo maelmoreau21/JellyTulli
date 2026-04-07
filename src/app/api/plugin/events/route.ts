@@ -202,6 +202,47 @@ function computeProgressPercent(positionTicks: number, runTimeTicks: number | nu
     return Math.min(100, Math.max(0, Math.round((positionTicks / runTimeTicks) * 100)));
 }
 
+const AUDIO_WALL_CLOCK_TYPES = new Set(["audio", "track", "audiobook"]);
+
+function isFeishinClient(clientName: unknown): boolean {
+    return typeof clientName === "string" && clientName.toLowerCase().includes("feishin");
+}
+
+function isAudioWallClockCandidate(mediaType: unknown): boolean {
+    return typeof mediaType === "string" && AUDIO_WALL_CLOCK_TYPES.has(mediaType.trim().toLowerCase());
+}
+
+function shouldPreferWallClockForFeishinAudio(input: {
+    mediaType: unknown;
+    clientName: unknown;
+    wallDeltaS: number;
+    tickDeltaS: number | null;
+    isPaused?: boolean;
+}): boolean {
+    if (input.isPaused) return false;
+    if (!isAudioWallClockCandidate(input.mediaType) || !isFeishinClient(input.clientName)) return false;
+    if (!Number.isFinite(input.wallDeltaS) || input.wallDeltaS <= 0) return false;
+
+    if (input.tickDeltaS === null || !Number.isFinite(input.tickDeltaS)) return true;
+    if (input.tickDeltaS <= 0) return true;
+
+    const wall = Math.max(1, input.wallDeltaS);
+    return input.tickDeltaS <= Math.max(3, wall * 0.35);
+}
+
+function shouldPromoteDurationToWallClock(input: {
+    mediaType: unknown;
+    clientName: unknown;
+    wallClockS: number;
+    computedDurationS: number;
+}): boolean {
+    if (!isAudioWallClockCandidate(input.mediaType) || !isFeishinClient(input.clientName)) return false;
+    if (!Number.isFinite(input.wallClockS) || input.wallClockS <= 0) return false;
+    if (input.computedDurationS <= 0) return true;
+    if (input.wallClockS < 20) return false;
+    return input.computedDurationS <= input.wallClockS * 0.5;
+}
+
 interface PluginSchemaVersionResult {
     version: number;
     raw: unknown;
@@ -1317,7 +1358,14 @@ export async function POST(req: Request) {
                         const tickDeltaS = (effectiveTicks - prevTick) / 10_000_000;
 
                         if (wallDeltaS > 0 && wallDeltaS <= 300) {
-                            if (tickDeltaS > 0 && tickDeltaS <= 300) {
+                            if (shouldPreferWallClockForFeishinAudio({
+                                mediaType: media.type,
+                                clientName: lastPlayback.clientName,
+                                wallDeltaS,
+                                tickDeltaS,
+                            })) {
+                                curDur += wallDeltaS;
+                            } else if (tickDeltaS > 0 && tickDeltaS <= 300) {
                                 curDur += tickDeltaS;
                             } else {
                                 curDur += wallDeltaS;
@@ -1329,6 +1377,15 @@ export async function POST(req: Request) {
                     
                     if (durationS <= 0 && cumulativeDurRaw === null) {
                         // Total fallback: wall clock if everything else failed
+                        durationS = wallClockS;
+                    }
+
+                    if (shouldPromoteDurationToWallClock({
+                        mediaType: media.type,
+                        clientName: lastPlayback.clientName,
+                        wallClockS,
+                        computedDurationS: durationS,
+                    })) {
                         durationS = wallClockS;
                     }
 
@@ -1664,26 +1721,23 @@ export async function POST(req: Request) {
             const prevTick = prevTickRaw ? parseInt(prevTickRaw, 10) : null;
             const now = Date.now();
 
-            // Strict pause detection: even if !isPaused, if ticks didn't advance, they are effectively paused
-            let tickAdvanced = true;
-            if (prevTick !== null) {
-                // If position hasn't changed at all or went backwards, it's not normal progress
-                // Going backwards could be a seek, which we'll handle by using wall-clock delta below
-                // But exactly equal means playback froze or paused
-                if (positionTicks === prevTick) {
-                    tickAdvanced = false;
-                }
-            }
-
-            if (!isPaused && tickAdvanced && prevTime !== null && prevTick !== null) {
+            if (!isPaused && prevTime !== null && prevTick !== null) {
                 const wallDeltaS = (now - prevTime) / 1000;
                 const tickDeltaS = (positionTicks - prevTick) / 10_000_000;
 
                 // Increased threshold to 120s to avoid losing data on slow pings (especially for music)
                 if (wallDeltaS > 0 && wallDeltaS <= 120) {
-                    if (tickDeltaS > 0 && tickDeltaS <= 120) {
+                    if (shouldPreferWallClockForFeishinAudio({
+                        mediaType: media.type,
+                        clientName: resolvedClientName,
+                        wallDeltaS,
+                        tickDeltaS,
+                        isPaused,
+                    })) {
+                        curDur += wallDeltaS;
+                    } else if (tickDeltaS > 0 && tickDeltaS <= 120) {
                         curDur += tickDeltaS;
-                    } else {
+                    } else if (positionTicks !== prevTick) {
                         // Cap wallDeltaS to 35s if it's used as fallback for seek/invalid tick to maintain sanity
                         curDur += Math.min(wallDeltaS, 35);
                     }
