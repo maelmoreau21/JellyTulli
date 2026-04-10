@@ -115,13 +115,14 @@ export function YearlyHeatmap({ data, availableYears, dataByType, libraryTypes }
         const getLevel = (count: number): 0 | 1 | 2 | 3 | 4 => {
             if (count === 0) return 0;
             // If mean is 0 (no activity), fallback to a simple presence bucket
-            if (mean === 0) return 1;
+            if (mean <= 0) return 1;
 
-            const ratio = count / mean; // how many times above/below average
-            if (ratio < 0.5) return 1;
-            if (ratio < 1) return 2;
-            if (ratio < 2) return 3;
-            return 4;
+            // Map counts to levels using a log2 scale so the year's average maps
+            // to the middle level (2). Each doubling/halving changes one level.
+            const ratio = count / mean;
+            const levelFloat = Math.log2(ratio) + 2; // mean -> 2, double -> 3, half -> 1
+            const clamped = Math.max(0, Math.min(4, Math.round(levelFloat)));
+            return clamped as 0 | 1 | 2 | 3 | 4;
         };
 
         const yearData: HeatmapData[] = [];

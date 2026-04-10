@@ -139,7 +139,7 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
     const dateFnsLocale = DATE_LOCALES[locale] || fr;
 
     const [searchValue, setSearchValue] = useState("");
-    const [period, setPeriod] = useState<PeriodValue>("all");
+    const [period, setPeriod] = useState<PeriodValue>("30d");
     const [pageSize, setPageSize] = useState<number>(25);
     const [ghostFilter, setGhostFilter] = useState<string>("all");
     const [abandonFilter, setAbandonFilter] = useState<string>("all");

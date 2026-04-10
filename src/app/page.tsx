@@ -454,24 +454,27 @@ const getDashboardMetrics = unstable_cache(
       dayCounts[h.startedAt.getDay()]++;
     });
 
-    // If all zero (no sessions after zapping filter), fallback to a query WITHOUT the zapping filter
-    // to provide a meaningful day-of-week distribution rather than an empty chart.
-    const totalDaySum = dayCounts.reduce((s, v) => s + v, 0);
-    if (totalDaySum === 0) {
+    // If some weekdays are zero because of the zapping filter (short sessions),
+    // query a no-zap fallback and fill zero-days with fallback counts.
+    // This preserves the zapped counts where present but ensures days with
+    // only short sessions are still represented on the chart.
+    const hasZeroDay = dayCounts.some((v) => v === 0);
+    if (hasZeroDay) {
       try {
         const fallback = await prisma.playbackHistory.findMany({
           where: { ...playbackBaseWhereNoZap, startedAt: dateFilter },
           select: { startedAt: true },
         }) as { startedAt: Date }[];
         if (fallback && fallback.length > 0) {
-          dayCounts = new Array(7).fill(0);
+          const fallbackCounts = new Array(7).fill(0);
           fallback.forEach((h) => {
             const d = h.startedAt instanceof Date ? h.startedAt : new Date(h.startedAt as any);
-            dayCounts[d.getDay()]++;
+            fallbackCounts[d.getDay()]++;
           });
+          dayCounts = dayCounts.map((c, idx) => (c > 0 ? c : fallbackCounts[idx]));
         }
       } catch (e) {
-        // If fallback query fails, silently keep zeroed dayCounts — chart will show no data.
+        // ignore fallback errors and keep original counts
       }
     }
 
@@ -1240,7 +1243,7 @@ export default async function DashboardPage(props: {
                 </CollapsibleCard>
                 <CollapsibleCard storageKey="dayOfWeek" title={t('dayOfWeekActivity')} description={t('dayOfWeekActivityDesc')} contentClassName="pl-0 pb-4">
                   <div className="h-[250px] min-h-[250px] w-full overflow-hidden">
-                    {metrics.dayOfWeekChartData.length > 0 ? (
+                    {metrics.dayOfWeekChartData.some((d: DayOfWeekData) => (d.count ?? 0) > 0) ? (
                       <DayOfWeekChart data={metrics.dayOfWeekChartData} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">{tc('noData')}</div>

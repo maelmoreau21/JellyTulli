@@ -8,6 +8,7 @@ import { getTranslations } from 'next-intl/server';
 export default async function UserStatsCharts({ userId, userIds = [], userDbIds = [] }: { userId: string; userIds?: string[]; userDbIds?: string[] }) {
     const t = await getTranslations('userProfile');
     const td = await getTranslations('dashboard');
+    const tc = await getTranslations('common');
 
     const targetJellyfinIds = Array.from(new Set([userId, ...userIds].filter(Boolean)));
     const resolvedUserDbIds = Array.from(new Set(userDbIds.filter(Boolean)));
@@ -63,6 +64,7 @@ export default async function UserStatsCharts({ userId, userIds = [], userDbIds 
         day: dayNames[index] || String(index),
         count,
     }));
+    const hasDayData = dayData.some((d) => (d.count ?? 0) > 0);
 
     const completionData: CompletionData[] = [
         { name: td('completed'), value: completed },
@@ -84,7 +86,11 @@ export default async function UserStatsCharts({ userId, userIds = [], userDbIds 
                 </CardHeader>
                 <CardContent>
                     <div className="h-[280px] w-full">
-                        <DayOfWeekChart data={dayData} />
+                        {hasDayData ? (
+                            <DayOfWeekChart data={dayData} />
+                        ) : (
+                            <div className="h-full flex items-center justify-center text-sm text-zinc-500">{tc('noData')}</div>
+                        )}
                     </div>
                 </CardContent>
             </Card>
