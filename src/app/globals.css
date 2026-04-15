@@ -54,47 +54,47 @@
 
 :root {
   --radius: 0.75rem;
-  /* Soft light mode: muted zinc/slate surfaces with deep, calm accents */
-  --background: #E8EDF3;
-  --foreground: #1F2937;
-  --card: #F3F6FA;
+  /* Soft light mode: pearl surfaces with vibrant but calm accents */
+  --background: #F4F6FA;
+  --foreground: #1E293B;
+  --card: #FBFCFE;
   --card-foreground: #1E293B;
-  --popover: #F3F6FA;
+  --popover: #FCFDFE;
   --popover-foreground: #1E293B;
-  --primary: #3F4C8A;
-  --primary-foreground: #F4F7FC;
-  --secondary: #DBE3EC;
+  --primary: #4F46E5;
+  --primary-foreground: #EEF2FF;
+  --secondary: #E7ECF5;
   --secondary-foreground: #334155;
-  --muted: #E2E8F0;
-  --muted-foreground: #546173;
-  --accent: #5A4D84;
-  --accent-foreground: #F5F3FB;
-  --destructive: #B64B47;
-  --border: #CCD5DF;
-  --input: #EDF2F7;
-  --ring: #4B5A9D;
-  --chart-1: #355B84;
-  --chart-2: #6C8B74;
-  --chart-3: #9A6D4F;
-  --chart-4: #5E6BA2;
-  --chart-5: #7F885F;
-  --chart-axis-color: #627186;
-  --chart-grid-color: rgba(71, 85, 105, 0.17);
-  --chart-tooltip-bg: rgba(243, 246, 250, 0.98);
-  --chart-tooltip-border: 1px solid rgba(98, 113, 134, 0.24);
+  --muted: #ECF1F8;
+  --muted-foreground: #5A6B82;
+  --accent: #10B981;
+  --accent-foreground: #ECFDF5;
+  --destructive: #D64545;
+  --border: #D8E1EC;
+  --input: #F1F5FA;
+  --ring: #6366F1;
+  --chart-1: #4F46E5;
+  --chart-2: #10B981;
+  --chart-3: #F4A261;
+  --chart-4: #0EA5E9;
+  --chart-5: #8B5CF6;
+  --chart-axis-color: #64748B;
+  --chart-grid-color: rgba(100, 116, 139, 0.18);
+  --chart-tooltip-bg: rgba(252, 253, 255, 0.98);
+  --chart-tooltip-border: 1px solid rgba(100, 116, 139, 0.25);
   --chart-tooltip-radius: 12px;
-  --chart-tooltip-box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  --chart-tooltip-box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
   --chart-tooltip-backdrop: none;
-  --chart-label-color: #5B687D;
-  --chart-item-color: #243346;
-  --sidebar: #E1E8F0;
-  --sidebar-foreground: #1F2937;
-  --sidebar-primary: #3F4C8A;
-  --sidebar-primary-foreground: #F4F7FC;
-  --sidebar-accent: #D8E0EA;
-  --sidebar-accent-foreground: #243346;
-  --sidebar-border: #C6D0DC;
-  --sidebar-ring: #4B5A9D;
+  --chart-label-color: #60728A;
+  --chart-item-color: #233246;
+  --sidebar: #EEF3F9;
+  --sidebar-foreground: #1E293B;
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #EEF2FF;
+  --sidebar-accent: #E4EBF5;
+  --sidebar-accent-foreground: #233246;
+  --sidebar-border: #CFDAE7;
+  --sidebar-ring: #6366F1;
 }
 
 html:not(.dark) {
