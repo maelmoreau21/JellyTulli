@@ -206,7 +206,7 @@ async function buildPluginHealthSnapshot(req: Request) {
             version: settings?.pluginVersion || null,
             serverName: settings?.pluginServerName || null,
             hasApiKey: Boolean(settings?.pluginApiKey),
-            endpoint: `${new URL(req.url).origin}/api/plugin/events`,
+            endpoint: "/api/plugin/events",
         },
         heartbeat: {
             count24h: heartbeatEvents.length,
@@ -289,14 +289,11 @@ export async function POST(req: Request) {
     }
 
     const action = typeof body.action === "string" ? body.action : "";
-    const origin = new URL(req.url).origin;
 
     if (action === "test_connection") {
+        const pluginEvents = await import("@/app/api/plugin/events/route");
         const start = Date.now();
-        const response = await fetch(`${origin}/api/plugin/events`, {
-            method: "GET",
-            cache: "no-store",
-        });
+        const response = await pluginEvents.GET();
         const latencyMs = Date.now() - start;
 
         await writeAdminAuditLog({
@@ -316,7 +313,7 @@ export async function POST(req: Request) {
             ok: response.ok,
             status: response.status,
             latencyMs,
-            endpoint: `${origin}/api/plugin/events`,
+            endpoint: "/api/plugin/events",
         });
     }
 
@@ -329,6 +326,7 @@ export async function POST(req: Request) {
         const identity = getMasterServerIdentityFromEnv();
         const syntheticHeartbeat = {
             event: "Heartbeat",
+            eventSchemaVersion: 2,
             pluginVersion: "manual-probe",
             serverName: identity.name,
             serverId: identity.jellyfinServerId,
@@ -336,16 +334,16 @@ export async function POST(req: Request) {
             users: [],
         };
 
+        const pluginEvents = await import("@/app/api/plugin/events/route");
         const start = Date.now();
-        const response = await fetch(`${origin}/api/plugin/events`, {
+        const response = await pluginEvents.POST(new Request("http://localhost/api/plugin/events", {
             method: "POST",
             headers: {
                 "content-type": "application/json",
                 authorization: `Bearer ${snapshot.currentKey}`,
             },
-            cache: "no-store",
             body: JSON.stringify(syntheticHeartbeat),
-        });
+        }));
         const latencyMs = Date.now() - start;
 
         const rawBody = await response.text();

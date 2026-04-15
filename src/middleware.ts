@@ -34,6 +34,7 @@ const ADMIN_API_PATHS = [
 ];
 
 const ADMIN_PAGE_PATHS = [
+    "/admin",
     "/settings",
     "/media/collections",
     "/media/analysis",
