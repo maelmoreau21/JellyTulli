@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Ghost, HeartCrack, Clock, Film, Tv, Music, BookOpen, Search, CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
+import { Ghost, HeartCrack, Clock, Film, Tv, Music, BookOpen, Search, CalendarRange, ChevronLeft, ChevronRight, Sparkles, Trash2 } from "lucide-react";
 import { formatDistanceToNow, type Locale } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { useTranslations, useLocale } from "next-intl";
@@ -36,6 +36,7 @@ interface GhostMedia {
     type: string;
     createdAt: DateValue;
     dateAdded?: DateValue;
+    size?: string | number | null;
 }
 
 interface AbandonedMedia {
@@ -50,6 +51,29 @@ interface AbandonedMedia {
 interface CleanupData {
     ghostMedia: GhostMedia[];
     abandonedMedia: AbandonedMedia[];
+    recommendations?: {
+        staleMoviesToDelete?: {
+            count: number;
+            totalSizeBytes: string;
+            itemIds: string[];
+        };
+    };
+}
+
+function formatBytes(value: string | number | null | undefined) {
+    const raw = Number(value || 0);
+    if (!Number.isFinite(raw) || raw <= 0) return "0 B";
+
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let idx = 0;
+    let size = raw;
+    while (size >= 1024 && idx < units.length - 1) {
+        size /= 1024;
+        idx += 1;
+    }
+
+    const digits = size >= 100 ? 0 : size >= 10 ? 1 : 2;
+    return `${size.toFixed(digits)} ${units[idx]}`;
 }
 
 function getTypeIcon(type: string) {
@@ -142,11 +166,21 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
     const [searchValue, setSearchValue] = useState("");
     const [period, setPeriod] = useState<PeriodValue>("30d");
     const [pageSize, setPageSize] = useState<number>(25);
+    const [activeTab, setActiveTab] = useState<"ghosts" | "abandoned">("ghosts");
     const [ghostFilter, setGhostFilter] = useState<string>("all");
     const [abandonFilter, setAbandonFilter] = useState<string>("all");
     const [abandonedSort, setAbandonedSort] = useState<AbandonedSortValue>("completion");
+    const [showSuggestedOnly, setShowSuggestedOnly] = useState(false);
+    const [dismissedSuggestion, setDismissedSuggestion] = useState(false);
     const [ghostPage, setGhostPage] = useState(1);
     const [abandonedPage, setAbandonedPage] = useState(1);
+
+    const staleMovieSuggestion = initialData.recommendations?.staleMoviesToDelete;
+    const suggestedGhostIds = useMemo(
+        () => new Set(staleMovieSuggestion?.itemIds || []),
+        [staleMovieSuggestion?.itemIds]
+    );
+    const hasStaleMovieSuggestion = !dismissedSuggestion && (staleMovieSuggestion?.count || 0) > 0;
 
     const searchQuery = normalizeForSearch(searchValue);
 
@@ -168,10 +202,13 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
     }, [initialData.abandonedMedia, period, searchQuery]);
 
     const filteredGhosts = useMemo(() => {
-        return ghostFilter === "all"
+        const scoped = ghostFilter === "all"
             ? baseGhosts
             : baseGhosts.filter((media) => media.type === ghostFilter);
-    }, [baseGhosts, ghostFilter]);
+
+        if (!showSuggestedOnly) return scoped;
+        return scoped.filter((media) => suggestedGhostIds.has(media.id));
+    }, [baseGhosts, ghostFilter, showSuggestedOnly, suggestedGhostIds]);
 
     const filteredAbandoned = useMemo(() => {
         const scoped = abandonFilter === "all"
@@ -216,7 +253,7 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
         const run = () => setGhostPage(1);
         if (typeof queueMicrotask === "function") queueMicrotask(run);
         else setTimeout(run, 0);
-    }, [ghostFilter]);
+    }, [ghostFilter, showSuggestedOnly]);
 
     useEffect(() => {
         const run = () => setAbandonedPage(1);
@@ -302,8 +339,16 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
             : "border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900/50"
     );
 
+    const applyStaleMovieSuggestion = () => {
+        setActiveTab("ghosts");
+        setPeriod("all");
+        setGhostFilter("Movie");
+        setShowSuggestedOnly(true);
+        setGhostPage(1);
+    };
+
     return (
-        <Tabs defaultValue="ghosts" className="w-full">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "ghosts" | "abandoned")} className="w-full">
             <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
                 <TabsTrigger value="ghosts" className="flex items-center gap-2">
                     <Ghost className="w-4 h-4" />
@@ -314,6 +359,35 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                     {t('abandonedMedia')} ({baseAbandoned.length})
                 </TabsTrigger>
             </TabsList>
+
+            {hasStaleMovieSuggestion && (
+                <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="space-y-1">
+                            <div className="inline-flex items-center gap-2 text-sm font-semibold text-amber-300">
+                                <Sparkles className="h-4 w-4" />
+                                {t('staleMoviesRecommendationTitle')}
+                            </div>
+                            <p className="text-sm text-amber-100/90">
+                                {t('staleMoviesRecommendationDesc', {
+                                    count: staleMovieSuggestion?.count || 0,
+                                    size: formatBytes(staleMovieSuggestion?.totalSizeBytes || "0"),
+                                })}
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button size="sm" className="gap-2" onClick={applyStaleMovieSuggestion}>
+                                <Trash2 className="h-4 w-4" />
+                                {t('reviewStaleMoviesAction')}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setDismissedSuggestion(true)}>
+                                {t('dismissSuggestionAction')}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="mt-4 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60 bg-background/40 backdrop-blur-sm p-3 sm:p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center">
@@ -374,6 +448,16 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                                 </button>
                             ))}
                         </div>
+                        {showSuggestedOnly && (
+                            <div className="flex flex-wrap items-center gap-2 pt-3">
+                                <Badge variant="outline" className="border-amber-400/50 text-amber-300 bg-amber-500/10">
+                                    {t('staleMoviesFilterActive')}
+                                </Badge>
+                                <Button size="sm" variant="ghost" onClick={() => setShowSuggestedOnly(false)}>
+                                    {tc('close')}
+                                </Button>
+                            </div>
+                        )}
                     </CardHeader>
                     <CardContent>
                         <div className="rounded-md border border-zinc-200 dark:border-zinc-800">
@@ -389,7 +473,7 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                                     {filteredGhosts.length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={3} className="h-24 text-center text-zinc-500">
-                                                {t('noGhosts')}
+                                                {showSuggestedOnly ? t('noSuggestedStaleMovies') : t('noGhosts')}
                                             </TableCell>
                                         </TableRow>
                                     )}

@@ -4,6 +4,15 @@ import { requireAdmin, isAuthError } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
+const HOT_IP_ATTEMPT_THRESHOLD = 50;
+const HOT_IP_WINDOW_MS = 24 * 60 * 60 * 1000;
+const NEW_COUNTRY_MATCH_WINDOW_MS = 5 * 60 * 1000;
+
+const SECURITY_ATTEMPT_ACTIONS = [
+    "plugin.events.unauthorized",
+    "plugin.events.rate_limited",
+];
+
 function clampNumber(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
 }
@@ -20,10 +29,105 @@ export async function GET(req: NextRequest) {
     const pageSize = clampNumber(Number(searchParams.get("pageSize") || "25") || 25, 1, 100);
     const action = searchParams.get("action")?.trim() || null;
     const actor = searchParams.get("actor")?.trim() || null;
+    const smart = (searchParams.get("smart") || "all").trim();
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
     const where: Record<string, unknown> = {};
+
+    const now = Date.now();
+    const last24h = new Date(now - HOT_IP_WINDOW_MS);
+
+    const [ipAttemptsRaw, recentPlaybackRows] = await Promise.all([
+        auditModel.groupBy({
+            by: ["ipAddress"],
+            where: {
+                ipAddress: { not: null },
+                action: { in: SECURITY_ATTEMPT_ACTIONS },
+                createdAt: { gte: last24h },
+            },
+            _count: { _all: true },
+        }),
+        prisma.playbackHistory.findMany({
+            where: {
+                startedAt: { gte: last24h },
+                userId: { not: null },
+                country: { notIn: ["", "Unknown"] },
+                ipAddress: { not: null },
+            },
+            select: {
+                userId: true,
+                country: true,
+                ipAddress: true,
+                startedAt: true,
+            },
+        }),
+    ]);
+
+    const hotIpRows = (Array.isArray(ipAttemptsRaw) ? ipAttemptsRaw : [])
+        .filter((row) => row?.ipAddress && row?._count?._all >= HOT_IP_ATTEMPT_THRESHOLD)
+        .map((row) => ({
+            ipAddress: String(row.ipAddress),
+            attempts: Number(row._count._all || 0),
+        }))
+        .sort((left, right) => right.attempts - left.attempts);
+
+    const hotIpSet = new Set(hotIpRows.map((row) => row.ipAddress));
+    const hotIpCountByIp = new Map(hotIpRows.map((row) => [row.ipAddress, row.attempts] as [string, number]));
+
+    const candidateUserIds = Array.from(
+        new Set(
+            recentPlaybackRows
+                .map((row) => row.userId)
+                .filter((value): value is string => typeof value === "string" && value.length > 0)
+        )
+    );
+    const candidateCountries = Array.from(
+        new Set(
+            recentPlaybackRows
+                .map((row) => row.country)
+                .filter((value): value is string => typeof value === "string" && value.length > 0 && value !== "Unknown")
+        )
+    );
+
+    let firstSeenRows: Array<{ userId: string | null; country: string | null; _min: { startedAt: Date | null } }> = [];
+    if (candidateUserIds.length > 0 && candidateCountries.length > 0) {
+        firstSeenRows = await prisma.playbackHistory.groupBy({
+            by: ["userId", "country"],
+            where: {
+                userId: { in: candidateUserIds },
+                country: { in: candidateCountries },
+            },
+            _min: { startedAt: true },
+        });
+    }
+
+    const firstSeenByPair = new Map<string, number>();
+    firstSeenRows.forEach((row) => {
+        if (!row.userId || !row.country || !row._min.startedAt) return;
+        firstSeenByPair.set(`${row.userId}:${row.country}`, row._min.startedAt.getTime());
+    });
+
+    const newCountryIpCount = new Map<string, number>();
+    const newCountrySet = new Set<string>();
+    recentPlaybackRows.forEach((row) => {
+        if (!row.userId || !row.country || !row.ipAddress) return;
+        const firstSeenTs = firstSeenByPair.get(`${row.userId}:${row.country}`);
+        if (typeof firstSeenTs !== "number") return;
+
+        const startedAtTs = row.startedAt.getTime();
+        if (Math.abs(startedAtTs - firstSeenTs) > NEW_COUNTRY_MATCH_WINDOW_MS) return;
+
+        const currentCount = newCountryIpCount.get(row.ipAddress) || 0;
+        newCountryIpCount.set(row.ipAddress, currentCount + 1);
+        newCountrySet.add(row.country);
+    });
+
+    const newCountryIpRows = Array.from(newCountryIpCount.entries())
+        .map(([ipAddress, count]) => ({ ipAddress, count }))
+        .sort((left, right) => right.count - left.count);
+
+    const newCountryIpSet = new Set(newCountryIpRows.map((row) => row.ipAddress));
 
     if (action) {
         where.action = action;
@@ -52,6 +156,23 @@ export async function GET(req: NextRequest) {
         }
     }
 
+    if (smart === "ip_50_attempts") {
+        if (hotIpSet.size > 0) {
+            where.ipAddress = { in: Array.from(hotIpSet) };
+            if (!action) {
+                where.action = { in: SECURITY_ATTEMPT_ACTIONS };
+            }
+        } else {
+            where.id = "__no_match__";
+        }
+    } else if (smart === "new_country_success") {
+        if (newCountryIpSet.size > 0) {
+            where.ipAddress = { in: Array.from(newCountryIpSet) };
+        } else {
+            where.id = "__no_match__";
+        }
+    }
+
     const [total, rows] = await Promise.all([
         auditModel.count({ where }),
         auditModel.findMany({
@@ -72,11 +193,40 @@ export async function GET(req: NextRequest) {
         }),
     ]);
 
+    const rowsWithAnomalies = (rows || []).map((row: Record<string, unknown>) => {
+        const ipAddress = typeof row.ipAddress === "string" ? row.ipAddress : null;
+        const anomalyFlags: string[] = [];
+
+        if (ipAddress && hotIpSet.has(ipAddress)) {
+            anomalyFlags.push("ip_50_attempts");
+        }
+        if (ipAddress && newCountryIpSet.has(ipAddress)) {
+            anomalyFlags.push("new_country_success");
+        }
+
+        return {
+            ...row,
+            anomalyFlags,
+            ipAttemptCount24h: ipAddress ? hotIpCountByIp.get(ipAddress) || null : null,
+            newCountryCount24h: ipAddress ? newCountryIpCount.get(ipAddress) || null : null,
+        };
+    });
+
     return NextResponse.json({
         page,
         pageSize,
         total,
         totalPages: Math.max(1, Math.ceil(total / pageSize)),
-        rows,
+        smart,
+        anomalies: {
+            ipAttemptThreshold: HOT_IP_ATTEMPT_THRESHOLD,
+            hotIp24h: hotIpRows,
+            newCountrySuccess24h: {
+                count: Array.from(newCountryIpCount.values()).reduce((sum, value) => sum + value, 0),
+                countries: Array.from(newCountrySet).sort(),
+                ips: newCountryIpRows,
+            },
+        },
+        rows: rowsWithAnomalies,
     });
 }

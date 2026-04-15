@@ -96,7 +96,13 @@
     "sortByLastAttempt": "Dernière tentative (plus récente)",
     "title": "Assistant de Nettoyage",
     "trackType": "Piste",
-    "tried": "Tenté"
+    "tried": "Tenté",
+    "staleMoviesRecommendationTitle": "Suggestion automatique",
+    "staleMoviesRecommendationDesc": "{count} films n'ont jamais été regardés depuis plus de 2 ans et occupent {size}. Voulez-vous les supprimer ?",
+    "reviewStaleMoviesAction": "Examiner la sélection",
+    "dismissSuggestionAction": "Ignorer",
+    "staleMoviesFilterActive": "Filtre smart actif : films anciens jamais vus",
+    "noSuggestedStaleMovies": "Aucun film de la suggestion n'est visible avec les filtres actuels."
   },
   "common": {
     "active": "Actif",
@@ -319,7 +325,7 @@
       "desc": "Compare la charge actuelle, la pression de transcodage et la fraîcheur des heartbeats entre les serveurs Jellyfin.",
       "disabled": "Cette vue nécessite le mode multi‑serveurs. Définissez JELLYTRACK_MODE=multi pour l'activer."
     },
-     "show": "Afficher",
+    "show": "Afficher",
     "showAll": "Tout afficher",
     "sync": "Synchronisation",
     "today": "Aujourd'hui",
@@ -505,7 +511,14 @@
     "totalEntries": "entrées au total",
     "typeFilter": "Type de média",
     "unknown": "Inconnu",
-    "unknownMedia": "Élément supprimé"
+    "unknownMedia": "Élément supprimé",
+    "smartAlertsTitle": "Alertes smart",
+    "smartNewCountryLabel": "Connexions depuis un nouveau pays",
+    "smartNewCountryDesc": "Sessions détectées comme première occurrence pays/utilisateur.",
+    "smartIpBurstLabel": "IP avec activité anormale",
+    "smartIpBurstItem": "{ip}: {count} tentatives sur 24h",
+    "smartNewCountryTag": "Nouveau pays",
+    "smartIpBurstTag": "{count} tentatives/24h"
   },
   "media": {
     "1080pLabel": "1080p FHD",
@@ -633,7 +646,11 @@
     "viewSeries": "Voir la série : {name}",
     "viewers": "Spectateurs ({count})",
     "viewersDesc": "Utilisateurs ayant visionné ce média.",
-    "viewsTitle": "Vues"
+    "viewsTitle": "Vues",
+    "markerIntroStart": "Début du générique d'ouverture",
+    "markerIntroEnd": "Fin du générique d'ouverture",
+    "markerCreditsStart": "Début du générique de fin",
+    "markerCustom": "Repère metadata"
   },
   "nav": {
     "cleanup": "Nettoyage",
