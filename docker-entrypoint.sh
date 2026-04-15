@@ -51,17 +51,15 @@ mkdir -p /app/.next/cache 2>/dev/null || true
 chown -R "$PUID:$PGID" /app/.next 2>/dev/null || true
 
 # ─── Prisma Migration ──────────────────────────────────────────────
-echo "Running Prisma migrate deploy..."
-if su-exec "$PUID:$PGID" npx prisma migrate deploy; then
+if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
+  echo "Prisma migrations detected. Running prisma migrate deploy..."
+  su-exec "$PUID:$PGID" npx prisma migrate deploy
   echo "Prisma migrations applied successfully."
-elif [ "${PRISMA_ALLOW_DB_PUSH_FALLBACK:-false}" = "true" ]; then
-  echo "Prisma migrate deploy failed. Falling back to prisma db push (explicitly enabled)."
-  su-exec "$PUID:$PGID" npx prisma db push --skip-generate
-  echo "Prisma schema pushed successfully (fallback mode)."
 else
-  echo "Prisma migrate deploy failed and fallback is disabled."
-  echo "Set PRISMA_ALLOW_DB_PUSH_FALLBACK=true only for emergency, non-standard environments."
-  exit 1
+  echo "No Prisma migrations found (missing or empty prisma/migrations)."
+  echo "Running prisma db push fallback to initialize schema..."
+  su-exec "$PUID:$PGID" npx prisma db push --skip-generate --accept-data-loss
+  echo "Prisma schema pushed successfully (fallback mode)."
 fi
 
 # ─── Launch App as the configured user ──────────────────────────────
