@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AlertCircle, KeyRound, RefreshCw, ShieldCheck, ShieldAlert, Copy } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -76,12 +76,20 @@ type AuditRow = {
 
 type AuditAnomalies = {
     ipAttemptThreshold: number;
+    ipWindowMinutes?: number;
+    newCountryGraceMinutes?: number;
     hotIp24h: Array<{ ipAddress: string; attempts: number }>;
     newCountrySuccess24h: {
         count: number;
         countries: string[];
         ips: Array<{ ipAddress: string; count: number }>;
     };
+};
+
+type SmartSecurityThresholds = {
+    ipAttemptThreshold: number;
+    ipWindowMinutes: number;
+    newCountryGraceMinutes: number;
 };
 
 type AuditResponse = {
@@ -112,6 +120,7 @@ function serializeDetails(details: Record<string, unknown> | null): string {
 
 export default function PluginSecurityPage() {
     const locale = useLocale();
+    const ts = useTranslations('securitySettings');
 
     const [overview, setOverview] = useState<SecurityOverview | null>(null);
     const [audit, setAudit] = useState<AuditResponse | null>(null);
@@ -119,6 +128,7 @@ export default function PluginSecurityPage() {
     const [auditSmartFilter, setAuditSmartFilter] = useState<"all" | "new_country_success" | "ip_50_attempts">("all");
     const [loading, setLoading] = useState(false);
     const [savingPolicy, setSavingPolicy] = useState(false);
+    const [savingSmartThresholds, setSavingSmartThresholds] = useState(false);
     const [rotating, setRotating] = useState(false);
     const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
     const [freshApiKey, setFreshApiKey] = useState<string | null>(null);
@@ -126,6 +136,11 @@ export default function PluginSecurityPage() {
     const [autoRotateEnabled, setAutoRotateEnabled] = useState(false);
     const [rotationDays, setRotationDays] = useState(90);
     const [rotationGraceHours, setRotationGraceHours] = useState(24);
+    const [smartThresholds, setSmartThresholds] = useState<SmartSecurityThresholds>({
+        ipAttemptThreshold: 50,
+        ipWindowMinutes: 24 * 60,
+        newCountryGraceMinutes: 5,
+    });
 
     const loadOverview = useCallback(async () => {
         const res = await fetch("/api/admin/security/overview", { cache: "no-store" });
@@ -155,17 +170,29 @@ export default function PluginSecurityPage() {
         setAudit(data);
     }, []);
 
+    const loadSmartThresholds = useCallback(async () => {
+        const res = await fetch('/api/admin/security/smart-settings', { cache: 'no-store' });
+        if (!res.ok) {
+            throw new Error('Failed to load smart security thresholds');
+        }
+
+        const data = (await res.json()) as { thresholds?: SmartSecurityThresholds };
+        if (data.thresholds) {
+            setSmartThresholds(data.thresholds);
+        }
+    }, []);
+
     const refreshAll = useCallback(async () => {
         setLoading(true);
         setMessage(null);
         try {
-            await Promise.all([loadOverview(), loadAudit(auditPage, auditSmartFilter)]);
+            await Promise.all([loadOverview(), loadAudit(auditPage, auditSmartFilter), loadSmartThresholds()]);
         } catch {
             setMessage({ type: "error", text: "Impossible de charger le centre securite." });
         } finally {
             setLoading(false);
         }
-    }, [auditPage, auditSmartFilter, loadAudit, loadOverview]);
+    }, [auditPage, auditSmartFilter, loadAudit, loadOverview, loadSmartThresholds]);
 
     useEffect(() => {
         refreshAll();
@@ -221,6 +248,41 @@ export default function PluginSecurityPage() {
             setMessage({ type: "error", text });
         } finally {
             setRotating(false);
+        }
+    };
+
+    const saveSmartThresholdSettings = async () => {
+        setSavingSmartThresholds(true);
+        setMessage(null);
+
+        try {
+            const payload: SmartSecurityThresholds = {
+                ipAttemptThreshold: Math.max(1, Math.floor(Number(smartThresholds.ipAttemptThreshold) || 1)),
+                ipWindowMinutes: Math.max(5, Math.floor(Number(smartThresholds.ipWindowMinutes) || 5)),
+                newCountryGraceMinutes: Math.max(1, Math.floor(Number(smartThresholds.newCountryGraceMinutes) || 1)),
+            };
+
+            const res = await fetch('/api/admin/security/smart-settings', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ thresholds: payload }),
+            });
+
+            const data = await res.json().catch(() => ({})) as { error?: string; thresholds?: SmartSecurityThresholds };
+            if (!res.ok) {
+                throw new Error(data.error || 'Threshold update failed');
+            }
+
+            if (data.thresholds) {
+                setSmartThresholds(data.thresholds);
+            }
+            setMessage({ type: 'success', text: ts('smartThresholdsSaved') });
+            await refreshAll();
+        } catch (error) {
+            const text = error instanceof Error ? error.message : 'Erreur inconnue';
+            setMessage({ type: 'error', text });
+        } finally {
+            setSavingSmartThresholds(false);
         }
     };
 
@@ -393,6 +455,67 @@ export default function PluginSecurityPage() {
                 </CardContent>
             </Card>
 
+            <Card className="app-surface border-border">
+                <CardHeader>
+                    <CardTitle className="text-base">{ts('smartThresholdsTitle')}</CardTitle>
+                    <CardDescription>
+                        {ts('smartThresholdsDesc')}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="smart-ip-attempt-threshold">{ts('ipAttemptThresholdLabel')}</Label>
+                        <Input
+                            id="smart-ip-attempt-threshold"
+                            type="number"
+                            min={1}
+                            max={10000}
+                            value={smartThresholds.ipAttemptThreshold}
+                            onChange={(event) => setSmartThresholds((prev) => ({
+                                ...prev,
+                                ipAttemptThreshold: Number(event.target.value),
+                            }))}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="smart-ip-window-minutes">{ts('ipWindowMinutesLabel')}</Label>
+                        <Input
+                            id="smart-ip-window-minutes"
+                            type="number"
+                            min={5}
+                            max={10080}
+                            value={smartThresholds.ipWindowMinutes}
+                            onChange={(event) => setSmartThresholds((prev) => ({
+                                ...prev,
+                                ipWindowMinutes: Number(event.target.value),
+                            }))}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="smart-new-country-window">{ts('newCountryGraceMinutesLabel')}</Label>
+                        <Input
+                            id="smart-new-country-window"
+                            type="number"
+                            min={1}
+                            max={1440}
+                            value={smartThresholds.newCountryGraceMinutes}
+                            onChange={(event) => setSmartThresholds((prev) => ({
+                                ...prev,
+                                newCountryGraceMinutes: Number(event.target.value),
+                            }))}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>{ts('actionsLabel')}</Label>
+                        <div className="h-10 flex items-center gap-2">
+                            <Button variant="outline" onClick={saveSmartThresholdSettings} disabled={savingSmartThresholds}>
+                                {savingSmartThresholds ? ts('saving') : ts('save')}
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
             {freshApiKey && (
                 <Card className="app-surface border-border">
                     <CardHeader>
@@ -466,7 +589,7 @@ export default function PluginSecurityPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="text-sm text-muted-foreground">Filtre intelligent</div>
+                        <div className="text-sm text-muted-foreground">{ts('smartFilterLabel')}</div>
                         <select
                             value={auditSmartFilter}
                             onChange={(event) => {
@@ -475,9 +598,9 @@ export default function PluginSecurityPage() {
                             }}
                             className="h-9 rounded-md border border-zinc-200 dark:border-zinc-700 bg-background px-3 text-sm"
                         >
-                            <option value="all">Tous les evenements</option>
-                            <option value="new_country_success">Connexion reussie depuis un nouveau pays</option>
-                            <option value="ip_50_attempts">Meme IP &gt;= 50 tentatives / 24h</option>
+                            <option value="all">{ts('filterAllEvents')}</option>
+                            <option value="new_country_success">{ts('filterNewCountrySuccess')}</option>
+                            <option value="ip_50_attempts">{ts('filterIpBurst', { threshold: audit?.anomalies?.ipAttemptThreshold ?? smartThresholds.ipAttemptThreshold })}</option>
                         </select>
                     </div>
 

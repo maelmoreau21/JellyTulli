@@ -102,7 +102,20 @@
     "reviewStaleMoviesAction": "Examiner la sélection",
     "dismissSuggestionAction": "Ignorer",
     "staleMoviesFilterActive": "Filtre smart actif : films anciens jamais vus",
-    "noSuggestedStaleMovies": "Aucun film de la suggestion n'est visible avec les filtres actuels."
+    "noSuggestedStaleMovies": "Aucun film de la suggestion n'est visible avec les filtres actuels.",
+    "deleteConfirmWord": "SUPPRIMER",
+    "deleteDialogRequestFailed": "Impossible de transmettre la suppression a Jellyfin.",
+    "deleteToastSuccess": "{count} film(s) supprime(s) avec succes.",
+    "deleteToastPartialError": "{count} suppression(s) ont echoue.",
+    "deleteToastNoop": "Aucun film n'a ete supprime.",
+    "deleteStaleMoviesAction": "Supprimer maintenant",
+    "deleteDialogTitle": "Confirmer la suppression de {count} films",
+    "deleteDialogDescription": "Ces films seront supprimes definitivement de Jellyfin (gain estime: {size}).",
+    "deleteDialogNoItems": "Aucun media a supprimer.",
+    "deleteDialogWarning": "Action irreversible: les fichiers medias seront supprimes dans Jellyfin.",
+    "deleteDialogConfirmInputLabel": "Tapez {word} pour confirmer.",
+    "deleteDialogDeleting": "Suppression en cours...",
+    "deleteDialogConfirmButton": "Confirmer la suppression"
   },
   "common": {
     "active": "Actif",
@@ -1082,5 +1095,20 @@
     "stateWarning": "Warning",
     "stateCritical": "Critical",
     "stateUnknown": "N/A"
+  },
+  "securitySettings": {
+    "smartThresholdsSaved": "Seuils smart sauvegardes.",
+    "smartThresholdsTitle": "Seuils Smart (anomalies)",
+    "smartThresholdsDesc": "Reglages dynamiques utilises par les filtres smart d audit et la detection d anomalies.",
+    "ipAttemptThresholdLabel": "Tentatives IP (seuil)",
+    "ipWindowMinutesLabel": "Fenetre IP (minutes)",
+    "newCountryGraceMinutesLabel": "Nouveau pays (minutes)",
+    "actionsLabel": "Actions",
+    "saving": "Sauvegarde...",
+    "save": "Sauvegarder",
+    "smartFilterLabel": "Filtre intelligent",
+    "filterAllEvents": "Tous les evenements",
+    "filterNewCountrySuccess": "Connexion reussie depuis un nouveau pays",
+    "filterIpBurst": "Meme IP >= {threshold} tentatives"
   }
 }

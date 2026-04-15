@@ -12,6 +12,7 @@ import { getTranslations, getLocale } from 'next-intl/server';
 import type { SafeLog, SafeMedia, SafeTelemetryEvent } from '@/types/logs';
 import type { Prisma } from '@prisma/client';
 import { ZAPPING_CONDITION } from "@/lib/statsUtils";
+import { readSmartSecurityThresholdsFromResolutionSettings } from "@/lib/securitySmartThresholds";
 
 import Link from "next/link";
 import { getServerSession } from "next-auth";
@@ -25,9 +26,6 @@ export const dynamic = "force-dynamic"; // Bypass statis rendering for real-time
 
 const LOGS_PER_PAGE = 50;
 const MAX_TELEMETRY_EVENTS_PER_LOG = 200;
-const NEW_COUNTRY_MATCH_WINDOW_MS = 5 * 60 * 1000;
-const HOT_IP_WINDOW_MS = 24 * 60 * 60 * 1000;
-const HOT_IP_THRESHOLD = 50;
 
 // Column utilities — defined server-side to avoid client/server boundary issues
 // Restore separate `client` and `ip` columns while keeping client-side features.
@@ -174,10 +172,20 @@ export default async function LogsPage({
     const hourParam = params.hour || "";
     const dayParam = params.day || "";
 
-    const serverRows = await prisma.server.findMany({
-        select: { id: true, name: true, isActive: true, url: true, jellyfinServerId: true },
-        orderBy: { name: "asc" },
-    });
+    const [serverRows, smartSettingsSource] = await Promise.all([
+        prisma.server.findMany({
+            select: { id: true, name: true, isActive: true, url: true, jellyfinServerId: true },
+            orderBy: { name: "asc" },
+        }),
+        prisma.globalSettings.findUnique({
+            where: { id: "global" },
+            select: { resolutionThresholds: true },
+        }),
+    ]);
+    const smartThresholds = readSmartSecurityThresholdsFromResolutionSettings(smartSettingsSource?.resolutionThresholds);
+    const newCountryMatchWindowMs = smartThresholds.newCountryGraceMinutes * 60 * 1000;
+    const hotIpWindowMs = smartThresholds.ipWindowMinutes * 60 * 1000;
+    const hotIpThreshold = smartThresholds.ipAttemptThreshold;
     const jellytrackMode = (process.env.JELLYTRACK_MODE || "single").toLowerCase();
     const selectableServerOptions = buildSelectableServerOptions(serverRows);
     const multiServerEnabled = jellytrackMode === "multi" && selectableServerOptions.length > 1;
@@ -323,7 +331,7 @@ export default async function LogsPage({
             const firstSeenTs = firstSeenByPair.get(`${log.userId}:${log.country}`);
             if (typeof firstSeenTs !== "number") return;
 
-            if (Math.abs(startedAtTs - firstSeenTs) <= NEW_COUNTRY_MATCH_WINDOW_MS) {
+            if (Math.abs(startedAtTs - firstSeenTs) <= newCountryMatchWindowMs) {
                 const flags = anomalyFlagsByLogId.get(log.id) || new Set<string>();
                 flags.add("new_country");
                 anomalyFlagsByLogId.set(log.id, flags);
@@ -341,7 +349,7 @@ export default async function LogsPage({
     );
 
     if (candidateIps.length > 0) {
-        const hotIpSince = new Date(Date.now() - HOT_IP_WINDOW_MS);
+        const hotIpSince = new Date(Date.now() - hotIpWindowMs);
         const hotIpRows = await prisma.playbackHistory.groupBy({
             by: ["ipAddress"],
             where: {
@@ -352,14 +360,14 @@ export default async function LogsPage({
         });
 
         hotIpRows.forEach((row) => {
-            if (!row.ipAddress || row._count._all < HOT_IP_THRESHOLD) return;
+            if (!row.ipAddress || row._count._all < hotIpThreshold) return;
             hotIpCountByIp.set(row.ipAddress, row._count._all);
         });
 
         logs.forEach((log) => {
             if (!log.ipAddress) return;
             const count = hotIpCountByIp.get(log.ipAddress);
-            if (!count || count < HOT_IP_THRESHOLD) return;
+            if (!count || count < hotIpThreshold) return;
 
             const flags = anomalyFlagsByLogId.get(log.id) || new Set<string>();
             flags.add("ip_burst");

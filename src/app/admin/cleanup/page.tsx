@@ -228,6 +228,13 @@ async function getCleanupData() {
                 count: staleMovieCandidates.length,
                 totalSizeBytes: staleMovieSizeBytes.toString(),
                 itemIds: staleMovieCandidates.map((media) => media.id),
+                items: staleMovieCandidates.map((media) => ({
+                    id: media.id,
+                    title: media.title,
+                    jellyfinMediaId: media.jellyfinMediaId,
+                    size: media.size ? media.size.toString() : null,
+                    dateAdded: media.dateAdded || media.createdAt,
+                })),
             },
         },
     };

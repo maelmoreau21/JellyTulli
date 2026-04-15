@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin, isAuthError } from "@/lib/auth";
+import { readSmartSecurityThresholdsFromResolutionSettings } from "@/lib/securitySmartThresholds";
 
 export const dynamic = "force-dynamic";
-
-const HOT_IP_ATTEMPT_THRESHOLD = 50;
-const HOT_IP_WINDOW_MS = 24 * 60 * 60 * 1000;
-const NEW_COUNTRY_MATCH_WINDOW_MS = 5 * 60 * 1000;
 
 const SECURITY_ATTEMPT_ACTIONS = [
     "plugin.events.unauthorized",
@@ -33,10 +30,19 @@ export async function GET(req: NextRequest) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
+    const settings = await prisma.globalSettings.findUnique({
+        where: { id: "global" },
+        select: { resolutionThresholds: true },
+    });
+    const smartThresholds = readSmartSecurityThresholdsFromResolutionSettings(settings?.resolutionThresholds);
+    const hotIpAttemptThreshold = smartThresholds.ipAttemptThreshold;
+    const hotIpWindowMs = smartThresholds.ipWindowMinutes * 60 * 1000;
+    const newCountryMatchWindowMs = smartThresholds.newCountryGraceMinutes * 60 * 1000;
+
     const where: Record<string, unknown> = {};
 
     const now = Date.now();
-    const last24h = new Date(now - HOT_IP_WINDOW_MS);
+    const lastWindowStart = new Date(now - hotIpWindowMs);
 
     const [ipAttemptsRaw, recentPlaybackRows] = await Promise.all([
         auditModel.groupBy({
@@ -44,13 +50,13 @@ export async function GET(req: NextRequest) {
             where: {
                 ipAddress: { not: null },
                 action: { in: SECURITY_ATTEMPT_ACTIONS },
-                createdAt: { gte: last24h },
+                createdAt: { gte: lastWindowStart },
             },
             _count: { _all: true },
         }),
         prisma.playbackHistory.findMany({
             where: {
-                startedAt: { gte: last24h },
+                startedAt: { gte: lastWindowStart },
                 userId: { not: null },
                 country: { notIn: ["", "Unknown"] },
                 ipAddress: { not: null },
@@ -65,7 +71,7 @@ export async function GET(req: NextRequest) {
     ]);
 
     const hotIpRows = (Array.isArray(ipAttemptsRaw) ? ipAttemptsRaw : [])
-        .filter((row) => row?.ipAddress && row?._count?._all >= HOT_IP_ATTEMPT_THRESHOLD)
+        .filter((row) => row?.ipAddress && row?._count?._all >= hotIpAttemptThreshold)
         .map((row) => ({
             ipAddress: String(row.ipAddress),
             attempts: Number(row._count._all || 0),
@@ -116,7 +122,7 @@ export async function GET(req: NextRequest) {
         if (typeof firstSeenTs !== "number") return;
 
         const startedAtTs = row.startedAt.getTime();
-        if (Math.abs(startedAtTs - firstSeenTs) > NEW_COUNTRY_MATCH_WINDOW_MS) return;
+        if (Math.abs(startedAtTs - firstSeenTs) > newCountryMatchWindowMs) return;
 
         const currentCount = newCountryIpCount.get(row.ipAddress) || 0;
         newCountryIpCount.set(row.ipAddress, currentCount + 1);
@@ -156,7 +162,7 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    if (smart === "ip_50_attempts") {
+    if (smart === "ip_50_attempts" || smart === "ip_attempt_burst") {
         if (hotIpSet.size > 0) {
             where.ipAddress = { in: Array.from(hotIpSet) };
             if (!action) {
@@ -219,7 +225,9 @@ export async function GET(req: NextRequest) {
         totalPages: Math.max(1, Math.ceil(total / pageSize)),
         smart,
         anomalies: {
-            ipAttemptThreshold: HOT_IP_ATTEMPT_THRESHOLD,
+            ipAttemptThreshold: hotIpAttemptThreshold,
+            ipWindowMinutes: smartThresholds.ipWindowMinutes,
+            newCountryGraceMinutes: smartThresholds.newCountryGraceMinutes,
             hotIp24h: hotIpRows,
             newCountrySuccess24h: {
                 count: Array.from(newCountryIpCount.values()).reduce((sum, value) => sum + value, 0),

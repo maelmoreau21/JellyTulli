@@ -7,12 +7,39 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Ghost, HeartCrack, Clock, Film, Tv, Music, BookOpen, Search, CalendarRange, ChevronLeft, ChevronRight, Sparkles, Trash2 } from "lucide-react";
+import {
+    Ghost,
+    HeartCrack,
+    Clock,
+    Film,
+    Tv,
+    Music,
+    BookOpen,
+    Search,
+    CalendarRange,
+    ChevronLeft,
+    ChevronRight,
+    Sparkles,
+    Trash2,
+    CheckCircle2,
+    AlertTriangle,
+    Loader2,
+} from "lucide-react";
 import { formatDistanceToNow, type Locale } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
 import { useTranslations, useLocale } from "next-intl";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 const DATE_LOCALES: Record<string, Locale> = { fr, en: enUS };
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
@@ -48,6 +75,14 @@ interface AbandonedMedia {
     lastPlayed: DateValue;
 }
 
+interface StaleMovieRecommendationItem {
+    id: string;
+    title: string;
+    jellyfinMediaId: string;
+    size?: string | null;
+    dateAdded?: DateValue;
+}
+
 interface CleanupData {
     ghostMedia: GhostMedia[];
     abandonedMedia: AbandonedMedia[];
@@ -56,9 +91,16 @@ interface CleanupData {
             count: number;
             totalSizeBytes: string;
             itemIds: string[];
+            items?: StaleMovieRecommendationItem[];
         };
     };
 }
+
+type CleanupToast = {
+    id: number;
+    type: "success" | "error";
+    text: string;
+};
 
 function formatBytes(value: string | number | null | undefined) {
     const raw = Number(value || 0);
@@ -160,6 +202,7 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
     const t = useTranslations('cleanup');
     const tc = useTranslations('common');
     const tr = useTranslations('timeRange');
+    const router = useRouter();
     const locale = useLocale();
     const dateFnsLocale = DATE_LOCALES[locale] || fr;
 
@@ -172,6 +215,10 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
     const [abandonedSort, setAbandonedSort] = useState<AbandonedSortValue>("completion");
     const [showSuggestedOnly, setShowSuggestedOnly] = useState(false);
     const [dismissedSuggestion, setDismissedSuggestion] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [deleteConfirmation, setDeleteConfirmation] = useState("");
+    const [isDeletingSuggested, setIsDeletingSuggested] = useState(false);
+    const [toasts, setToasts] = useState<CleanupToast[]>([]);
     const [ghostPage, setGhostPage] = useState(1);
     const [abandonedPage, setAbandonedPage] = useState(1);
 
@@ -181,6 +228,31 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
         [staleMovieSuggestion?.itemIds]
     );
     const hasStaleMovieSuggestion = !dismissedSuggestion && (staleMovieSuggestion?.count || 0) > 0;
+    const deleteConfirmWord = t('deleteConfirmWord');
+
+    const recommendedStaleMovies = useMemo<StaleMovieRecommendationItem[]>(() => {
+        if (Array.isArray(staleMovieSuggestion?.items) && staleMovieSuggestion.items.length > 0) {
+            return staleMovieSuggestion.items;
+        }
+
+        return initialData.ghostMedia
+            .filter((media) => suggestedGhostIds.has(media.id))
+            .map((media) => ({
+                id: media.id,
+                title: media.title,
+                jellyfinMediaId: media.jellyfinMediaId,
+                size: media.size ? String(media.size) : null,
+                dateAdded: media.dateAdded || media.createdAt,
+            }));
+    }, [initialData.ghostMedia, staleMovieSuggestion?.items, suggestedGhostIds]);
+
+    const pushToast = (type: CleanupToast["type"], text: string) => {
+        const id = Date.now() + Math.floor(Math.random() * 1000);
+        setToasts((prev) => [...prev, { id, type, text }]);
+        setTimeout(() => {
+            setToasts((prev) => prev.filter((toast) => toast.id !== id));
+        }, 4500);
+    };
 
     const searchQuery = normalizeForSearch(searchValue);
 
@@ -347,7 +419,61 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
         setGhostPage(1);
     };
 
+    const canConfirmDeletion = deleteConfirmation.trim().toUpperCase() === deleteConfirmWord.trim().toUpperCase();
+
+    const handleDeleteSuggestedMovies = async () => {
+        if (!staleMovieSuggestion?.itemIds || staleMovieSuggestion.itemIds.length === 0) return;
+        if (!canConfirmDeletion) return;
+
+        setIsDeletingSuggested(true);
+        try {
+            const response = await fetch('/api/admin/cleanup/delete-stale-movies', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mediaIds: staleMovieSuggestion.itemIds,
+                    confirmation: 'DELETE',
+                }),
+            });
+
+            const payload = await response.json().catch(() => ({})) as {
+                error?: string;
+                deletedCount?: number;
+                failed?: Array<{ title?: string; reason?: string }>;
+            };
+
+            if (!response.ok) {
+                throw new Error(payload.error || t('deleteDialogRequestFailed'));
+            }
+
+            const deletedCount = Number(payload.deletedCount || 0);
+            const failedCount = Array.isArray(payload.failed) ? payload.failed.length : 0;
+
+            if (deletedCount > 0) {
+                pushToast('success', t('deleteToastSuccess', { count: deletedCount }));
+            }
+
+            if (failedCount > 0) {
+                pushToast('error', t('deleteToastPartialError', { count: failedCount }));
+            }
+
+            if (deletedCount === 0 && failedCount === 0) {
+                pushToast('error', t('deleteToastNoop'));
+            }
+
+            setIsDeleteDialogOpen(false);
+            setDeleteConfirmation("");
+            router.refresh();
+        } catch (error) {
+            const text = error instanceof Error ? error.message : t('deleteDialogRequestFailed');
+            pushToast('error', text);
+        } finally {
+            setIsDeletingSuggested(false);
+        }
+    };
+
     return (
+        <>
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "ghosts" | "abandoned")} className="w-full">
             <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
                 <TabsTrigger value="ghosts" className="flex items-center gap-2">
@@ -381,6 +507,10 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                                 <Trash2 className="h-4 w-4" />
                                 {t('reviewStaleMoviesAction')}
                             </Button>
+                            <Button size="sm" variant="destructive" className="gap-2" onClick={() => setIsDeleteDialogOpen(true)}>
+                                <Trash2 className="h-4 w-4" />
+                                {t('deleteStaleMoviesAction')}
+                            </Button>
                             <Button size="sm" variant="ghost" onClick={() => setDismissedSuggestion(true)}>
                                 {t('dismissSuggestionAction')}
                             </Button>
@@ -388,6 +518,89 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                     </div>
                 </div>
             )}
+
+            <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+                if (isDeletingSuggested) return;
+                setIsDeleteDialogOpen(open);
+                if (!open) setDeleteConfirmation("");
+            }}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>{t('deleteDialogTitle', { count: recommendedStaleMovies.length })}</DialogTitle>
+                        <DialogDescription>
+                            {t('deleteDialogDescription', {
+                                count: recommendedStaleMovies.length,
+                                size: formatBytes(staleMovieSuggestion?.totalSizeBytes || "0"),
+                            })}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3">
+                        <div className="max-h-52 overflow-y-auto rounded-md border border-zinc-200/70 dark:border-zinc-800/70">
+                            {recommendedStaleMovies.length === 0 ? (
+                                <div className="px-3 py-2 text-sm text-muted-foreground">{t('deleteDialogNoItems')}</div>
+                            ) : (
+                                <ul className="divide-y divide-zinc-200/70 dark:divide-zinc-800/70">
+                                    {recommendedStaleMovies.map((movie) => (
+                                        <li key={movie.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                                            <div className="min-w-0">
+                                                <p className="truncate font-medium text-foreground">{movie.title}</p>
+                                                <p className="text-xs text-muted-foreground">{formatRelativeTime(movie.dateAdded)}</p>
+                                            </div>
+                                            <span className="shrink-0 text-xs text-muted-foreground">{formatBytes(movie.size || 0)}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+
+                        <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+                            {t('deleteDialogWarning')}
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="cleanup-delete-confirmation">
+                                {t('deleteDialogConfirmInputLabel', { word: deleteConfirmWord })}
+                            </Label>
+                            <Input
+                                id="cleanup-delete-confirmation"
+                                value={deleteConfirmation}
+                                onChange={(event) => setDeleteConfirmation(event.target.value)}
+                                placeholder={deleteConfirmWord}
+                                autoComplete="off"
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                if (isDeletingSuggested) return;
+                                setIsDeleteDialogOpen(false);
+                                setDeleteConfirmation("");
+                            }}
+                            disabled={isDeletingSuggested}
+                        >
+                            {tc('cancel')}
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDeleteSuggestedMovies}
+                            disabled={!canConfirmDeletion || isDeletingSuggested || recommendedStaleMovies.length === 0}
+                        >
+                            {isDeletingSuggested ? (
+                                <span className="inline-flex items-center gap-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    {t('deleteDialogDeleting')}
+                                </span>
+                            ) : (
+                                t('deleteDialogConfirmButton')
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <div className="mt-4 rounded-xl border border-zinc-200/60 dark:border-zinc-800/60 bg-background/40 backdrop-blur-sm p-3 sm:p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center">
@@ -599,5 +812,27 @@ export default function CleanupClient({ initialData }: { initialData: CleanupDat
                 </Card>
             </TabsContent>
         </Tabs>
+
+        <div className="pointer-events-none fixed right-4 top-4 z-[90] flex w-[min(420px,calc(100vw-2rem))] flex-col gap-2">
+            {toasts.map((toast) => (
+                <div
+                    key={toast.id}
+                    className={cn(
+                        "pointer-events-auto flex items-start gap-2 rounded-md border px-3 py-2 text-sm shadow-md backdrop-blur-md",
+                        toast.type === 'success'
+                            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-100"
+                            : "border-red-500/40 bg-red-500/10 text-red-100"
+                    )}
+                >
+                    {toast.type === 'success' ? (
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                    ) : (
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    )}
+                    <span>{toast.text}</span>
+                </div>
+            ))}
+        </div>
+        </>
     );
 }
