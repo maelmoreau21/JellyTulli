@@ -102,6 +102,7 @@ export function JellyfinServersSettings() {
   };
 
   const effectivePluginEndpoint = typeof window !== 'undefined' ? `${window.location.origin}${pluginEndpointPath}` : pluginEndpointPath;
+  const hasGlobalPluginApiKey = Boolean((globalPluginApiKey || '').trim());
 
   const getPluginStateForServer = (server: JellyfinServerRow): PluginConnectionState => {
     if (server.hasPluginKey && pluginConnected) return 'connected';
@@ -134,7 +135,7 @@ export function JellyfinServersSettings() {
     if (!rawGlobalApiKey) {
       setMessage({
         type: 'error',
-        text: 'La clé plugin globale brute n est pas disponible dans cette session. Régénérez-la puis reconnectez les serveurs.',
+        text: 'La clé plugin globale brute n est pas disponible dans cette session. Collez votre clé globale ci-dessous pour dériver la clé serveur sans rotation.',
       });
       return null;
     }
@@ -185,27 +186,15 @@ export function JellyfinServersSettings() {
     setTimeout(() => setCopiedPluginEndpointServerId((prev) => (prev === id ? null : prev)), 1800);
   };
 
-  const handleRegeneratePluginKey = async (id: string) => {
-    setPluginLoadingServerId(id);
+  const handleDeriveServerPluginKey = async (id: string) => {
     try {
-      // rotate global key first
-      const rotateRes = await fetch('/api/plugin/api-key', { method: 'POST' });
-      if (!rotateRes.ok) throw new Error('rotate failed');
-      const rotateJson = await rotateRes.json().catch(() => ({}));
-      const nextGlobalApiKey = typeof rotateJson.apiKey === 'string' ? rotateJson.apiKey : '';
-      if (!nextGlobalApiKey) throw new Error('missing global api key');
-      setGlobalPluginApiKey(nextGlobalApiKey);
-      // then fetch server-scoped key
-      const key = await fetchServerPluginKey(id, undefined, nextGlobalApiKey);
+      const key = await fetchServerPluginKey(id);
       if (!key) return;
       setPluginKeyByServerId((prev) => ({ ...prev, [id]: key || '' }));
       setPluginKeyVisible((prev) => ({ ...prev, [id]: true }));
-      setMessage({ type: 'success', text: 'Clé plugin serveur rafraîchie.' });
+      setMessage({ type: 'success', text: 'Clé plugin serveur dérivée depuis la clé globale actuelle.' });
     } catch {
-      setMessage({ type: 'error', text: 'Impossible de régénérer la clé plugin.' });
-    } finally {
-      setPluginLoadingServerId(null);
-      await fetchInfo();
+      setMessage({ type: 'error', text: 'Impossible de dériver la clé plugin serveur.' });
     }
   };
 
@@ -303,6 +292,38 @@ export function JellyfinServersSettings() {
           </div>
         )}
 
+        {pluginKeyReady && (
+          <div className="p-3 rounded-md flex flex-col gap-3 text-sm border bg-amber-500/10 text-amber-100 border-amber-500/30">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-50">Clé globale brute (optionnelle)</p>
+                <p className="text-amber-100/90">Collez votre clé plugin globale pour dériver les clés serveur sans rotation automatique.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
+              <div className="lg:col-span-9">
+                <Input
+                  type="password"
+                  value={globalPluginApiKey || ''}
+                  onChange={(event) => setGlobalPluginApiKey(event.target.value)}
+                  placeholder="jt_..."
+                  className="font-mono text-xs"
+                />
+              </div>
+              <div className="lg:col-span-3 flex items-end">
+                <button
+                  type="button"
+                  onClick={() => setGlobalPluginApiKey('')}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 border border-amber-300/40 hover:bg-amber-500/20 text-xs font-medium"
+                >
+                  Effacer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-3">
           {loading ? (
             <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground">Chargement des serveurs...</div>
@@ -391,13 +412,13 @@ export function JellyfinServersSettings() {
                   <div className="grid grid-cols-1 xl:grid-cols-12 gap-2">
                     <div className="xl:col-span-8 relative">
                       <Label className="text-xs">Clé plugin serveur</Label>
-                      <Input readOnly type={pluginKeyVisible[server.id] ? 'text' : 'password'} value={pluginKeyVisible[server.id] ? pluginKeyByServerId[server.id] || '' : server.pluginKeyMasked || ''} className="font-mono text-xs pr-10" placeholder={pluginKeyReady ? 'Cliquez sur Afficher' : 'Générez la clé plugin globale'} />
+                      <Input readOnly type={pluginKeyVisible[server.id] ? 'text' : 'password'} value={pluginKeyVisible[server.id] ? pluginKeyByServerId[server.id] || '' : server.pluginKeyMasked || ''} className="font-mono text-xs pr-10" placeholder={pluginKeyReady ? (hasGlobalPluginApiKey ? 'Cliquez sur Afficher' : 'Collez la clé globale ci-dessus') : 'Générez la clé plugin globale'} />
                       <button type="button" onClick={() => handleTogglePluginKeyVisibility(server.id)} disabled={!pluginKeyReady || pluginLoadingServerId === server.id} className="absolute right-2 top-[30px] text-zinc-500 hover:text-zinc-300 disabled:opacity-40">
                         {pluginKeyVisible[server.id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                     <div className="xl:col-span-4 flex items-end">
-                      <button type="button" onClick={() => handleCopyPluginKey(server.id)} disabled={!pluginKeyReady || pluginLoadingServerId === server.id} className="w-full inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 border border-border hover:bg-muted text-xs font-medium disabled:opacity-60">
+                      <button type="button" onClick={() => handleCopyPluginKey(server.id)} disabled={!pluginKeyReady || pluginLoadingServerId === server.id || (!hasGlobalPluginApiKey && !pluginKeyByServerId[server.id])} className="w-full inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 border border-border hover:bg-muted text-xs font-medium disabled:opacity-60">
                         {pluginLoadingServerId === server.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
                         {copiedPluginKeyServerId === server.id ? 'Clé copiée' : 'Copier clé'}
                       </button>
@@ -405,9 +426,9 @@ export function JellyfinServersSettings() {
                   </div>
 
                   <div className="flex justify-end">
-                    <button type="button" onClick={() => handleRegeneratePluginKey(server.id)} disabled={!pluginKeyReady || pluginLoadingServerId === server.id} className="inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 border border-border hover:bg-muted text-xs font-medium disabled:opacity-60">
+                    <button type="button" onClick={() => handleDeriveServerPluginKey(server.id)} disabled={!pluginKeyReady || pluginLoadingServerId === server.id || !hasGlobalPluginApiKey} className="inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 border border-border hover:bg-muted text-xs font-medium disabled:opacity-60">
                       {pluginLoadingServerId === server.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                      Regenerer la cle
+                      Deriver la cle serveur
                     </button>
                   </div>
                 </div>
