@@ -181,9 +181,9 @@ async function getCleanupData() {
             }
         }
 
-        // Only include media that reached at least the 'abandoned' or 'partial' bucket.
-        // Exclude 'skipped' ("Passé") items which have too little progress to be considered abandoned.
-        if (bestCompletion.percent > 0 && (bestCompletion.bucket === 'partial' || bestCompletion.bucket === 'abandoned')) {
+        // Keep this list strictly for truly abandoned items.
+        // Partial items are not considered abandoned and would otherwise inflate this tab.
+        if (bestCompletion.percent > 0 && bestCompletion.bucket === 'abandoned') {
             abandonedMedia.push({
                 ...media,
                 title: getEnrichedTitle(media),

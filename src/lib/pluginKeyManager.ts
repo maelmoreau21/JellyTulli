@@ -30,14 +30,48 @@ function getPluginKeyPepper(): string {
     return String(process.env.PLUGIN_KEY_PEPPER || "").trim();
 }
 
-function getHashInput(rawKey: string): string {
-    const pepper = getPluginKeyPepper();
+function getPluginKeyLegacyPeppers(): string[] {
+    const raw = String(process.env.PLUGIN_KEY_PREVIOUS_PEPPERS || "").trim();
+    if (!raw) return [];
+
+    return raw
+        .split(",")
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+}
+
+function getPluginKeyPepperCandidates(): string[] {
+    const candidates: string[] = [];
+    const seen = new Set<string>();
+
+    const primaryPepper = getPluginKeyPepper();
+    if (primaryPepper && !seen.has(primaryPepper)) {
+        candidates.push(primaryPepper);
+        seen.add(primaryPepper);
+    }
+
+    for (const legacyPepper of getPluginKeyLegacyPeppers()) {
+        if (seen.has(legacyPepper)) continue;
+        candidates.push(legacyPepper);
+        seen.add(legacyPepper);
+    }
+
+    // Keep no-pepper compatibility to avoid invalidating existing deployments
+    // when a pepper is introduced later.
+    if (!seen.has("")) {
+        candidates.push("");
+    }
+
+    return candidates;
+}
+
+function getHashInput(rawKey: string, pepper: string): string {
     if (!pepper) return rawKey;
     return `${pepper}:${rawKey}`;
 }
 
-async function derivePluginKeyHash(rawKey: string, salt: Buffer): Promise<Buffer> {
-    const derived = await scryptAsync(getHashInput(rawKey), salt, PLUGIN_KEY_HASH_BYTES);
+async function derivePluginKeyHash(rawKey: string, salt: Buffer, pepper: string = getPluginKeyPepper()): Promise<Buffer> {
+    const derived = await scryptAsync(getHashInput(rawKey, pepper), salt, PLUGIN_KEY_HASH_BYTES);
     return Buffer.from(derived as Buffer);
 }
 
@@ -80,14 +114,20 @@ export async function comparePluginApiKey(candidateRaw: string | null | undefine
         return false;
     }
 
-    const computed = await derivePluginKeyHash(candidate, parsed.salt);
-    if (computed.length !== parsed.digest.length) return false;
+    for (const pepperCandidate of getPluginKeyPepperCandidates()) {
+        const computed = await derivePluginKeyHash(candidate, parsed.salt, pepperCandidate);
+        if (computed.length !== parsed.digest.length) continue;
 
-    try {
-        return timingSafeEqual(computed, parsed.digest);
-    } catch {
-        return false;
+        try {
+            if (timingSafeEqual(computed, parsed.digest)) {
+                return true;
+            }
+        } catch {
+            // Continue to next candidate.
+        }
     }
+
+    return false;
 }
 
 interface PluginKeySettingsSnapshot {
