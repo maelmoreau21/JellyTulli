@@ -1,7 +1,6 @@
 "use client";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useTranslations } from "next-intl";
-import ResponsiveContainer from "../charts/ResponsiveContainerGuard";
 import { chartAxisColor, chartGridColor, chartItemStyle, chartLabelStyle, chartTooltipStyle } from "@/lib/chartTheme";
 import { CheckCircle2 } from "lucide-react";
 
@@ -35,9 +34,9 @@ export function HealthAnomalyCharts({ timeline }: { timeline: TimelinePoint[] })
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500">
                     <CheckCircle2 className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground">{t('anomalyDetectedNone') || "Santé parfaite détectée"}</h3>
-                <p className="text-sm text-muted-foreground max-w-sm mt-1">
-                    {t('noRecentEvents') || "Aucun événement critique ou anomalie n'a été enregistré au cours des 14 derniers jours."}
+                <h3 className="text-lg font-bold text-foreground">{t('anomalyDetectedNone')}</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mt-1 mx-auto">
+                    {t('anomalyChartsDesc')}
                 </p>
             </div>
         );
@@ -46,8 +45,8 @@ export function HealthAnomalyCharts({ timeline }: { timeline: TimelinePoint[] })
     return (
         <div className="space-y-3">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('anomalyTimelineTitle')}</h4>
-            <div className="app-surface min-w-0 rounded-lg border border-border p-2">
-                <ResponsiveContainer width="100%" height={320} minHeight={200}>
+            <div className="app-surface min-w-0 rounded-lg border border-border p-2" style={{ height: 360 }}>
+                <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={safeTimeline} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartGridColor} opacity={0.5} />
                         <XAxis
