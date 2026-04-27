@@ -2,7 +2,7 @@
 # 🍐 JellyTrack
 
 <p align="center">
-  <img src="public/logo.svg" width="128" height="128" alt="JellyTrack Logo">
+  <img src="public/logo.svg" width="160" height="160" alt="JellyTrack Logo">
   <br>
   <strong>Observabilité et analytics pour Jellyfin</strong>
   <br>
@@ -14,11 +14,16 @@
   <a href="https://ghcr.io/maelmoreau21/JellyTrack"><img src="https://img.shields.io/badge/GHCR-ghcr.io%2Fmaelmoreau21%2FJellyTrack-blue?logo=github" alt="GHCR Image"></a>
 </p>
 
+> [!CAUTION]
+> ### 🚨 LE PLUGIN JELLYFIN EST OBLIGATOIRE
+> JellyTrack **ne peut pas** collecter de données sans son plugin compagnon installé sur votre serveur Jellyfin. L'application restera vide sans cette étape.
+> [👉 Cliquez ici pour configurer le plugin](#-plugin-jellyfin-requis)
+
 ---
 
-## 🚀 Installation Rapide (Docker)
+## 🚀 Installation (Méthode Recommandée : Docker)
 
-La méthode recommandée pour installer JellyTrack est d'utiliser Docker.
+Docker est la méthode d'installation officielle et recommandée pour garantir la stabilité de l'application.
 
 ### 1. Prérequis
 - Docker et Docker Compose installés.
@@ -77,7 +82,7 @@ Accédez à l'interface sur `http://localhost:3000` et connectez-vous avec votre
 
 ## 🔌 Plugin Jellyfin (REQUIS)
 
-Pour que JellyTrack puisse collecter des données, vous **devez** installer le plugin compagnon sur votre serveur Jellyfin.
+Comme mentionné plus haut, JellyTrack nécessite l'installation du plugin sur votre serveur Jellyfin pour fonctionner.
 
 ### [👉 Télécharger le Plugin JellyTrack](https://github.com/maelmoreau21/JellyTrack.Plugin)
 

@@ -9,11 +9,12 @@ paths:
 
 IMPORTANT - lire integralement ce document avant toute modification.
 
+- IMPORTANT - LE PLUGIN JELLYFIN EST OBLIGATOIRE : JellyTrack ne fonctionne pas sans son plugin compagnon.
+- Le mode d'installation RECOMMANDÉ et CANONIQUE est Docker (`docker-compose.yml`).
 - Ne pas halluciner la structure de donnees: verifier systematiquement `prisma/schema.prisma`.
 - Ne pas halluciner les cles i18n: verifier `messages/*.json`.
 - Ne pas inventer de contrat plugin: verifier `src/app/api/plugin/events/route.ts`.
 - Ne pas faire de `commit`, `push`, creation de branche ou `merge` sans demande explicite utilisateur.
-- Le mode d'installation principal reste Docker (`docker-compose.yml`).
 - Le fichier `.env` est public et versionne comme exemple: placeholders uniquement (`CHANGE_ME_*`), jamais de secrets reels.
 
 ## 1. Stack Technique Canonique
@@ -42,6 +43,7 @@ Source: `src/lib/adminAudit.ts` + `src/app/logs/page.tsx`
 ### 2.3 Branding & Logo
 - Le logo officiel est `public/logo.svg`.
 - Pour une fiabilite maximale (eviter les problemes de chargement de fichiers statiques sur la page de login), le code SVG est **inclus directement (inlined)** dans `src/app/login/page.tsx` et `src/components/Sidebar.tsx`.
+- **Note** : Le logo doit être présent et visible sur toutes les interfaces principales pour renforcer l'identité visuelle.
 
 ## 3. Arborescence de Travail (vue utile)
 
