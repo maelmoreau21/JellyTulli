@@ -31,7 +31,7 @@ export default async function LoginPage() {
                                         </mask>
                                     </defs>
                                     <path d="M 20 55 A 30 30 0 0 1 80 55 Z" fill="url(#jellyGradLogin)" mask="url(#holeMaskLogin)" />
-                                    <polygon points="46,32 46,46 58,39" fill="#00A4DC" />
+                                    <path d="M 45.5 31 L 45.5 47 L 59 39 Z" fill="#00A4DC" stroke="#00A4DC" stroke-width="2.5" stroke-linejoin="round" />
                                     <rect x="30" y="60" width="8" height="20" rx="4" fill="url(#jellyGradLogin)" />
                                     <rect x="46" y="60" width="8" height="30" rx="4" fill="url(#jellyGradLogin)" />
                                     <rect x="62" y="60" width="8" height="15" rx="4" fill="url(#jellyGradLogin)" />

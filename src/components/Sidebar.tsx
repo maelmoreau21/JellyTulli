@@ -82,8 +82,8 @@ export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {
         <>
             <div className="flex h-16 shrink-0 items-center border-b border-sidebar-border bg-sidebar px-5">
                 <Link href={isAdmin ? "/" : `/users/${jellyfinUserId || ''}`} className="flex items-center gap-2 text-lg font-semibold tracking-tight text-sidebar-foreground transition-opacity hover:opacity-90">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent overflow-hidden shadow-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-10 h-10">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent overflow-hidden shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-7 h-7">
                             <defs>
                                 <linearGradient id="jellyGradSidebar" x1="0%" y1="0%" x2="100%" y2="100%">
                                     <stop offset="0%" stopColor="#AA5CC3" />
@@ -95,7 +95,7 @@ export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {
                                 </mask>
                             </defs>
                             <path d="M 5 50 A 45 45 0 0 1 95 50 Z" fill="url(#jellyGradSidebar)" mask="url(#holeMaskSidebar)" />
-                            <polygon points="41,22 41,42 62,32" fill="#00A4DC" />
+                            <path d="M 44 21 L 44 39 L 62 30 Z" fill="#00A4DC" stroke="#00A4DC" stroke-width="3" stroke-linejoin="round" />
                             <rect x="12" y="55" width="14" height="35" rx="7" fill="url(#jellyGradSidebar)" />
                             <rect x="43" y="55" width="14" height="45" rx="7" fill="url(#jellyGradSidebar)" />
                             <rect x="74" y="55" width="14" height="30" rx="7" fill="url(#jellyGradSidebar)" />
@@ -179,7 +179,7 @@ export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {
                     <Menu className="w-6 h-6" />
                 </button>
                 <Link href={isAdmin ? "/" : `/users/${jellyfinUserId || ''}`} className="ml-3 text-lg font-bold tracking-tight text-primary flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-10 h-10">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-8 h-8">
                         <defs>
                             <linearGradient id="jellyGradMobile" x1="0%" y1="0%" x2="100%" y2="100%">
                                 <stop offset="0%" stopColor="#AA5CC3" />
@@ -191,7 +191,7 @@ export function Sidebar({ isWrappedVisible }: { isWrappedVisible?: boolean }) {
                             </mask>
                         </defs>
                         <path d="M 5 50 A 45 45 0 0 1 95 50 Z" fill="url(#jellyGradMobile)" mask="url(#holeMaskMobile)" />
-                        <polygon points="41,22 41,42 62,32" fill="#00A4DC" />
+                        <path d="M 44 21 L 44 39 L 62 30 Z" fill="#00A4DC" stroke="#00A4DC" stroke-width="3" stroke-linejoin="round" />
                         <rect x="12" y="55" width="14" height="35" rx="7" fill="url(#jellyGradMobile)" />
                         <rect x="43" y="55" width="14" height="45" rx="7" fill="url(#jellyGradMobile)" />
                         <rect x="74" y="55" width="14" height="30" rx="7" fill="url(#jellyGradMobile)" />

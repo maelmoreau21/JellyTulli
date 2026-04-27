@@ -14,8 +14,8 @@
   <!-- Jellyfish dome — larger, touching top -->
   <path d="M 5 50 A 45 45 0 0 1 95 50 Z" fill="url(#jellyGrad)" mask="url(#holeMask)" />
 
-  <!-- Play triangle — larger and centered in the dome -->
-  <polygon points="41,22 41,42 62,32" fill="#00A4DC" />
+  <!-- Play triangle — rounded and centered in the dome -->
+  <path d="M 44 21 L 44 39 L 62 30 Z" fill="#00A4DC" stroke="#00A4DC" stroke-width="3" stroke-linejoin="round" />
 
   <!-- Tentacles — longer and spread wider -->
   <rect x="12" y="55" width="14" height="35" rx="7" fill="url(#jellyGrad)" />
