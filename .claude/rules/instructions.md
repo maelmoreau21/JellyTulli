@@ -1,11 +1,11 @@
 ---
-description: "Instructions et memoire pour agents IA - JellyTrack v1.5.0"
+description: "Instructions et memoire pour agents IA - JellyTrack v1.5.1"
 paths:
   - "."
   - "src/**/*.ts"
 ---
 
-# JellyTrack - Instructions & Memoire Agents IA (v1.5.0)
+# JellyTrack - Instructions & Memoire Agents IA (v1.5.1)
 
 IMPORTANT - lire integralement ce document avant toute modification.
 
@@ -28,7 +28,7 @@ IMPORTANT - lire integralement ce document avant toute modification.
 - Graphiques: Recharts
 - i18n: next-intl + fichiers `messages/*.json`
 
-## 2. Architecture Securite v1.5.0 (reference)
+## 2. Architecture Securite v1.5.1 (reference)
 
 ### 2.1 Plugin API Key - Hash-at-Rest
 Source: `src/lib/pluginKeyManager.ts` + `src/app/api/plugin/events/route.ts`
@@ -40,8 +40,9 @@ Source: `src/lib/adminAudit.ts` + `src/app/logs/page.tsx`
 - **Audit de Connexion** : Chaque connexion reussie est enregistree via `writeAdminAuditLog` dans `authOptions.ts`.
 - **Filtrage des Logs** : Les logs de type `monitor_ping` (heartbeats) sont désormais filtres au niveau de la requete Prisma dans `logs/page.tsx` pour ne pas polluer l'interface. Ils restent stockes en DB mais sont invisibles dans l'onglet "Système" par defaut.
 
-### 2.3 Branding & Logo
+### 2.3 Branding & Logo (v1.5.1)
 - Le logo officiel est `public/logo.svg`.
+- **Optimisation** : Le logo a été optimisé en version "borderless" (sans marges inutiles) pour une visibilité maximale en tant que favicon et icône d'application.
 - Pour une fiabilite maximale (eviter les problemes de chargement de fichiers statiques sur la page de login), le code SVG est **inclus directement (inlined)** dans `src/app/login/page.tsx` et `src/components/Sidebar.tsx`.
 - **Note** : Le logo doit être présent et visible sur toutes les interfaces principales pour renforcer l'identité visuelle.
 
@@ -57,7 +58,7 @@ Source: `src/lib/adminAudit.ts` + `src/app/logs/page.tsx`
 - `prisma/schema.prisma`: source de verite du modele
 - `messages/*.json`: traductions multi-locales
 
-## 4. Prisma - Resume Canonique (v1.5.0)
+## 4. Prisma - Resume Canonique (v1.5.1)
 
 Modeles cles:
 - `Server`: `id`, `jellyfinServerId`, `name`, `url`, `jellyfinApiKey`, `isActive`.
@@ -78,8 +79,8 @@ Avant finalisation:
 1. Verifier les impacts schema si code data modifie.
 2. Verifier les traductions sur toutes locales.
 3. Executer `npm run build`.
-4. Verifier que le logo inlined est present si une modification est faite sur le header/login.
+4. Verifier que le logo inlined est présent et correspond à la version optimisée (v1.5.1).
 
 ---
-Ce document est la reference agents IA pour JellyTrack v1.5.0.
+Ce document est la reference agents IA pour JellyTrack v1.5.1.
 Toute evolution structurelle doit mettre a jour ce fichier.

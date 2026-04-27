@@ -20,7 +20,6 @@ export const metadata: Metadata = {
   description: 'Advanced analytics for Jellyfin',
   icons: {
     icon: '/logo.svg',
-    shortcut: '/logo.svg',
     apple: '/logo.svg',
   },
 }
