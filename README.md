@@ -1,35 +1,34 @@
-
-# 🍐 JellyTrack
-
 <p align="center">
-  <img src="public/logo.svg" width="160" height="160" alt="JellyTrack Logo">
-  <br>
-  <strong>Observabilité et analytics pour Jellyfin</strong>
-  <br>
-  <em>Sessions en direct, historique enrichi, métriques de lecture, backups et intégrations.</em>
+  <img src="public/logo.svg" width="128" height="128" alt="JellyTrack Logo">
 </p>
+
+<h1 align="center">JellyTrack</h1>
 
 <p align="center">
   <a href="https://github.com/maelmoreau21/JellyTrack/actions/workflows/docker-publish.yml"><img src="https://github.com/maelmoreau21/JellyTrack/actions/workflows/docker-publish.yml/badge.svg" alt="Docker Build"></a>
   <a href="https://ghcr.io/maelmoreau21/JellyTrack"><img src="https://img.shields.io/badge/GHCR-ghcr.io%2Fmaelmoreau21%2FJellyTrack-blue?logo=github" alt="GHCR Image"></a>
 </p>
 
+<p align="center">
+  <strong>Observabilité et analytics pour Jellyfin : sessions en direct, historique enrichi et métriques de lecture.</strong>
+</p>
+
+---
+
 > [!CAUTION]
 > ### 🚨 LE PLUGIN JELLYFIN EST OBLIGATOIRE
-> JellyTrack **ne peut pas** collecter de données sans son plugin compagnon installé sur votre serveur Jellyfin. L'application restera vide sans cette étape.
-> [👉 Cliquez ici pour configurer le plugin](#-plugin-jellyfin-requis)
+> JellyTrack **ne peut pas** collecter de données sans son plugin compagnon installé sur votre serveur Jellyfin.
+> 
+> [👉 Cliquez ici pour configurer le plugin](https://github.com/maelmoreau21/JellyTrack.Plugin)
 
 ---
 
 ## 🚀 Installation (Méthode Recommandée : Docker)
 
-Docker est la méthode d'installation officielle et recommandée pour garantir la stabilité de l'application.
+L'utilisation de **Docker Compose** est le moyen le plus simple et recommandé pour déployer JellyTrack.
 
-### 1. Prérequis
-- Docker et Docker Compose installés.
-- Une instance Jellyfin accessible.
+### 1. Déploiement
 
-### 2. Déploiement
 Créez un fichier `docker-compose.yml` :
 
 ```yaml
@@ -71,44 +70,41 @@ volumes:
   jellytrack-db-data:
 ```
 
-Puis lancez la stack :
+### 2. Lancement
+
 ```bash
 docker compose up -d
 ```
 
-Accédez à l'interface sur `http://localhost:3000` et connectez-vous avec votre `ADMIN_PASSWORD`.
+### 3. Accès
 
----
-
-## 🔌 Plugin Jellyfin (REQUIS)
-
-Comme mentionné plus haut, JellyTrack nécessite l'installation du plugin sur votre serveur Jellyfin pour fonctionner.
-
-### [👉 Télécharger le Plugin JellyTrack](https://github.com/maelmoreau21/JellyTrack.Plugin)
-
-#### Installation via Dépôt (Recommandé) :
-1. Dans Jellyfin : **Tableau de bord** > **Plugins** > **Dépôts**.
-2. Ajoutez un nouveau dépôt :
-   - **Nom** : JellyTrack
-   - **URL** : `https://raw.githubusercontent.com/maelmoreau21/JellyTrack.Plugin/main/manifest.json`
-3. Allez dans **Catalogue**, cherchez **JellyTrack** et installez-le.
-4. Redémarrez Jellyfin.
+Rendez-vous sur `http://localhost:3000` et connectez-vous avec votre `ADMIN_PASSWORD`.
 
 ---
 
 ## 🌟 Fonctionnalités
 
 - **Dashboard Live** : Visualisez qui regarde quoi en temps réel (Direct Play vs Transcode, débit, etc.).
-- **Historique Enrichi** : Historique complet des lectures avec détails techniques (codecs, sous-titres, langues).
-- **Statistiques & Tendances** : Tops utilisateurs, médias les plus vus, tendances par jour/heure.
-- **Journaux Système & Audit** : Suivi des connexions admin et de la santé de la synchronisation.
-- **Sécurité** : Authentification via Jellyfin, hachage des clés API, et support du mode multi-serveur.
+- **Historique Enrichi** : Détails techniques complets (codecs, sous-titres, langues).
+- **Statistiques & Tendances** : Tops utilisateurs, médias les plus vus, graphiques d'activité.
+- **Journaux Système & Audit** : Suivi de la santé de la synchronisation.
+- **Sécurité** : Authentification via Jellyfin, hachage des clés API, support multi-serveur.
 
-## 🛠️ Configuration Avancée
+---
 
-Consultez le fichier [instructions.md](.claude/rules/instructions.md) pour les détails techniques sur l'architecture et les variables d'environnement.
+## 🔌 Configuration du Plugin
+
+Une fois le serveur installé, vous devez configurer le plugin sur votre instance Jellyfin pour commencer à recevoir des données.
+
+**Dépôt du Plugin :** [JellyTrack.Plugin](https://github.com/maelmoreau21/JellyTrack.Plugin)
+
+1. Dans Jellyfin : **Tableau de bord** > **Plugins** > **Dépôts**.
+2. URL du dépôt : `https://raw.githubusercontent.com/maelmoreau21/JellyTrack.Plugin/main/manifest.json`
+3. Installez le plugin **JellyTrack** depuis le catalogue.
+
+---
 
 ## 📄 Licence
-Projet personnel — usage privé.
 
+Projet personnel — usage privé.
 Built with Next.js, Prisma, Redis & beaucoup de ☕
