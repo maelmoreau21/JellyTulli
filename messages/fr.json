@@ -22,7 +22,7 @@
     "techCron": "Planificateur de tâches automatique",
     "techNextAuth": "Authentification via Jellyfin",
     "techNextjs": "Framework React full-stack avec App Router",
-    "techPrisma": "ORM pour PostgreSQL",
+    "techPrisma": "Prisma ORM",
     "techReact": "Bibliothèque d'interface utilisateur",
     "techRecharts": "Bibliothèque de graphiques React",
     "technologies": "Technologies",
@@ -690,8 +690,10 @@
     "recentlyAdded": "Ajoutés récemment",
     "settings": "Paramètres",
     "users": "Utilisateurs",
-    "serverCompare": "Comparaison serveurs",
-    "pluginHealth": "Santé du plugin"
+    "serverCompare": "Comparaison de serveurs",
+    "pluginHealth": "Santé du plugin",
+    "backupServerActive": "Serveur de secours actif",
+    "backupServerDesc": "Connecté sur {server}. Le serveur principal est indisponible."
   },
   "network": {
     "audioHDNotSupported": "Audio HD non supporté",
@@ -942,7 +944,25 @@
     "newSecondaryServer": "Nouveau serveur secondaire",
     "allowAuthFallback": "Autoriser ce serveur en fallback d'authentification",
     "addThisServer": "Ajouter ce serveur",
-    "addServerPermanentDesc": "Le bouton \"Ajouter un serveur\" reste disponible en permanence pour en ajouter autant que nécessaire."
+    "addServerPermanentDesc": "Le bouton \"Ajouter un serveur\" reste disponible pour en ajouter autant que nécessaire.",
+    "overviewTitle": "Vue d'ensemble",
+    "summary": "Résumé",
+    "overviewSummaryDesc": "Résumé rapide des paramètres et états (ex : plugin connecté, sauvegardes récentes, tâches planifiées).",
+    "quickActions": "Actions rapides",
+    "quickActionsDesc": "Boutons et raccourcis pour les actions fréquentes.",
+    "maxConcurrentTranscodesTitle": "Seuil de Transcodes Simultanés",
+    "maxConcurrentTranscodesDesc": "0 = désactivé. Alerte si le nombre dépasse ce seuil.",
+    "backupsCount": "Sauvegardes",
+    "totalSize": "Taille totale",
+    "latestBackup": "Dernière sauvegarde",
+    "quickActionsBackupDesc": "Créer une sauvegarde immédiate ou exporter l'état actuel de la base.",
+    "quickActionsRestoreDesc": "Chargez un fichier JSON de sauvegarde puis restaurez la base.",
+    "backupHistory": "Historique des sauvegardes",
+    "backupHistoryDesc": "Restaurez ou supprimez une sauvegarde existante.",
+    "file": "Fichier",
+    "actions": "Actions",
+    "confirmDeleteBackup": "Supprimer cette sauvegarde ?",
+    "confirmRestoreBackup": "La restauration remplacera votre base actuelle. Continuer ?"
   },
   "timeRange": {
     "allTime": "Tout temps",

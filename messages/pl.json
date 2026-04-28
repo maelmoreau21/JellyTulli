@@ -22,7 +22,7 @@
     "techCron": "Automatyzacja zadań",
     "techNextAuth": "Bezpieczne logowanie",
     "techNextjs": "Szybki framework React",
-    "techPrisma": "Bezpieczna baza danych",
+    "techPrisma": "Prisma ORM",
     "techReact": "Nowoczesny interfejs użytkownika",
     "techRecharts": "Profesjonalne wykresy",
     "technologies": "Technologie",
@@ -63,7 +63,8 @@
     "vsAverage": "vs śr.",
     "watchTime": "Czas widowni",
     "weekdays": "Nie,Pon,Wt,Śr,Czw,Pt,Sob",
-    "yearlyActivity": "Aktywność roczna"
+    "yearlyActivity": "Aktywność roczna",
+    "viewLogs": "View logs"
   },
   "cleanup": {
     "abandoned": "Porzucone",
@@ -191,7 +192,8 @@
     "unknownSeries": "Nieznany serial",
     "view": "wyświetlenie",
     "viewers": "widzowie",
-    "views": "wyświetlenia"
+    "views": "wyświetlenia",
+    "directStream": "Direct stream"
   },
   "dashboard": {
     "abandoned": "Porzucone",
@@ -420,7 +422,8 @@
     "subtitles": "Napisy",
     "subtitlesDesc": "Użycie i języki napisów.",
     "worstCompletion": "Najczęściej porzucane",
-    "worstCompletionDesc": "Treści, które najrzadziej są oglądane do końca."
+    "worstCompletionDesc": "Treści, które najrzadziej są oglądane do końca.",
+    "unknown": "Unknown"
   },
   "hardware": {
     "cpuUsage": "Użycie CPU",
@@ -439,7 +442,8 @@
     "timelineView": "Timeline View",
     "cardsView": "Cards View",
     "transcodeAbbr": "TC",
-    "directPlayAbbr": "DP"
+    "directPlayAbbr": "DP",
+    "unknown": "Unknown"
   },
   "login": {
     "loadingForm": "Przygotowanie...",
@@ -691,7 +695,9 @@
     "settings": "Ustawienia",
     "users": "Użytkownicy",
     "serverCompare": "Server Compare",
-    "pluginHealth": "Plugin Health"
+    "pluginHealth": "Plugin Health",
+    "backupServerActive": "Backup server active",
+    "backupServerDesc": "Connected to {server}. The primary server is unavailable."
   },
   "network": {
     "audioHDNotSupported": "Audio HD nieobsługiwane",
@@ -942,7 +948,28 @@
     "newSecondaryServer": "Nowy serwer pomocniczy",
     "allowAuthFallback": "Zezwalaj na ten serwer jako awaryjny dla autoryzacji",
     "addThisServer": "Dodaj ten serwer",
-    "addServerPermanentDesc": "Przycisk \"Dodaj serwer\" pozostaje dostępny, aby dodać ich tyle, ile potrzeba."
+    "addServerPermanentDesc": "Przycisk \"Dodaj serwer\" pozostaje dostępny, aby dodać ich tyle, ile potrzeba.",
+    "overviewTitle": "Overview",
+    "summary": "Summary",
+    "overviewSummaryDesc": "Quick summary of settings and states (e.g., plugin connected, recent backups, scheduled tasks).",
+    "quickActions": "Quick Actions",
+    "quickActionsDesc": "Buttons and shortcuts for frequent actions.",
+    "maxConcurrentTranscodesTitle": "Simultaneous Transcodes Threshold",
+    "backupsCount": "Backups",
+    "totalSize": "Total Size",
+    "latestBackup": "Latest Backup",
+    "quickActionsBackupDesc": "Create an immediate backup or export the current database state.",
+    "quickActionsRestoreDesc": "Load a backup JSON file then restore the database.",
+    "backupHistory": "Backup History",
+    "backupHistoryDesc": "Restore or delete an existing backup.",
+    "file": "File",
+    "actions": "Actions",
+    "confirmDeleteBackup": "Delete this backup?",
+    "confirmRestoreBackup": "Restoring will replace your current database. Continue?",
+    "backupError": "Error creating backup.",
+    "deleteError": "Error deleting backup.",
+    "restoreError": "Error restoring backup.",
+    "saving": "Saving..."
   },
   "timeRange": {
     "allTime": "Cały czas",
@@ -1172,5 +1199,62 @@
     "filterAllEvents": "All events",
     "filterNewCountrySuccess": "Successful login from a new country",
     "filterIpBurst": "Same IP >= {threshold} attempts"
+  },
+  "anomalyChartsDesc": "14-day view of monitor, sync and backup errors, plus detected auto-cleanups.",
+  "anomalyChartsTitle": "Anomaly charts",
+  "dbWithoutRedis": "DB without Redis",
+  "dbWithoutRedisDesc": "ActiveStream records are present in the database but missing from the Redis cache.",
+  "excludedLibrariesDesc": "Libraries completely ignored for logs and analytics.",
+  "excludedLibrariesTitle": "Excluded libraries",
+  "lastPoll": "Last poll",
+  "logHealth": "Log health",
+  "logHealthDesc": "Overview of the monitor, orphan sessions, auto-closures and excluded libraries.",
+  "monitor": "Monitor",
+  "monitorStatusError": "Error",
+  "monitorStatusOk": "OK",
+  "multiServerComparator": {
+    "desc": "Compare current load, transcoding pressure and heartbeat freshness across Jellyfin servers.",
+    "disabled": "This view requires multi-server mode. Set JELLYTRACK_MODE=multi to enable.",
+    "title": "Multi-server Comparator"
+  },
+  "never": "Never",
+  "noExcludedLibraries": "No excluded libraries.",
+  "noOrphanPlaybacks": "No orphan playback detected.",
+  "openPlaybackOrphans": "Open playback orphans",
+  "orphanPlaybacksDesc": "Entries marked open but without an active playback stream.",
+  "orphanPlaybacksTitle": "Open orphan playbacks",
+  "playbackHistoryNote": "PlaybackHistory open without an associated ActiveStream.",
+  "recentClosuresDesc": "Summary of cleanups performed by monitor, sync and backups.",
+  "recentClosuresTitle": "Recent auto-closures",
+  "redisOrphan": "Redis orphan keys",
+  "redisOrphanDesc": "Redis keys referencing streams without a corresponding ActiveStream.",
+  "running": "Running",
+  "system": {
+    "colMessage": "Message",
+    "colSource": "Source",
+    "colUser": "Actor",
+    "typeAudit": "Audit",
+    "typeHealth": "Health"
+  },
+  "timeline": {
+    "label": {
+      "audio_change": "Audio change",
+      "default": "Event",
+      "pause": "Pause",
+      "seek": "Seek",
+      "stop": "Stop",
+      "subtitle_change": "Subtitle change"
+    },
+    "legend": {
+      "audio": "Audio",
+      "pause": "Pause",
+      "subtitles": "Subtitles"
+    },
+    "noEvents": "No events recorded.",
+    "stop": "Stop",
+    "title": "Timeline",
+    "toggle": {
+      "exact": "Exact"
+    }
   }
 }

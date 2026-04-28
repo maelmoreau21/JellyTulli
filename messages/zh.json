@@ -22,7 +22,7 @@
     "techCron": "自动任务调度器",
     "techNextAuth": "通过 Jellyfin 登录",
     "techNextjs": "带 App Router 的全栈 React 框架",
-    "techPrisma": "PostgreSQL ORM",
+    "techPrisma": "Prisma ORM",
     "techReact": "用户界面库",
     "techRecharts": "React 图表库",
     "technologies": "技术组合",
@@ -63,7 +63,8 @@
     "vsAverage": "与平均相比",
     "watchTime": "观众总时长",
     "weekdays": "日,一,二,三,四,五,六",
-    "yearlyActivity": "年度活动走势"
+    "yearlyActivity": "年度活动走势",
+    "viewLogs": "View logs"
   },
   "cleanup": {
     "abandoned": "已放弃",
@@ -191,7 +192,8 @@
     "unknownSeries": "未知剧集",
     "view": "次观看",
     "viewers": "位观众",
-    "views": "次观看"
+    "views": "次观看",
+    "directStream": "Direct stream"
   },
   "dashboard": {
     "abandoned": "已放弃",
@@ -420,7 +422,8 @@
     "subtitles": "字幕",
     "subtitlesDesc": "启用/禁用状态及对应语言。",
     "worstCompletion": "最低完成率",
-    "worstCompletionDesc": "被放弃频率最高的前 5 名媒体。"
+    "worstCompletionDesc": "被放弃频率最高的前 5 名媒体。",
+    "unknown": "Unknown"
   },
   "hardware": {
     "cpuUsage": "CPU 使用率",
@@ -439,7 +442,8 @@
     "timelineView": "Timeline View",
     "cardsView": "Cards View",
     "transcodeAbbr": "TC",
-    "directPlayAbbr": "DP"
+    "directPlayAbbr": "DP",
+    "unknown": "Unknown"
   },
   "login": {
     "loadingForm": "加载表单中...",
@@ -691,7 +695,9 @@
     "settings": "设置",
     "users": "用户",
     "serverCompare": "Server Compare",
-    "pluginHealth": "Plugin Health"
+    "pluginHealth": "Plugin Health",
+    "backupServerActive": "Backup server active",
+    "backupServerDesc": "Connected to {server}. The primary server is unavailable."
   },
   "network": {
     "audioHDNotSupported": "不支持高清音频",
@@ -942,7 +948,28 @@
     "newSecondaryServer": "新辅助服务器",
     "allowAuthFallback": "允许此服务器作为身份验证备用",
     "addThisServer": "添加此服务器",
-    "addServerPermanentDesc": "“添加服务器”按钮将始终可用，以便根据需要添加更多服务器。"
+    "addServerPermanentDesc": "“添加服务器”按钮将始终可用，以便根据需要添加更多服务器。",
+    "overviewTitle": "Overview",
+    "summary": "Summary",
+    "overviewSummaryDesc": "Quick summary of settings and states (e.g., plugin connected, recent backups, scheduled tasks).",
+    "quickActions": "Quick Actions",
+    "quickActionsDesc": "Buttons and shortcuts for frequent actions.",
+    "maxConcurrentTranscodesTitle": "Simultaneous Transcodes Threshold",
+    "backupsCount": "Backups",
+    "totalSize": "Total Size",
+    "latestBackup": "Latest Backup",
+    "quickActionsBackupDesc": "Create an immediate backup or export the current database state.",
+    "quickActionsRestoreDesc": "Load a backup JSON file then restore the database.",
+    "backupHistory": "Backup History",
+    "backupHistoryDesc": "Restore or delete an existing backup.",
+    "file": "File",
+    "actions": "Actions",
+    "confirmDeleteBackup": "Delete this backup?",
+    "confirmRestoreBackup": "Restoring will replace your current database. Continue?",
+    "backupError": "Error creating backup.",
+    "deleteError": "Error deleting backup.",
+    "restoreError": "Error restoring backup.",
+    "saving": "Saving..."
   },
   "timeRange": {
     "allTime": "全部时间",
@@ -1172,5 +1199,62 @@
     "filterAllEvents": "All events",
     "filterNewCountrySuccess": "Successful login from a new country",
     "filterIpBurst": "Same IP >= {threshold} attempts"
+  },
+  "anomalyChartsDesc": "14-day view of monitor, sync and backup errors, plus detected auto-cleanups.",
+  "anomalyChartsTitle": "Anomaly charts",
+  "dbWithoutRedis": "DB without Redis",
+  "dbWithoutRedisDesc": "ActiveStream records are present in the database but missing from the Redis cache.",
+  "excludedLibrariesDesc": "Libraries completely ignored for logs and analytics.",
+  "excludedLibrariesTitle": "Excluded libraries",
+  "lastPoll": "Last poll",
+  "logHealth": "Log health",
+  "logHealthDesc": "Overview of the monitor, orphan sessions, auto-closures and excluded libraries.",
+  "monitor": "Monitor",
+  "monitorStatusError": "Error",
+  "monitorStatusOk": "OK",
+  "multiServerComparator": {
+    "desc": "Compare current load, transcoding pressure and heartbeat freshness across Jellyfin servers.",
+    "disabled": "This view requires multi-server mode. Set JELLYTRACK_MODE=multi to enable.",
+    "title": "Multi-server Comparator"
+  },
+  "never": "Never",
+  "noExcludedLibraries": "No excluded libraries.",
+  "noOrphanPlaybacks": "No orphan playback detected.",
+  "openPlaybackOrphans": "Open playback orphans",
+  "orphanPlaybacksDesc": "Entries marked open but without an active playback stream.",
+  "orphanPlaybacksTitle": "Open orphan playbacks",
+  "playbackHistoryNote": "PlaybackHistory open without an associated ActiveStream.",
+  "recentClosuresDesc": "Summary of cleanups performed by monitor, sync and backups.",
+  "recentClosuresTitle": "Recent auto-closures",
+  "redisOrphan": "Redis orphan keys",
+  "redisOrphanDesc": "Redis keys referencing streams without a corresponding ActiveStream.",
+  "running": "Running",
+  "system": {
+    "colMessage": "Message",
+    "colSource": "Source",
+    "colUser": "Actor",
+    "typeAudit": "Audit",
+    "typeHealth": "Health"
+  },
+  "timeline": {
+    "label": {
+      "audio_change": "Audio change",
+      "default": "Event",
+      "pause": "Pause",
+      "seek": "Seek",
+      "stop": "Stop",
+      "subtitle_change": "Subtitle change"
+    },
+    "legend": {
+      "audio": "Audio",
+      "pause": "Pause",
+      "subtitles": "Subtitles"
+    },
+    "noEvents": "No events recorded.",
+    "stop": "Stop",
+    "title": "Timeline",
+    "toggle": {
+      "exact": "Exact"
+    }
   }
 }

@@ -22,7 +22,7 @@
     "techCron": "Programador automático de tareas",
     "techNextAuth": "Autenticación vía Jellyfin",
     "techNextjs": "Framework React full-stack con App Router",
-    "techPrisma": "ORM para PostgreSQL",
+    "techPrisma": "Prisma ORM",
     "techReact": "Biblioteca de interfaz de usuario",
     "techRecharts": "Biblioteca de gráficos React",
     "technologies": "Tecnologías",
@@ -63,7 +63,8 @@
     "vsAverage": "vs prom.",
     "watchTime": "Tiempo de reproducción",
     "weekdays": "Dom,Lun,Mar,Mié,Jue,Vie,Sáb",
-    "yearlyActivity": "Actividad anual"
+    "yearlyActivity": "Actividad anual",
+    "viewLogs": "View logs"
   },
   "cleanup": {
     "abandoned": "Abandonado",
@@ -191,7 +192,8 @@
     "unknownSeries": "Serie desconocida",
     "view": "vista",
     "viewers": "espectadores",
-    "views": "vistas"
+    "views": "vistas",
+    "directStream": "Direct stream"
   },
   "dashboard": {
     "abandoned": "Abandonado",
@@ -420,7 +422,8 @@
     "subtitles": "Subtítulos",
     "subtitlesDesc": "Activados vs Desactivados e idiomas.",
     "worstCompletion": "Peores tasas de finalización",
-    "worstCompletionDesc": "Top 5 medios más abandonados repetidamente."
+    "worstCompletionDesc": "Top 5 medios más abandonados repetidamente.",
+    "unknown": "Unknown"
   },
   "hardware": {
     "cpuUsage": "Uso de CPU",
@@ -439,7 +442,8 @@
     "timelineView": "Timeline View",
     "cardsView": "Cards View",
     "transcodeAbbr": "TC",
-    "directPlayAbbr": "DP"
+    "directPlayAbbr": "DP",
+    "unknown": "Unknown"
   },
   "login": {
     "loadingForm": "Cargando formulario...",
@@ -691,7 +695,9 @@
     "settings": "Ajustes",
     "users": "Usuarios",
     "serverCompare": "Server Compare",
-    "pluginHealth": "Plugin Health"
+    "pluginHealth": "Plugin Health",
+    "backupServerActive": "Backup server active",
+    "backupServerDesc": "Connected to {server}. The primary server is unavailable."
   },
   "network": {
     "audioHDNotSupported": "Audio HD no compatible",
@@ -942,7 +948,28 @@
     "newSecondaryServer": "Nuevo servidor secundario",
     "allowAuthFallback": "Permitir este servidor para respaldo de autenticación",
     "addThisServer": "Añadir este servidor",
-    "addServerPermanentDesc": "El botón \"Añadir servidor\" permanece disponible para añadir tantos como sea necesario."
+    "addServerPermanentDesc": "El botón \"Añadir servidor\" permanece disponible para añadir tantos como sea necesario.",
+    "overviewTitle": "Vista general",
+    "summary": "Resumen",
+    "overviewSummaryDesc": "Resumen rápido de ajustes y estados (ej: plugin conectado, copias recientes, tareas programadas).",
+    "quickActions": "Acciones rápidas",
+    "quickActionsDesc": "Botones y atajos para acciones frecuentes.",
+    "maxConcurrentTranscodesTitle": "Umbral de transcódificaciones simultáneas",
+    "backupsCount": "Copias de seguridad",
+    "totalSize": "Tamaño total",
+    "latestBackup": "Última copia",
+    "quickActionsBackupDesc": "Crear una copia inmediata o exportar el estado actual de la base.",
+    "quickActionsRestoreDesc": "Cargar un archivo JSON de copia y restaurar la base.",
+    "backupHistory": "Historial de copias",
+    "backupHistoryDesc": "Restaurar o eliminar una copia existente.",
+    "file": "Archivo",
+    "actions": "Acciones",
+    "confirmDeleteBackup": "¿Eliminar esta copia de seguridad?",
+    "confirmRestoreBackup": "La restauración reemplazará su base de datos actual. ¿Continuar?",
+    "backupError": "Error creating backup.",
+    "deleteError": "Error deleting backup.",
+    "restoreError": "Error restoring backup.",
+    "saving": "Saving..."
   },
   "timeRange": {
     "allTime": "Todo el tiempo",
@@ -1172,5 +1199,62 @@
     "filterAllEvents": "All events",
     "filterNewCountrySuccess": "Successful login from a new country",
     "filterIpBurst": "Same IP >= {threshold} attempts"
+  },
+  "anomalyChartsDesc": "14-day view of monitor, sync and backup errors, plus detected auto-cleanups.",
+  "anomalyChartsTitle": "Anomaly charts",
+  "dbWithoutRedis": "DB without Redis",
+  "dbWithoutRedisDesc": "ActiveStream records are present in the database but missing from the Redis cache.",
+  "excludedLibrariesDesc": "Libraries completely ignored for logs and analytics.",
+  "excludedLibrariesTitle": "Excluded libraries",
+  "lastPoll": "Last poll",
+  "logHealth": "Log health",
+  "logHealthDesc": "Overview of the monitor, orphan sessions, auto-closures and excluded libraries.",
+  "monitor": "Monitor",
+  "monitorStatusError": "Error",
+  "monitorStatusOk": "OK",
+  "multiServerComparator": {
+    "desc": "Compare current load, transcoding pressure and heartbeat freshness across Jellyfin servers.",
+    "disabled": "This view requires multi-server mode. Set JELLYTRACK_MODE=multi to enable.",
+    "title": "Multi-server Comparator"
+  },
+  "never": "Never",
+  "noExcludedLibraries": "No excluded libraries.",
+  "noOrphanPlaybacks": "No orphan playback detected.",
+  "openPlaybackOrphans": "Open playback orphans",
+  "orphanPlaybacksDesc": "Entries marked open but without an active playback stream.",
+  "orphanPlaybacksTitle": "Open orphan playbacks",
+  "playbackHistoryNote": "PlaybackHistory open without an associated ActiveStream.",
+  "recentClosuresDesc": "Summary of cleanups performed by monitor, sync and backups.",
+  "recentClosuresTitle": "Recent auto-closures",
+  "redisOrphan": "Redis orphan keys",
+  "redisOrphanDesc": "Redis keys referencing streams without a corresponding ActiveStream.",
+  "running": "Running",
+  "system": {
+    "colMessage": "Message",
+    "colSource": "Source",
+    "colUser": "Actor",
+    "typeAudit": "Audit",
+    "typeHealth": "Health"
+  },
+  "timeline": {
+    "label": {
+      "audio_change": "Audio change",
+      "default": "Event",
+      "pause": "Pause",
+      "seek": "Seek",
+      "stop": "Stop",
+      "subtitle_change": "Subtitle change"
+    },
+    "legend": {
+      "audio": "Audio",
+      "pause": "Pause",
+      "subtitles": "Subtitles"
+    },
+    "noEvents": "No events recorded.",
+    "stop": "Stop",
+    "title": "Timeline",
+    "toggle": {
+      "exact": "Exact"
+    }
   }
 }

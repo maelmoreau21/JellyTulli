@@ -22,7 +22,7 @@
     "techCron": "Automatic task scheduler",
     "techNextAuth": "Authentication via Jellyfin",
     "techNextjs": "Full-stack React framework with App Router",
-    "techPrisma": "ORM for PostgreSQL",
+    "techPrisma": "Prisma ORM",
     "techReact": "User interface library",
     "techRecharts": "React charting library",
     "technologies": "Technologies",
@@ -691,7 +691,9 @@
     "settings": "Settings",
     "users": "Users",
     "serverCompare": "Server Compare",
-    "pluginHealth": "Plugin Health"
+    "pluginHealth": "Plugin Health",
+    "backupServerActive": "Backup server active",
+    "backupServerDesc": "Connected to {server}. The primary server is unavailable."
   },
   "network": {
     "audioHDNotSupported": "HD audio not supported",
@@ -942,7 +944,25 @@
     "newSecondaryServer": "New secondary server",
     "allowAuthFallback": "Allow this server for auth fallback",
     "addThisServer": "Add this server",
-    "addServerPermanentDesc": "The \"Add server\" button remains available to add as many as needed."
+    "addServerPermanentDesc": "The \"Add server\" button remains available to add as many as needed.",
+    "overviewTitle": "Overview",
+    "summary": "Summary",
+    "overviewSummaryDesc": "Quick summary of settings and states (e.g., plugin connected, recent backups, scheduled tasks).",
+    "quickActions": "Quick Actions",
+    "quickActionsDesc": "Buttons and shortcuts for frequent actions.",
+    "maxConcurrentTranscodesTitle": "Simultaneous Transcodes Threshold",
+    "maxConcurrentTranscodesDesc": "0 = disabled. Alert if the number exceeds this threshold.",
+    "backupsCount": "Backups",
+    "totalSize": "Total Size",
+    "latestBackup": "Latest Backup",
+    "quickActionsBackupDesc": "Create an immediate backup or export the current database state.",
+    "quickActionsRestoreDesc": "Load a backup JSON file then restore the database.",
+    "backupHistory": "Backup History",
+    "backupHistoryDesc": "Restore or delete an existing backup.",
+    "file": "File",
+    "actions": "Actions",
+    "confirmDeleteBackup": "Delete this backup?",
+    "confirmRestoreBackup": "Restoring will replace your current database. Continue?"
   },
   "timeRange": {
     "allTime": "All time",

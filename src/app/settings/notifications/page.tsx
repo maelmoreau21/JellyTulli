@@ -169,10 +169,10 @@ export default function SettingsNotificationsPage() {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="max-transcodes">Seuil de Transcodes Simultanés</Label>
+                                <Label htmlFor="max-transcodes">{t('maxConcurrentTranscodesTitle')}</Label>
                                 <div className="flex items-center gap-3">
                                     <Input id="max-transcodes" type="number" min={0} value={maxConcurrentTranscodes} onChange={(e) => setMaxConcurrentTranscodes(parseInt(e.target.value) || 0)} className="w-24 font-mono" />
-                                    <p className="text-xs text-muted-foreground">0 = désactivé. Alerte si le nombre dépasse ce seuil.</p>
+                                    <p className="text-xs text-muted-foreground">{t('maxConcurrentTranscodesDesc')}</p>
                                 </div>
                             </div>
                         </div>

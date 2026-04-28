@@ -57,7 +57,7 @@ export default function SettingsDataBackupsPage() {
     };
 
     const handleDelete = async (fileName: string) => {
-        if (!confirm("Supprimer cette sauvegarde ?")) return;
+        if (!confirm(t("confirmDeleteBackup"))) return;
         setMsg(null);
         try {
             const res = await fetch("/api/backup/auto/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileName }) });
@@ -74,7 +74,7 @@ export default function SettingsDataBackupsPage() {
     };
 
     const handleRestore = async (fileName: string) => {
-        if (!confirm("La restauration remplacera votre base actuelle. Continuer ?")) return;
+        if (!confirm(t("confirmRestoreBackup"))) return;
         setMsg(null);
         try {
             const res = await fetch("/api/backup/auto/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileName }) });
@@ -141,15 +141,15 @@ export default function SettingsDataBackupsPage() {
 
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         <div className="app-surface-soft rounded-lg border p-4">
-                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Sauvegardes</div>
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("backupsCount")}</div>
                             <div className="mt-1 text-2xl font-semibold">{totalBackups}</div>
                         </div>
                         <div className="app-surface-soft rounded-lg border p-4">
-                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Taille totale</div>
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("totalSize")}</div>
                             <div className="mt-1 text-2xl font-semibold">{totalSizeMb.toFixed(2)} {tCommon("mb")}</div>
                         </div>
                         <div className="app-surface-soft rounded-lg border p-4">
-                            <div className="text-xs uppercase tracking-wide text-muted-foreground">Dernière sauvegarde</div>
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">{t("latestBackup")}</div>
                             <div className="mt-1 text-sm font-medium flex items-center gap-1.5">
                                 <Clock3 className="w-4 h-4 text-amber-400" />
                                 {latestBackup ? new Date(latestBackup.date).toLocaleString() : "-"}
@@ -160,8 +160,8 @@ export default function SettingsDataBackupsPage() {
                     <div className="grid gap-4 lg:grid-cols-3">
                         <div className="lg:col-span-2 app-surface-soft rounded-lg border p-4 space-y-3">
                             <div>
-                                <h3 className="font-semibold">Actions rapides</h3>
-                                <p className="text-xs text-muted-foreground mt-1">Créer une sauvegarde immédiate ou exporter l&apos;état actuel de la base.</p>
+                                <h3 className="font-semibold">{t("quickActions")}</h3>
+                                <p className="text-xs text-muted-foreground mt-1">{t("quickActionsBackupDesc")}</p>
                             </div>
                             <div className="flex flex-wrap gap-2 items-center">
                                 <Button onClick={triggerBackup} disabled={running}>
@@ -176,8 +176,8 @@ export default function SettingsDataBackupsPage() {
 
                         <div className="app-surface-soft rounded-lg border p-4 space-y-3">
                             <div>
-                                <h3 className="font-semibold">Importer une sauvegarde</h3>
-                                <p className="text-xs text-muted-foreground mt-1">Chargez un fichier JSON de sauvegarde puis restaurez la base.</p>
+                                <h3 className="font-semibold">{t("importBackup")}</h3>
+                                <p className="text-xs text-muted-foreground mt-1">{t("quickActionsRestoreDesc")}</p>
                             </div>
                             <Label className="text-sm">{t("importBackup")}</Label>
                             <Input type="file" accept=".json,application/json" ref={fileRef} />
@@ -190,16 +190,16 @@ export default function SettingsDataBackupsPage() {
 
                     <div className="app-surface-soft rounded-lg border overflow-hidden">
                         <div className="px-4 py-3 border-b border-zinc-200/50 dark:border-zinc-800/50">
-                            <h3 className="font-semibold">Historique des sauvegardes</h3>
-                            <p className="text-xs text-muted-foreground mt-1">Restaurez ou supprimez une sauvegarde existante.</p>
+                            <h3 className="font-semibold">{t("backupHistory")}</h3>
+                            <p className="text-xs text-muted-foreground mt-1">{t("backupHistoryDesc")}</p>
                         </div>
                         <Table className="table-fixed">
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Fichier</TableHead>
+                                    <TableHead>{t("file")}</TableHead>
                                     <TableHead>{tCommon("mb")}</TableHead>
                                     <TableHead>{t("day")}</TableHead>
-                                    <TableHead>Actions</TableHead>
+                                    <TableHead>{t("actions")}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>

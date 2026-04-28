@@ -22,7 +22,7 @@
     "techCron": "Automatische taakplanner",
     "techNextAuth": "Authenticatie via Jellyfin",
     "techNextjs": "Full-stack React-framework met App Router",
-    "techPrisma": "ORM voor PostgreSQL",
+    "techPrisma": "Prisma ORM",
     "techReact": "Bibliotheek voor gebruikersinterfaces",
     "techRecharts": "React-bibliotheek voor grafieken",
     "technologies": "Technologieën",
@@ -63,7 +63,8 @@
     "vsAverage": "vs gem.",
     "watchTime": "Kijktijd",
     "weekdays": "Zo,Ma,Di,Wo,Do,Vr,Za",
-    "yearlyActivity": "Jaarlijkse activiteit"
+    "yearlyActivity": "Jaarlijkse activiteit",
+    "viewLogs": "View logs"
   },
   "cleanup": {
     "abandoned": "Verlaten",
@@ -191,7 +192,8 @@
     "unknownSeries": "Onbekende serie",
     "view": "weergave",
     "viewers": "kijkers",
-    "views": "weergaven"
+    "views": "weergaven",
+    "directStream": "Direct stream"
   },
   "dashboard": {
     "abandoned": "Verlaten",
@@ -420,7 +422,8 @@
     "subtitles": "Ondertitels",
     "subtitlesDesc": "Ingeschakeld vs uitgeschakeld en talen.",
     "worstCompletion": "Slechtste voltooiingsgraden",
-    "worstCompletionDesc": "Top 5 meest herhaaldelijk verlaten media."
+    "worstCompletionDesc": "Top 5 meest herhaaldelijk verlaten media.",
+    "unknown": "Unknown"
   },
   "hardware": {
     "cpuUsage": "CPU-gebruik",
@@ -439,7 +442,8 @@
     "timelineView": "Timeline View",
     "cardsView": "Cards View",
     "transcodeAbbr": "TC",
-    "directPlayAbbr": "DP"
+    "directPlayAbbr": "DP",
+    "unknown": "Unknown"
   },
   "login": {
     "loadingForm": "Formulier laden...",
@@ -691,7 +695,9 @@
     "settings": "Instellingen",
     "users": "Gebruikers",
     "serverCompare": "Server Compare",
-    "pluginHealth": "Plugin Health"
+    "pluginHealth": "Plugin Health",
+    "backupServerActive": "Backup server active",
+    "backupServerDesc": "Connected to {server}. The primary server is unavailable."
   },
   "network": {
     "audioHDNotSupported": "HD-audio niet ondersteund",
@@ -784,7 +790,7 @@
     "libraryRules": "Regeln pro Bibliothek",
     "libraryRulesDesc": "Steuern Sie Abbruch- und Abschluss-Schwellenwerte pro Bibliothek. Sie können den Abschluss für einige Bibliotheken (z. B. Musik) deaktivieren.",
     "manage": "Beheren",
-    "maxConcurrentTranscodesDesc": "0 = uitgeschakeld. Waarschuw wanneer dit aantal deze drempel overschrijdt.",
+    "maxConcurrentTranscodesDesc": "0 = uitgeschakeld. Waarschuwing als het aantal deze drempel overschrijdt.",
     "maxConcurrentTranscodesLabel": "Maximaal gelijktijdige transcoderingen",
     "maxHeight": "Max hoogte (px)",
     "maxWidth": "Max breedte (px)",
@@ -942,7 +948,28 @@
     "newSecondaryServer": "Nieuwe secundaire server",
     "allowAuthFallback": "Sta deze server toe voor auth fallback",
     "addThisServer": "Voeg deze server toe",
-    "addServerPermanentDesc": "De \"Server toevoegen\" knop blijft beschikbaar om er zoveel toe te voegen als nodig."
+    "addServerPermanentDesc": "De \"Server toevoegen\" knop blijft beschikbaar om er zoveel toe te voegen als nodig.",
+    "overviewTitle": "Overzicht",
+    "summary": "Samenvatting",
+    "overviewSummaryDesc": "Snel overzicht van instellingen en statussen (bijv. plugin verbonden, recente back-ups, geplande taken).",
+    "quickActions": "Snelle acties",
+    "quickActionsDesc": "Knoppen en snelkoppelingen voor veelvoorkomende acties.",
+    "maxConcurrentTranscodesTitle": "Drempel voor gelijktijdige transcodes",
+    "backupsCount": "Back-ups",
+    "totalSize": "Totale grootte",
+    "latestBackup": "Laatste back-up",
+    "quickActionsBackupDesc": "Maak direct een back-up of exporteer de huidige databasestatus.",
+    "quickActionsRestoreDesc": "Laad een back-up JSON-bestand en herstel de database.",
+    "backupHistory": "Back-upgeschiedenis",
+    "backupHistoryDesc": "Herstel of verwijder een bestaande back-up.",
+    "file": "Bestand",
+    "actions": "Acties",
+    "confirmDeleteBackup": "Deze back-up verwijderen?",
+    "confirmRestoreBackup": "Herstel vervangt uw huidige database. Doorgaan?",
+    "backupError": "Error creating backup.",
+    "deleteError": "Error deleting backup.",
+    "restoreError": "Error restoring backup.",
+    "saving": "Saving..."
   },
   "timeRange": {
     "allTime": "Altijd",
@@ -1172,5 +1199,62 @@
     "filterAllEvents": "All events",
     "filterNewCountrySuccess": "Successful login from a new country",
     "filterIpBurst": "Same IP >= {threshold} attempts"
+  },
+  "anomalyChartsDesc": "14-day view of monitor, sync and backup errors, plus detected auto-cleanups.",
+  "anomalyChartsTitle": "Anomaly charts",
+  "dbWithoutRedis": "DB without Redis",
+  "dbWithoutRedisDesc": "ActiveStream records are present in the database but missing from the Redis cache.",
+  "excludedLibrariesDesc": "Libraries completely ignored for logs and analytics.",
+  "excludedLibrariesTitle": "Excluded libraries",
+  "lastPoll": "Last poll",
+  "logHealth": "Log health",
+  "logHealthDesc": "Overview of the monitor, orphan sessions, auto-closures and excluded libraries.",
+  "monitor": "Monitor",
+  "monitorStatusError": "Error",
+  "monitorStatusOk": "OK",
+  "multiServerComparator": {
+    "desc": "Compare current load, transcoding pressure and heartbeat freshness across Jellyfin servers.",
+    "disabled": "This view requires multi-server mode. Set JELLYTRACK_MODE=multi to enable.",
+    "title": "Multi-server Comparator"
+  },
+  "never": "Never",
+  "noExcludedLibraries": "No excluded libraries.",
+  "noOrphanPlaybacks": "No orphan playback detected.",
+  "openPlaybackOrphans": "Open playback orphans",
+  "orphanPlaybacksDesc": "Entries marked open but without an active playback stream.",
+  "orphanPlaybacksTitle": "Open orphan playbacks",
+  "playbackHistoryNote": "PlaybackHistory open without an associated ActiveStream.",
+  "recentClosuresDesc": "Summary of cleanups performed by monitor, sync and backups.",
+  "recentClosuresTitle": "Recent auto-closures",
+  "redisOrphan": "Redis orphan keys",
+  "redisOrphanDesc": "Redis keys referencing streams without a corresponding ActiveStream.",
+  "running": "Running",
+  "system": {
+    "colMessage": "Message",
+    "colSource": "Source",
+    "colUser": "Actor",
+    "typeAudit": "Audit",
+    "typeHealth": "Health"
+  },
+  "timeline": {
+    "label": {
+      "audio_change": "Audio change",
+      "default": "Event",
+      "pause": "Pause",
+      "seek": "Seek",
+      "stop": "Stop",
+      "subtitle_change": "Subtitle change"
+    },
+    "legend": {
+      "audio": "Audio",
+      "pause": "Pause",
+      "subtitles": "Subtitles"
+    },
+    "noEvents": "No events recorded.",
+    "stop": "Stop",
+    "title": "Timeline",
+    "toggle": {
+      "exact": "Exact"
+    }
   }
 }
