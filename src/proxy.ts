@@ -110,6 +110,6 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization files)
          */
-        "/((?!api/auth|api/plugin/events|login|favicon.ico|_next/static|_next/image).*)",
+        "/((?!api/auth|api/plugin/events|login|favicon\\.ico|logo\\.svg|icon\\.svg|_next/static|_next/image).*)",
     ],
 };

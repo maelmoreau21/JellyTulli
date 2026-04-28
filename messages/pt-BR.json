@@ -22,7 +22,7 @@
     "techCron": "Agendador automático de tarefas",
     "techNextAuth": "Autenticação via Jellyfin",
     "techNextjs": "Framework React full-stack com App Router",
-    "techPrisma": "ORM para PostgreSQL",
+    "techPrisma": "Prisma ORM",
     "techReact": "Biblioteca para interfaces de usuário",
     "techRecharts": "Biblioteca de gráficos React",
     "technologies": "Tecnologias",
@@ -63,7 +63,8 @@
     "vsAverage": "vs méd.",
     "watchTime": "Tempo assistido",
     "weekdays": "Dom,Seg,Ter,Qua,Qui,Sex,Sáb",
-    "yearlyActivity": "Atividade anual"
+    "yearlyActivity": "Atividade anual",
+    "viewLogs": "View logs"
   },
   "cleanup": {
     "abandoned": "Abandonado",
@@ -191,7 +192,8 @@
     "unknownSeries": "Série desconhecida",
     "view": "visualização",
     "viewers": "espectadores",
-    "views": "visualizações"
+    "views": "visualizações",
+    "directStream": "Direct stream"
   },
   "dashboard": {
     "abandoned": "Abandonado",
@@ -420,7 +422,8 @@
     "subtitles": "Legendas",
     "subtitlesDesc": "Ativadas vs desativadas e idiomas.",
     "worstCompletion": "Piores taxas de conclusão",
-    "worstCompletionDesc": "Top 5 mídias mais repetidamente abandonadas."
+    "worstCompletionDesc": "Top 5 mídias mais repetidamente abandonadas.",
+    "unknown": "Unknown"
   },
   "hardware": {
     "cpuUsage": "Uso de CPU",
@@ -439,7 +442,8 @@
     "timelineView": "Timeline View",
     "cardsView": "Cards View",
     "transcodeAbbr": "TC",
-    "directPlayAbbr": "DP"
+    "directPlayAbbr": "DP",
+    "unknown": "Unknown"
   },
   "login": {
     "loadingForm": "Carregando formulário...",
@@ -531,7 +535,17 @@
     "smartIpBurstLabel": "IPs with abnormal activity",
     "smartIpBurstItem": "{ip}: {count} attempts in 24h",
     "smartNewCountryTag": "New country",
-    "smartIpBurstTag": "{count} attempts/24h"
+    "smartIpBurstTag": "{count} attempts/24h",
+    "tabApplication": "Aplicação",
+    "tabSystem": "Sistema",
+    "system": {
+      "colAction": "Ação",
+      "colSource": "Fonte",
+      "colMessage": "Mensagem",
+      "colUser": "Ator",
+      "typeAudit": "Auditoria",
+      "typeHealth": "Saúde"
+    }
   },
   "media": {
     "1080pLabel": "1080p FHD",
@@ -663,7 +677,10 @@
     "markerIntroStart": "Opening credits start",
     "markerIntroEnd": "Opening credits end",
     "markerCreditsStart": "End credits start",
-    "markerCustom": "Metadata marker"
+    "markerCustom": "Metadata marker",
+    "cast": "Elenco",
+    "backdrop": "Imagem de fundo",
+    "castDesc": "Atores e equipe técnica."
   },
   "nav": {
     "cleanup": "Limpeza",
@@ -678,7 +695,9 @@
     "settings": "Configurações",
     "users": "Usuários",
     "serverCompare": "Server Compare",
-    "pluginHealth": "Plugin Health"
+    "pluginHealth": "Plugin Health",
+    "backupServerActive": "Backup server active",
+    "backupServerDesc": "Connected to {server}. The primary server is unavailable."
   },
   "network": {
     "audioHDNotSupported": "Áudio HD não suportado",
@@ -880,7 +899,77 @@
     "legacyRulesDesc": "Some old exclusions could not be automatically linked to a server+library pair. You can remove them manually below.",
     "legacyGlobalExclusionsTitle": "Global exclusions",
     "legacyOrphanExclusionsTitle": "Unavailable server/library exclusions",
-    "removeExclusionLabel": "Remove this exclusion"
+    "removeExclusionLabel": "Remove this exclusion",
+    "jellyfinConnectionDesc": "Um bloco por servidor: configurações do Jellyfin + conexão do plugin. O servidor principal está bloqueado.",
+    "loadError": "Impossível carregar",
+    "networkErrorFetchServers": "Erro de rede ao carregar servidores.",
+    "globalPluginKeySuccess": "Chave global do plugin gerada. Copie agora as chaves do servidor (a chave original não poderá ser recuperada depois).",
+    "globalPluginKeyError": "Impossível gerar a chave global do plugin.",
+    "pluginKeyFetchError": "Impossível recuperar a chave do plugin.",
+    "networkErrorDeriveKey": "Erro de rede ao recuperar a chave do plugin.",
+    "copyKeyError": "Impossível copiar a chave do plugin.",
+    "serverPluginKeyDerived": "Chave do plugin do servidor derivada da chave global atual.",
+    "serverPluginKeyDeriveError": "Impossível derivar a chave do plugin do servidor.",
+    "addServerError": "Erro ao adicionar o servidor.",
+    "serverAddedSuccess": "Servidor adicionado.",
+    "networkErrorAddServer": "Erro de rede ao adicionar o servidor.",
+    "primaryServerOffline": "Servidor principal indisponível",
+    "fallbackServerInUse": "Conexão de backup disponível em {name}.",
+    "globalPluginKeyMissing": "Chave global do plugin ausente",
+    "globalPluginKeyMissingDesc": "Gere-a para ativar as chaves de plugin de cada servidor.",
+    "generateGlobalPluginKey": "Gerar chave global do plugin",
+    "loadingServers": "Carregando servidores...",
+    "noServersConfigured": "Nenhum servidor configurado.",
+    "primaryServerLabel": "Servidor principal",
+    "secondaryServerLabel": "Servidor secundário",
+    "jellyfinConnected": "Jellyfin conectado",
+    "jellyfinOffline": "Jellyfin offline",
+    "missingApiKey": "Chave API ausente",
+    "pluginReady": "Plugin pronto",
+    "pluginNotConfigured": "Plugin não configurado",
+    "serverNameLabel": "Nome do servidor",
+    "serverUrlLabel": "URL do servidor",
+    "serverApiKeyLabel": "Chave API do servidor",
+    "notConfigured": "não configurado",
+    "serverLockedDesc": "Servidor principal bloqueado: estes campos vêm da configuração Docker/.env.",
+    "pluginConnectionFor": "Conexão do plugin ({name})",
+    "lastHeartbeat": "Último heartbeat do plugin: {date}",
+    "pluginUrlLabel": "URL do plugin",
+    "copyUrl": "Copiar URL",
+    "urlCopied": "URL copiada",
+    "serverPluginKeyLabel": "Chave do plugin do servidor",
+    "clickToShow": "Clique no olho para mostrar",
+    "generateGlobalFirst": "Gere primeiro a chave global do plugin",
+    "keyCopied": "Chave copiada",
+    "copyKey": "Copiar chave",
+    "deriveServerKey": "Derivar chave do servidor",
+    "hideAddForm": "Ocultar formulário",
+    "addServer": "Adicionar servidor",
+    "newSecondaryServer": "Novo servidor secundário",
+    "allowAuthFallback": "Permitir este servidor para backup de autenticação",
+    "addThisServer": "Adicionar este servidor",
+    "addServerPermanentDesc": "O botão \"Adicionar servidor\" permanece disponível para adicionar quantos forem necessários.",
+    "overviewTitle": "Overview",
+    "summary": "Summary",
+    "overviewSummaryDesc": "Quick summary of settings and states (e.g., plugin connected, recent backups, scheduled tasks).",
+    "quickActions": "Quick Actions",
+    "quickActionsDesc": "Buttons and shortcuts for frequent actions.",
+    "maxConcurrentTranscodesTitle": "Simultaneous Transcodes Threshold",
+    "backupsCount": "Backups",
+    "totalSize": "Total Size",
+    "latestBackup": "Latest Backup",
+    "quickActionsBackupDesc": "Create an immediate backup or export the current database state.",
+    "quickActionsRestoreDesc": "Load a backup JSON file then restore the database.",
+    "backupHistory": "Backup History",
+    "backupHistoryDesc": "Restore or delete an existing backup.",
+    "file": "File",
+    "actions": "Actions",
+    "confirmDeleteBackup": "Delete this backup?",
+    "confirmRestoreBackup": "Restoring will replace your current database. Continue?",
+    "backupError": "Error creating backup.",
+    "deleteError": "Error deleting backup.",
+    "restoreError": "Error restoring backup.",
+    "saving": "Saving..."
   },
   "timeRange": {
     "allTime": "Todo o período",
@@ -1110,5 +1199,62 @@
     "filterAllEvents": "All events",
     "filterNewCountrySuccess": "Successful login from a new country",
     "filterIpBurst": "Same IP >= {threshold} attempts"
+  },
+  "anomalyChartsDesc": "14-day view of monitor, sync and backup errors, plus detected auto-cleanups.",
+  "anomalyChartsTitle": "Anomaly charts",
+  "dbWithoutRedis": "DB without Redis",
+  "dbWithoutRedisDesc": "ActiveStream records are present in the database but missing from the Redis cache.",
+  "excludedLibrariesDesc": "Libraries completely ignored for logs and analytics.",
+  "excludedLibrariesTitle": "Excluded libraries",
+  "lastPoll": "Last poll",
+  "logHealth": "Log health",
+  "logHealthDesc": "Overview of the monitor, orphan sessions, auto-closures and excluded libraries.",
+  "monitor": "Monitor",
+  "monitorStatusError": "Error",
+  "monitorStatusOk": "OK",
+  "multiServerComparator": {
+    "desc": "Compare current load, transcoding pressure and heartbeat freshness across Jellyfin servers.",
+    "disabled": "This view requires multi-server mode. Set JELLYTRACK_MODE=multi to enable.",
+    "title": "Multi-server Comparator"
+  },
+  "never": "Never",
+  "noExcludedLibraries": "No excluded libraries.",
+  "noOrphanPlaybacks": "No orphan playback detected.",
+  "openPlaybackOrphans": "Open playback orphans",
+  "orphanPlaybacksDesc": "Entries marked open but without an active playback stream.",
+  "orphanPlaybacksTitle": "Open orphan playbacks",
+  "playbackHistoryNote": "PlaybackHistory open without an associated ActiveStream.",
+  "recentClosuresDesc": "Summary of cleanups performed by monitor, sync and backups.",
+  "recentClosuresTitle": "Recent auto-closures",
+  "redisOrphan": "Redis orphan keys",
+  "redisOrphanDesc": "Redis keys referencing streams without a corresponding ActiveStream.",
+  "running": "Running",
+  "system": {
+    "colMessage": "Message",
+    "colSource": "Source",
+    "colUser": "Actor",
+    "typeAudit": "Audit",
+    "typeHealth": "Health"
+  },
+  "timeline": {
+    "label": {
+      "audio_change": "Audio change",
+      "default": "Event",
+      "pause": "Pause",
+      "seek": "Seek",
+      "stop": "Stop",
+      "subtitle_change": "Subtitle change"
+    },
+    "legend": {
+      "audio": "Audio",
+      "pause": "Pause",
+      "subtitles": "Subtitles"
+    },
+    "noEvents": "No events recorded.",
+    "stop": "Stop",
+    "title": "Timeline",
+    "toggle": {
+      "exact": "Exact"
+    }
   }
 }

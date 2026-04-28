@@ -22,7 +22,7 @@
     "techCron": "Automatischer Aufgabenplaner",
     "techNextAuth": "Authentifizierung über Jellyfin",
     "techNextjs": "Full-Stack React-Framework mit App Router",
-    "techPrisma": "ORM für PostgreSQL",
+    "techPrisma": "Prisma ORM",
     "techReact": "Bibliothek für Benutzeroberflächen",
     "techRecharts": "React-Bibliothek für Diagramme",
     "technologies": "Technologien",
@@ -63,7 +63,8 @@
     "vsAverage": "vs. Durchschn.",
     "watchTime": "Watch time",
     "weekdays": "Sun,Mon,Tue,Wed,Thu,Fri,Sat",
-    "yearlyActivity": "Yearly Activity"
+    "yearlyActivity": "Yearly Activity",
+    "viewLogs": "View logs"
   },
   "cleanup": {
     "abandoned": "Abgebrochen",
@@ -191,7 +192,8 @@
     "unknownSeries": "Unknown series",
     "view": "view",
     "viewers": "viewers",
-    "views": "views"
+    "views": "views",
+    "directStream": "Direct stream"
   },
   "dashboard": {
     "abandoned": "Abandoned",
@@ -420,7 +422,8 @@
     "subtitles": "Subtitles",
     "subtitlesDesc": "Enabled vs Disabled and languages.",
     "worstCompletion": "Worst Completion Rates",
-    "worstCompletionDesc": "Top 5 most repeatedly abandoned media."
+    "worstCompletionDesc": "Top 5 most repeatedly abandoned media.",
+    "unknown": "Unknown"
   },
   "hardware": {
     "cpuUsage": "CPU Usage",
@@ -439,7 +442,8 @@
     "timelineView": "Timeline View",
     "cardsView": "Cards View",
     "transcodeAbbr": "TC",
-    "directPlayAbbr": "DP"
+    "directPlayAbbr": "DP",
+    "unknown": "Unknown"
   },
   "login": {
     "loadingForm": "Loading form...",
@@ -531,7 +535,17 @@
     "smartIpBurstLabel": "IPs with abnormal activity",
     "smartIpBurstItem": "{ip}: {count} attempts in 24h",
     "smartNewCountryTag": "New country",
-    "smartIpBurstTag": "{count} attempts/24h"
+    "smartIpBurstTag": "{count} attempts/24h",
+    "tabApplication": "Anwendung",
+    "tabSystem": "System",
+    "system": {
+      "colAction": "Aktion",
+      "colSource": "Quelle",
+      "colMessage": "Nachricht",
+      "colUser": "Akteur",
+      "typeAudit": "Audit",
+      "typeHealth": "Gesundheit"
+    }
   },
   "media": {
     "1080pLabel": "1080p FHD",
@@ -663,7 +677,10 @@
     "markerIntroStart": "Opening credits start",
     "markerIntroEnd": "Opening credits end",
     "markerCreditsStart": "End credits start",
-    "markerCustom": "Metadata marker"
+    "markerCustom": "Metadata marker",
+    "cast": "Besetzung",
+    "backdrop": "Hintergrundbild",
+    "castDesc": "Schauspieler und Filmteam."
   },
   "nav": {
     "cleanup": "Bereinigung",
@@ -678,7 +695,9 @@
     "settings": "Einstellungen",
     "users": "Benutzer",
     "serverCompare": "Server Compare",
-    "pluginHealth": "Plugin Health"
+    "pluginHealth": "Plugin Health",
+    "backupServerActive": "Backup server active",
+    "backupServerDesc": "Connected to {server}. The primary server is unavailable."
   },
   "network": {
     "audioHDNotSupported": "HD audio not supported",
@@ -880,7 +899,77 @@
     "legacyRulesDesc": "Some old exclusions could not be automatically linked to a server+library pair. You can remove them manually below.",
     "legacyGlobalExclusionsTitle": "Global exclusions",
     "legacyOrphanExclusionsTitle": "Unavailable server/library exclusions",
-    "removeExclusionLabel": "Remove this exclusion"
+    "removeExclusionLabel": "Remove this exclusion",
+    "jellyfinConnectionDesc": "Ein Block pro Server: Jellyfin-Einstellungen + Plugin-Verbindung. Der Hauptserver ist gesperrt.",
+    "loadError": "Laden nicht möglich",
+    "networkErrorFetchServers": "Netzwerkfehler beim Laden der Server.",
+    "globalPluginKeySuccess": "Globaler Plugin-Schlüssel generiert. Kopieren Sie jetzt die Server-Schlüssel (der Rohschlüssel kann danach nicht mehr abgerufen werden).",
+    "globalPluginKeyError": "Globaler Plugin-Schlüssel konnte nicht generiert werden.",
+    "pluginKeyFetchError": "Plugin-Schlüssel konnte nicht abgerufen werden.",
+    "networkErrorDeriveKey": "Netzwerkfehler beim Abrufen des Plugin-Schlüssels.",
+    "copyKeyError": "Plugin-Schlüssel konnte nicht kopiert werden.",
+    "serverPluginKeyDerived": "Server-Plugin-Schlüssel vom aktuellen globalen Schlüssel abgeleitet.",
+    "serverPluginKeyDeriveError": "Server-Plugin-Schlüssel konnte nicht abgeleitet werden.",
+    "addServerError": "Fehler beim Hinzufügen des Servers.",
+    "serverAddedSuccess": "Server hinzugefügt.",
+    "networkErrorAddServer": "Netzwerkfehler beim Hinzufügen des Servers.",
+    "primaryServerOffline": "Hauptserver nicht verfügbar",
+    "fallbackServerInUse": "Fallback-Verbindung auf {name} verfügbar.",
+    "globalPluginKeyMissing": "Globaler Plugin-Schlüssel fehlt",
+    "globalPluginKeyMissingDesc": "Generieren Sie ihn, um Plugin-Schlüssel für jeden Server zu aktivieren.",
+    "generateGlobalPluginKey": "Globalen Plugin-Schlüssel generieren",
+    "loadingServers": "Server werden geladen...",
+    "noServersConfigured": "Keine Server konfiguriert.",
+    "primaryServerLabel": "Hauptserver",
+    "secondaryServerLabel": "Sekundärer Server",
+    "jellyfinConnected": "Jellyfin verbunden",
+    "jellyfinOffline": "Jellyfin offline",
+    "missingApiKey": "Fehlender API-Schlüssel",
+    "pluginReady": "Plugin bereit",
+    "pluginNotConfigured": "Plugin nicht konfiguriert",
+    "serverNameLabel": "Servername",
+    "serverUrlLabel": "Server-URL",
+    "serverApiKeyLabel": "Server-API-Schlüssel",
+    "notConfigured": "nicht konfiguriert",
+    "serverLockedDesc": "Hauptserver gesperrt: Diese Felder stammen aus der Docker/.env-Konfiguration.",
+    "pluginConnectionFor": "Plugin-Verbindung ({name})",
+    "lastHeartbeat": "Letzter Plugin-Heartbeat: {date}",
+    "pluginUrlLabel": "Plugin-URL",
+    "copyUrl": "URL kopieren",
+    "urlCopied": "URL kopiert",
+    "serverPluginKeyLabel": "Server-Plugin-Schlüssel",
+    "clickToShow": "Auge anklicken zum Anzeigen",
+    "generateGlobalFirst": "Zuerst globalen Plugin-Schlüssel generieren",
+    "keyCopied": "Schlüssel kopiert",
+    "copyKey": "Schlüssel kopieren",
+    "deriveServerKey": "Server-Schlüssel ableiten",
+    "hideAddForm": "Formular ausblenden",
+    "addServer": "Server hinzufügen",
+    "newSecondaryServer": "Neuer sekundärer Server",
+    "allowAuthFallback": "Diesen Server für Auth-Fallback zulassen",
+    "addThisServer": "Diesen Server hinzufügen",
+    "addServerPermanentDesc": "Die Schaltfläche \"Server hinzufügen\" bleibt verfügbar, um beliebig viele hinzuzufügen.",
+    "overviewTitle": "Übersicht",
+    "summary": "Zusammenfassung",
+    "overviewSummaryDesc": "Schnelle Übersicht über Einstellungen und Status (z.B. Plugin verbunden, letzte Backups, geplante Aufgaben).",
+    "quickActions": "Schnellzugriffe",
+    "quickActionsDesc": "Schaltflächen und Verknüpfungen für häufige Aktionen.",
+    "maxConcurrentTranscodesTitle": "Schwellenwert für gleichzeitige Transcodes",
+    "backupsCount": "Backups",
+    "totalSize": "Gesamtgröße",
+    "latestBackup": "Letztes Backup",
+    "quickActionsBackupDesc": "Sofortiges Backup erstellen oder den aktuellen Datenbankstatus exportieren.",
+    "quickActionsRestoreDesc": "Eine Backup-JSON-Datei laden und die Datenbank wiederherstellen.",
+    "backupHistory": "Backup-Verlauf",
+    "backupHistoryDesc": "Ein vorhandenes Backup wiederherstellen oder löschen.",
+    "file": "Datei",
+    "actions": "Aktionen",
+    "confirmDeleteBackup": "Dieses Backup löschen?",
+    "confirmRestoreBackup": "Durch das Wiederherstellen wird Ihre aktuelle Datenbank ersetzt. Fortfahren?",
+    "backupError": "Error creating backup.",
+    "deleteError": "Error deleting backup.",
+    "restoreError": "Error restoring backup.",
+    "saving": "Saving..."
   },
   "timeRange": {
     "allTime": "All time",
@@ -1110,5 +1199,62 @@
     "filterAllEvents": "All events",
     "filterNewCountrySuccess": "Successful login from a new country",
     "filterIpBurst": "Same IP >= {threshold} attempts"
+  },
+  "anomalyChartsDesc": "14-day view of monitor, sync and backup errors, plus detected auto-cleanups.",
+  "anomalyChartsTitle": "Anomaly charts",
+  "dbWithoutRedis": "DB without Redis",
+  "dbWithoutRedisDesc": "ActiveStream records are present in the database but missing from the Redis cache.",
+  "excludedLibrariesDesc": "Libraries completely ignored for logs and analytics.",
+  "excludedLibrariesTitle": "Excluded libraries",
+  "lastPoll": "Last poll",
+  "logHealth": "Log health",
+  "logHealthDesc": "Overview of the monitor, orphan sessions, auto-closures and excluded libraries.",
+  "monitor": "Monitor",
+  "monitorStatusError": "Error",
+  "monitorStatusOk": "OK",
+  "multiServerComparator": {
+    "desc": "Compare current load, transcoding pressure and heartbeat freshness across Jellyfin servers.",
+    "disabled": "This view requires multi-server mode. Set JELLYTRACK_MODE=multi to enable.",
+    "title": "Multi-server Comparator"
+  },
+  "never": "Never",
+  "noExcludedLibraries": "No excluded libraries.",
+  "noOrphanPlaybacks": "No orphan playback detected.",
+  "openPlaybackOrphans": "Open playback orphans",
+  "orphanPlaybacksDesc": "Entries marked open but without an active playback stream.",
+  "orphanPlaybacksTitle": "Open orphan playbacks",
+  "playbackHistoryNote": "PlaybackHistory open without an associated ActiveStream.",
+  "recentClosuresDesc": "Summary of cleanups performed by monitor, sync and backups.",
+  "recentClosuresTitle": "Recent auto-closures",
+  "redisOrphan": "Redis orphan keys",
+  "redisOrphanDesc": "Redis keys referencing streams without a corresponding ActiveStream.",
+  "running": "Running",
+  "system": {
+    "colMessage": "Message",
+    "colSource": "Source",
+    "colUser": "Actor",
+    "typeAudit": "Audit",
+    "typeHealth": "Health"
+  },
+  "timeline": {
+    "label": {
+      "audio_change": "Audio change",
+      "default": "Event",
+      "pause": "Pause",
+      "seek": "Seek",
+      "stop": "Stop",
+      "subtitle_change": "Subtitle change"
+    },
+    "legend": {
+      "audio": "Audio",
+      "pause": "Pause",
+      "subtitles": "Subtitles"
+    },
+    "noEvents": "No events recorded.",
+    "stop": "Stop",
+    "title": "Timeline",
+    "toggle": {
+      "exact": "Exact"
+    }
   }
 }

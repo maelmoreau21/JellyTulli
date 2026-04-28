@@ -347,7 +347,7 @@ export default function SettingsMediaPage() {
         { scope: "homevideos", label: tc("homevideos"), rule: completionRules.libraries.homevideos },
     ];
 
-    if (loading) return <div className="p-8 max-w-[900px] mx-auto">{tc("loading") || "Loading..."}</div>;
+    if (loading) return <div className="p-8 max-w-[900px] mx-auto">{tc("loading")}</div>;
 
     return (
         <div className="p-4 md:p-8 max-w-[1200px] mx-auto space-y-4">
@@ -355,9 +355,9 @@ export default function SettingsMediaPage() {
                 <CardHeader>
                     <CardTitle className="text-2xl flex items-center gap-2">
                         <Film className="w-6 h-6 text-cyan-500" />
-                        {t("mediaSettings") || "Paramètres Média"}
+                        {t("mediaSettings")}
                     </CardTitle>
-                    <CardDescription>{t("mediaSettingsDesc") || "Gérez les seuils de résolution et autres paramètres liés aux médias."}</CardDescription>
+                    <CardDescription>{t("mediaSettingsDesc")}</CardDescription>
                 </CardHeader>
 
                 <CardContent className="space-y-6">
@@ -381,10 +381,10 @@ export default function SettingsMediaPage() {
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold flex items-center gap-2">
                             <EyeOff className="w-5 h-5 text-orange-500" />
-                            {t("excludedLibrariesTitle") || "Bibliothèques exclues des statistiques"}
+                            {t("excludedLibrariesTitle")}
                         </h3>
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                            {t("excludedLibrariesDesc") || "Les bibliothèques désactivées ci-dessous seront exclues de toutes les statistiques du dashboard."}
+                            {t("excludedLibrariesDesc")}
                         </p>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
                             {t("serverScopeHint")}
