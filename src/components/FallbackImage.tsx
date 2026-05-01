@@ -18,7 +18,8 @@ interface FallbackImageProps {
 }
 
 export function FallbackImage({ src, alt, className, fill, width, height, unoptimized = true, sizes, loading = "lazy", priority = false }: FallbackImageProps) {
-    const [error, setError] = useState(!src || src.includes('undefined'));
+    const [failedSrc, setFailedSrc] = useState<string | null>(null);
+    const error = !src || src.includes('undefined') || failedSrc === src;
 
     if (error) {
         return (
@@ -41,7 +42,7 @@ export function FallbackImage({ src, alt, className, fill, width, height, unopti
             sizes={fill ? (sizes || "(max-width: 768px) 40vw, 180px") : sizes}
             loading={priority ? undefined : loading}
             priority={priority}
-            onError={() => setError(true)}
+            onError={() => setFailedSrc(src)}
         />
     );
 }

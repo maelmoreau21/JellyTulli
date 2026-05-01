@@ -1,7 +1,13 @@
-export function getJellyfinImageUrl(itemId: string, type: 'Primary' | 'Thumb' = 'Primary', fallbackId?: string): string {
-    let url = `/api/jellyfin/image?itemId=${itemId}&type=${type}`;
-    if (fallbackId) url += `&fallbackId=${fallbackId}`;
-    return url;
+export function getJellyfinImageUrl(
+    itemId: string,
+    type: 'Primary' | 'Thumb' | 'Backdrop' | 'Banner' | 'Logo' | 'Art' = 'Primary',
+    fallbackId?: string,
+    serverId?: string | null
+): string {
+    const params = new URLSearchParams({ itemId, type });
+    if (fallbackId) params.set("fallbackId", fallbackId);
+    if (serverId) params.set("serverId", serverId);
+    return `/api/jellyfin/image?${params.toString()}`;
 }
 
 export async function fetchJellyfinImage(itemId: string, type: string) {

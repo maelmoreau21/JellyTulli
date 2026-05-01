@@ -45,6 +45,8 @@ export async function GET(req: Request) {
             AudioStreamIndex?: number;
             subtitleStreamIndex?: number;
             SubtitleStreamIndex?: number;
+            bitrate?: number;
+            Bitrate?: number;
         }
 
         let liveStreams: any[] = []; // Final return array can stay any[] or be refined
@@ -102,19 +104,19 @@ export async function GET(req: Request) {
 
             liveStreams = activeStreamEntries.map((dbStream) => {
                 const payload = redisMap.get(`${dbStream.serverId}:${dbStream.sessionId}`) || {};
+                const itemMedia = dbStream.media;
                 
                 const isTranscoding = dbStream.playMethod === "Transcode" 
                     || payload?.isTranscoding === true
                     || payload?.IsTranscoding === true;
                     
-                const streamBitrate = dbStream.bitrate ?? payload?.bitrate ?? (itemMedia.size && itemMedia.durationMs ? Math.round(Number(itemMedia.size) * 8 / (Number(itemMedia.durationMs) / 1000)) : null);
+                const streamBitrate = dbStream.bitrate ?? payload?.bitrate ?? payload?.Bitrate ?? (itemMedia.size && itemMedia.durationMs ? Math.round(Number(itemMedia.size) * 8 / (Number(itemMedia.durationMs) / 1000)) : null);
                 if (streamBitrate) {
                     totalBandwidthMbps += streamBitrate / 1000000;
                 } else {
                     totalBandwidthMbps += isTranscoding ? 12 : 6;
                 }
 
-                const itemMedia = dbStream.media;
                 const parentMedia = itemMedia.parentId ? mediaHierarchyMap.get(`${dbStream.serverId}:${itemMedia.parentId}`) : null;
                 const grandparentMedia = parentMedia?.parentId ? mediaHierarchyMap.get(`${dbStream.serverId}:${parentMedia.parentId}`) : null;
 
@@ -174,6 +176,6 @@ export async function GET(req: Request) {
         });
     } catch (e: unknown) {
         console.error("[Live Streams API] Error:", e);
-        return NextResponse.json({ streams: [], count: 0, totalBandwidthMbps: 0 });
+        return NextResponse.json({ error: "Unable to load live streams." }, { status: 500 });
     }
 }

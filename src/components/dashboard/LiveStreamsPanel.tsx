@@ -36,9 +36,10 @@ interface LiveStream {
     posterItemId?: string | null;
 }
 
-function getImageUrl(itemId: string, type: string = 'Primary', fallbackId?: string) {
+function getImageUrl(itemId: string, type: string = 'Primary', fallbackId?: string, serverId?: string | null) {
     let url = `/api/jellyfin/image?itemId=${itemId}&type=${type}`;
     if (fallbackId) url += `&fallbackId=${fallbackId}`;
+    if (serverId) url += `&serverId=${serverId}`;
     return url;
 }
 
@@ -69,7 +70,7 @@ function StreamCard({ stream }: { stream: LiveStream }) {
                     {posterId ? (
                         <div className={`relative ${widthClass} ${aspectClass} bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10`}>
                             <FallbackImage
-                                src={getImageUrl(posterId, 'Primary', stream.parentItemId || undefined)}
+                                src={getImageUrl(posterId, 'Primary', stream.parentItemId || undefined, stream.serverId)}
                                 alt={stream.mediaTitle}
                                 fill
                                 className="object-cover"
@@ -140,7 +141,7 @@ function StreamCard({ stream }: { stream: LiveStream }) {
                     {posterId ? (
                         <div className={`relative ${widthClass} ${aspectClass} bg-muted rounded shrink-0 overflow-hidden ring-1 ring-white/10`}>
                             <FallbackImage
-                                src={getImageUrl(posterId, 'Primary', stream.parentItemId || undefined)}
+                                src={getImageUrl(posterId, 'Primary', stream.parentItemId || undefined, stream.serverId)}
                                 alt={stream.mediaTitle}
                                 fill
                                 className="object-cover"
@@ -235,7 +236,6 @@ const GANTT_COLORS = [
 
 function StreamTimeline({ stream, colorIndex }: { stream: LiveStream; colorIndex: number }) {
     const t = useTranslations('liveStreams');
-    const tc = useTranslations('common');
     const color = GANTT_COLORS[colorIndex % GANTT_COLORS.length];
     return (
         <div className="group flex items-center gap-3 py-1.5">
@@ -304,8 +304,10 @@ export function LiveStreamsPanel({
             const res = await fetch(`/api/streams${query ? `?${query}` : ""}`, { cache: "no-store" });
             if (res.ok) {
                 const data = await res.json();
-                setStreams(data.streams || []);
-                setBandwidth(data.totalBandwidthMbps || 0);
+                if (Array.isArray(data.streams)) {
+                    setStreams(data.streams);
+                    setBandwidth(data.totalBandwidthMbps || 0);
+                }
             }
         } catch {
             // silently ignore network errors
@@ -330,9 +332,11 @@ export function LiveStreamsPanel({
         };
 
         document.addEventListener("visibilitychange", handleVisibilityChange);
+        const firstFetchTimeout = setTimeout(fetchStreams, 0);
         startPolling();
 
         return () => {
+            clearTimeout(firstFetchTimeout);
             clearInterval(interval);
             document.removeEventListener("visibilitychange", handleVisibilityChange);
         };

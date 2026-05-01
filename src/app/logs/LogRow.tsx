@@ -216,7 +216,7 @@ export default function LogRow({ log, visibleColumns, onOpenDetails }: { log: Sa
                     <div className={`relative ${log.media?.type === 'Episode' ? 'aspect-video w-20' : isAudioMedia ? 'aspect-square w-12 md:w-14' : 'aspect-[2/3] w-12 md:w-14'} bg-muted rounded-md shrink-0 overflow-hidden ring-1 ring-zinc-200/50 dark:ring-white/10`}>
                       {log.media?.jellyfinMediaId ? (
                         <FallbackImage
-                          src={`/api/jellyfin/image?itemId=${log.media.jellyfinMediaId}&type=Primary${log.fallbackImageParentId ? `&fallbackId=${log.fallbackImageParentId}` : ''}`}
+                          src={`/api/jellyfin/image?itemId=${log.media.jellyfinMediaId}&type=Primary${log.fallbackImageParentId ? `&fallbackId=${log.fallbackImageParentId}` : ''}${log.serverId ? `&serverId=${log.serverId}` : ''}`}
                           alt={log.media?.title || 'Unknown'}
                           fill
                           className="object-cover"

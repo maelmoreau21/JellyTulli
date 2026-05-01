@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requireAdmin, isAuthError } from "@/lib/auth";
 import { ZAPPING_CONDITION } from "@/lib/statsUtils";
+import { normalizeBitrateToKbps } from "@/lib/bitrate";
 
 export const dynamic = "force-dynamic";
 
@@ -107,7 +108,7 @@ export async function GET(request: Request) {
     logs.forEach((log) => {
         const key = `${log.userId}:${log.mediaId}`;
         const active = activeMap.get(key) ?? null;
-        const bitrateVal = active?.bitrate ?? null;
+        const bitrateVal = normalizeBitrateToKbps(log.bitrate ?? active?.bitrate ?? null);
         const audioCodecVal = (log.audioCodec || (active ? active.audioCodec : '')) || '';
         const row = [
             log.id,

@@ -7,6 +7,7 @@ export type SafeTelemetryEvent = {
 
 export type SafeMedia = {
   id?: string;
+  serverId?: string | null;
   jellyfinMediaId?: string | null;
   title?: string | null;
   type?: string | null;
@@ -24,6 +25,7 @@ export type SafeUser = {
 
 export type SafeLog = {
   id: string;
+  serverId?: string | null;
   userId?: string | null;
   mediaId?: string | null;
   startedAt: string;
@@ -37,7 +39,10 @@ export type SafeLog = {
   clientName?: string | null;
   playMethod?: string | null;
   videoCodec?: string | null;
+  audioLanguage?: string | null;
   audioCodec?: string | null;
+  subtitleLanguage?: string | null;
+  subtitleCodec?: string | null;
   pauseCount?: number | null;
   audioChanges?: number | null;
   subtitleChanges?: number | null;

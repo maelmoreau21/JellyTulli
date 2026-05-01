@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchJellyfinImage } from "@/lib/jellyfin";
+import prisma from "@/lib/prisma";
+import { fetchJellyfinImage, fetchJellyfinJson } from "@/lib/jellyfinImageServer";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 
@@ -23,64 +24,64 @@ function normalizeCandidateId(value: unknown): string | null {
     return UUID_PATTERN.test(id) ? id : null;
 }
 
-async function fetchJellyfinItemMeta(itemId: string): Promise<JellyfinItemMeta | null> {
-    const baseUrl = process.env.JELLYFIN_URL;
-    const apiKey = process.env.JELLYFIN_API_KEY;
-    if (!baseUrl || !apiKey) return null;
+async function fetchJellyfinItemMeta(itemId: string, serverId?: string | null): Promise<JellyfinItemMeta | null> {
+    const data = await fetchJellyfinJson<Record<string, unknown>>(
+        `/Items/${encodeURIComponent(itemId)}?Fields=ParentId,SeasonId,SeriesId,AlbumId,Type`,
+        serverId
+    );
+    if (!data) return null;
 
-    try {
-        const url = `${baseUrl}/Items/${encodeURIComponent(itemId)}?Fields=ParentId,SeasonId,SeriesId,AlbumId,Type`;
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "X-Emby-Token": apiKey,
-            },
-            next: { revalidate: 3600 },
-        });
+    const id = normalizeCandidateId(data?.Id) || itemId;
 
-        if (!response.ok) return null;
-
-        const data = await response.json();
-        const id = normalizeCandidateId(data?.Id) || itemId;
-
-        return {
-            id,
-            type: typeof data?.Type === "string" ? data.Type : null,
-            parentId: normalizeCandidateId(data?.ParentId),
-            seasonId: normalizeCandidateId(data?.SeasonId),
-            seriesId: normalizeCandidateId(data?.SeriesId),
-            albumId: normalizeCandidateId(data?.AlbumId),
-        };
-    } catch {
-        return null;
-    }
+    return {
+        id,
+        type: typeof data?.Type === "string" ? data.Type : null,
+        parentId: normalizeCandidateId(data?.ParentId),
+        seasonId: normalizeCandidateId(data?.SeasonId),
+        seriesId: normalizeCandidateId(data?.SeriesId),
+        albumId: normalizeCandidateId(data?.AlbumId),
+    };
 }
 
-async function fetchSeriesSeasonCandidateIds(seriesId: string): Promise<string[]> {
-    const baseUrl = process.env.JELLYFIN_URL;
-    const apiKey = process.env.JELLYFIN_API_KEY;
-    if (!baseUrl || !apiKey) return [];
+async function fetchSeriesSeasonCandidateIds(seriesId: string, serverId?: string | null): Promise<string[]> {
+    const data = await fetchJellyfinJson<{ Items?: Array<Record<string, unknown>> }>(
+        `/Items?ParentId=${encodeURIComponent(seriesId)}&IncludeItemTypes=Season&Recursive=false&SortBy=SortName&SortOrder=Ascending&Limit=10`,
+        serverId
+    );
+    const items = Array.isArray(data?.Items) ? data.Items : [];
+    return items
+        .map((item) => normalizeCandidateId(item?.Id))
+        .filter((id): id is string => Boolean(id));
+}
 
-    try {
-        const url = `${baseUrl}/Items?ParentId=${encodeURIComponent(seriesId)}&IncludeItemTypes=Season&Recursive=false&SortBy=SortName&SortOrder=Ascending&Limit=10`;
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "X-Emby-Token": apiKey,
-            },
-            next: { revalidate: 3600 },
+async function fetchDatabaseCandidateIds(itemId: string, serverId?: string | null): Promise<string[]> {
+    const where = serverId
+        ? { serverId, jellyfinMediaId: itemId }
+        : { jellyfinMediaId: itemId };
+
+    const item = await prisma.media.findFirst({
+        where,
+        select: { serverId: true, parentId: true },
+    });
+
+    const candidates: string[] = [];
+    const addCandidate = (value: string | null | undefined) => {
+        const id = normalizeCandidateId(value);
+        if (!id || candidates.includes(id)) return;
+        candidates.push(id);
+    };
+
+    addCandidate(item?.parentId);
+
+    if (item?.parentId) {
+        const parent = await prisma.media.findFirst({
+            where: { serverId: item.serverId, jellyfinMediaId: item.parentId },
+            select: { parentId: true },
         });
-
-        if (!response.ok) return [];
-
-        const data = await response.json();
-        const items = Array.isArray(data?.Items) ? data.Items : [];
-        return items
-            .map((item) => normalizeCandidateId(item?.Id))
-            .filter((id): id is string => Boolean(id));
-    } catch {
-        return [];
+        addCandidate(parent?.parentId);
     }
+
+    return candidates;
 }
 
 export async function GET(req: NextRequest) {
@@ -94,6 +95,7 @@ export async function GET(req: NextRequest) {
     const itemId = searchParams.get("itemId");
     const type = searchParams.get("type") || "Primary";
     const fallbackId = searchParams.get("fallbackId");
+    const serverId = searchParams.get("serverId");
 
     if (!itemId) {
         return new NextResponse("Item ID is required", { status: 400 });
@@ -111,9 +113,12 @@ export async function GET(req: NextRequest) {
     if (fallbackId && !UUID_PATTERN.test(fallbackId)) {
         return new NextResponse("Invalid fallback ID format", { status: 400 });
     }
+    if (serverId && !UUID_PATTERN.test(serverId)) {
+        return new NextResponse("Invalid server ID format", { status: 400 });
+    }
 
     try {
-        let response = await fetchJellyfinImage(itemId, type);
+        let response = await fetchJellyfinImage(itemId, type, serverId);
         const attemptedIds = new Set<string>([itemId]);
 
         const tryCandidate = async (candidate: string | null | undefined): Promise<boolean> => {
@@ -121,7 +126,7 @@ export async function GET(req: NextRequest) {
             if (!candidateId || attemptedIds.has(candidateId)) return false;
 
             attemptedIds.add(candidateId);
-            const candidateResponse = await fetchJellyfinImage(candidateId, type);
+            const candidateResponse = await fetchJellyfinImage(candidateId, type, serverId);
             if (!candidateResponse.ok) return false;
 
             response = candidateResponse;
@@ -136,7 +141,7 @@ export async function GET(req: NextRequest) {
         // If still missing, walk known Jellyfin hierarchy IDs to match Jellyfin-like fallback behavior:
         // Episode -> Season -> Series, Track -> Album, Season -> Series.
         if (!response.ok) {
-            const itemMeta = await fetchJellyfinItemMeta(itemId);
+            const itemMeta = await fetchJellyfinItemMeta(itemId, serverId);
             const candidateIds: string[] = [];
             const addCandidate = (value: string | null | undefined) => {
                 const id = normalizeCandidateId(value);
@@ -144,6 +149,9 @@ export async function GET(req: NextRequest) {
                 candidateIds.push(id);
             };
 
+            for (const candidateId of await fetchDatabaseCandidateIds(itemId, serverId)) {
+                addCandidate(candidateId);
+            }
             addCandidate(itemMeta?.seasonId);
             addCandidate(itemMeta?.seriesId);
             addCandidate(itemMeta?.albumId);
@@ -152,7 +160,7 @@ export async function GET(req: NextRequest) {
             // Series can legitimately miss a primary image. In that case,
             // use the first available season poster as visual fallback.
             if ((itemMeta?.type || "").toLowerCase() === "series") {
-                const seasonCandidates = await fetchSeriesSeasonCandidateIds(itemId);
+                const seasonCandidates = await fetchSeriesSeasonCandidateIds(itemId, serverId);
                 for (const seasonId of seasonCandidates) {
                     addCandidate(seasonId);
                 }
